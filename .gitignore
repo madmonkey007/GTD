@@ -1,0 +1,120 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+# lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LifeTrace specific
+lifetrace/data/
+lifetrace/config/config.yaml
+
+# Frontend - Node.js cache and build artifacts
+**/node_modules/
+**/.next/
+**/out/
+**/.env.local
+**/.env.production
+**/.vercel
+**/dist-electron*/
+**/dist-electron-app*/
+**/dist/
+**/dist-backend*/
+**/dist-backend-app*/
+**/.pnpm-store/
+**/.yarn/
+**/.pnp.*
+**/.cache/
+**/tsconfig.tsbuildinfo
+
+# Temporary files
+*.log
+*.tmp
+.cache/
+.ruff_cache/
+
+# Build
+dist-backend/
+
+# Rust / Tauri
+**/target/
+**/target-clippy*/
+**/*.rs.bk
+**/Cargo.lock
+**/WixTools/
+**/gen/
+
+# Large model files
+*.onnx
+*.onnx.quant
+
+# Binary / compiled files
+*.exe
+*.dll
+*.node
+*.pyd
+
+# Electron / Desktop app builds
+**/release/
+**/electron/dist*/
+**/*.AppImage
+**/*.dmg
+**/*.deb
+**/*.rpm
+**/*.msi
+**/*.blockmap
+
+# Large media (keep small logos/icons)
+**/public/**/*.png
+**/public/**/*.jpg
+**/public/**/*.jpeg
+**/public/**/*.gif
+!**/public/favicon.ico
+!**/public/logo.png
+!**/public/icon.png
+
+# GitHub assets (large images)
+**/.github/assets/*.png
+**/.github/assets/*.jpg
+**/.github/assets/*.jpeg
+**/.github/assets/*.gif
+
+# Python model cache
+**/models/
+**/.cache/
+
+# Package lock files (keep pnpm-lock.yaml)
+package-lock.json
+yarn.lock
