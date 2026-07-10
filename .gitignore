@@ -118,3 +118,6 @@ dist-backend/
 # Package lock files (keep pnpm-lock.yaml)
 package-lock.json
 yarn.lock
+
+# GitHub Actions workflows (need workflow scope token to push)
+.github/workflows/
