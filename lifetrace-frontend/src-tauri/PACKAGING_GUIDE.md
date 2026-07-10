@@ -16,7 +16,7 @@ Island mode is **not packaged** yet (still in development).
 Run from the repository root:
 
 ```bash
-cd free-todo-frontend
+cd lifetrace-frontend
 
 # Web mode (default)
 pnpm build:tauri:web:full
@@ -32,7 +32,7 @@ pnpm build:tauri:web:full:linux
 Tauri build artifacts are written under:
 
 ```
-free-todo-frontend/src-tauri/target/<profile>/bundle/
+lifetrace-frontend/src-tauri/target/<profile>/bundle/
 ```
 
 Where `<profile>` is:
@@ -42,14 +42,14 @@ Where `<profile>` is:
 ### Windows (NSIS)
 
 ```
-free-todo-frontend/src-tauri/target/release/bundle/nsis/
+lifetrace-frontend/src-tauri/target/release/bundle/nsis/
   LifeTrace_<version>_x64-setup.exe
 ```
 
 ### macOS (app / dmg)
 
 ```
-free-todo-frontend/src-tauri/target/release/bundle/macos/
+lifetrace-frontend/src-tauri/target/release/bundle/macos/
   LifeTrace.app
   LifeTrace_<version>_universal.dmg
 ```
@@ -57,7 +57,7 @@ free-todo-frontend/src-tauri/target/release/bundle/macos/
 ### Linux (AppImage / deb)
 
 ```
-free-todo-frontend/src-tauri/target/release/bundle/
+lifetrace-frontend/src-tauri/target/release/bundle/
   appimage/LifeTrace_<version>_amd64.AppImage
   deb/free-todo_<version>_amd64.deb
 ```
@@ -79,7 +79,7 @@ Island mode is not packaged by default.
 Tauri uses a local loading page:
 
 ```
-free-todo-frontend/src-tauri/dist/index.html
+lifetrace-frontend/src-tauri/dist/index.html
 ```
 
 This page redirects to the running Next.js server.
@@ -95,7 +95,7 @@ pnpm build:frontend:web
 Next.js artifacts:
 
 ```
-free-todo-frontend/.next/
+lifetrace-frontend/.next/
 ```
 
 ## Troubleshooting
@@ -105,7 +105,7 @@ free-todo-frontend/.next/
 Check:
 
 ```
-free-todo-frontend/src-tauri/target/release/bundle/
+lifetrace-frontend/src-tauri/target/release/bundle/
 ```
 
 ### Build uses the wrong window mode

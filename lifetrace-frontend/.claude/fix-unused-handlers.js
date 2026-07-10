@@ -1,6 +1,6 @@
 const fs = require("fs");
 const fp =
-  "D:/manus/FreeTodo/free-todo-frontend/apps/todo-detail/TodoDetail.tsx";
+  "D:/manus/FreeTodo/lifetrace-frontend/apps/todo-detail/TodoDetail.tsx";
 let c = fs.readFileSync(fp, "utf8");
 const hasCRLF = c.includes("\r\n");
 let n = c.replace(/\r\n/g, "\n");
@@ -11,9 +11,9 @@ const old1 =
 
 if (n.includes(old1)) {
   n = n.replace(old1, "\t\t");
-  console.log("âœ“ Removed handleToggleComplete");
+  console.log("âœ?Removed handleToggleComplete");
 } else {
-  console.log("âœ— handleToggleComplete not found");
+  console.log("âœ?handleToggleComplete not found");
 }
 
 // Remove handleDeleteRequest
@@ -22,9 +22,9 @@ const old2 =
 
 if (n.includes(old2)) {
   n = n.replace(old2, "");
-  console.log("âœ“ Removed handleDeleteRequest");
+  console.log("âœ?Removed handleDeleteRequest");
 } else {
-  console.log("âœ— handleDeleteRequest not found");
+  console.log("âœ?handleDeleteRequest not found");
 }
 
 const result = hasCRLF ? n.replace(/\n/g, "\r\n") : n;

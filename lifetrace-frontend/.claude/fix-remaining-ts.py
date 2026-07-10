@@ -3,7 +3,7 @@
 
 import os
 
-BASE = "D:\\manus\\FreeTodo\\free-todo-frontend"
+BASE = "D:\\manus\\FreeTodo\\lifetrace-frontend"
 
 # ============================================================
 # 1. ChatInputSection.tsx - Remove duplicate props

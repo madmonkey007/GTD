@@ -3,25 +3,25 @@
 ## Project Structure & Module Organization
 - `lifetrace/`: FastAPI backend (routers, services, repositories, storage, llm, jobs, util).
 - `lifetrace/config/`: runtime configuration (`config.yaml` is generated from `default_config.yaml`).
-- `lifetrace/data/`: runtime data (SQLite DB, vector DB, logs) â€” do not commit.
-- `free-todo-frontend/`: Next.js + React frontend, Electron wrapper, and scripts.
+- `lifetrace/data/`: runtime data (SQLite DB, vector DB, logs) â€?do not commit.
+- `lifetrace-frontend/`: Next.js + React frontend, Electron wrapper, and scripts.
 - `.github/`: contribution docs, guidelines, and repository assets.
 
 ## Build, Test, and Development Commands
 Backend (from repo root):
-- `uv sync` â€” install Python deps into `.venv`.
-- `python -m lifetrace.server` â€” start FastAPI server (auto-selects port from 8001).
-- `uv run ruff check .` / `uv run ruff format .` â€” lint/format backend.
+- `uv sync` â€?install Python deps into `.venv`.
+- `python -m lifetrace.server` â€?start FastAPI server (auto-selects port from 8001).
+- `uv run ruff check .` / `uv run ruff format .` â€?lint/format backend.
 
-Frontend (from `free-todo-frontend/`):
-- `pnpm install` â€” install frontend deps.
-- `pnpm dev` â€” start Next.js dev server with auto-port detection.
-- `pnpm lint` / `pnpm format` / `pnpm check` â€” Biome lint/format/check.
-- `pnpm type-check` â€” run TypeScript type checks.
+Frontend (from `lifetrace-frontend/`):
+- `pnpm install` â€?install frontend deps.
+- `pnpm dev` â€?start Next.js dev server with auto-port detection.
+- `pnpm lint` / `pnpm format` / `pnpm check` â€?Biome lint/format/check.
+- `pnpm type-check` â€?run TypeScript type checks.
 
 Packaging:
-- `pnpm electron:build` (or `electron:build-win|mac|linux`) â€” build Electron app.
-- `pnpm tauri:dev` / `pnpm tauri:build` â€” Tauri dev/build flows.
+- `pnpm electron:build` (or `electron:build-win|mac|linux`) â€?build Electron app.
+- `pnpm tauri:dev` / `pnpm tauri:build` â€?Tauri dev/build flows.
 
 ## Coding Style & Naming Conventions
 - Python: PEP 8, type hints, docstrings; Ruff enforces 4-space indent and 100-char lines.

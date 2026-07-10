@@ -7,9 +7,9 @@ repos:
       - id: check-toml
       - id: check-json
       - id: end-of-file-fixer
-        exclude: ^free-todo-frontend/lib/generated/
+        exclude: ^lifetrace-frontend/lib/generated/
       - id: trailing-whitespace
-        exclude: ^free-todo-frontend/lib/generated/
+        exclude: ^lifetrace-frontend/lib/generated/
         args: [--markdown-linebreak-ext=md]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.10
@@ -36,8 +36,8 @@ repos:
     hooks:
       - id: biome-check
         additional_dependencies: ["@biomejs/biome@2.3.13"]
-        files: ^(free-todo-frontend/)
-  # TypeScript type checking for free-todo-frontend
+        files: ^(lifetrace-frontend/)
+  # TypeScript type checking for lifetrace-frontend
   - repo: local
     hooks:
       - id: bandit
@@ -65,24 +65,24 @@ repos:
         pass_filenames: false
         require_serial: true
 
-      - id: tsc-free-todo-frontend
-        name: TypeScript type check (free-todo-frontend)
-        entry: bash -c 'cd free-todo-frontend && pnpm run type-check'
+      - id: tsc-lifetrace-frontend
+        name: TypeScript type check (lifetrace-frontend)
+        entry: bash -c 'cd lifetrace-frontend && pnpm run type-check'
         language: system
-        files: ^free-todo-frontend/.*\.(ts|tsx)$
+        files: ^lifetrace-frontend/.*\.(ts|tsx)$
         pass_filenames: false
 
       # 前端 TS/TSX/JS/JSX 有效代码行数检查（不含空行和注释，上限 500 行）
-      # pre-commit 会传入暂存的文件，只检查这些文件
+      # pre-commit 会传入暂存的文件，只检查这些文�?
       - id: check-frontend-code-lines
         name: Check frontend TS/TSX/JS/JSX code lines (max 500)
-        entry: node free-todo-frontend/scripts/check_code_lines.js --include apps,components,electron,lib,scripts --exclude lib/generated
+        entry: node lifetrace-frontend/scripts/check_code_lines.js --include apps,components,electron,lib,scripts --exclude lib/generated
         language: system
-        files: ^(free-todo-frontend|scripts)/.*\.(ts|tsx|js|jsx)$
+        files: ^(lifetrace-frontend|scripts)/.*\.(ts|tsx|js|jsx)$
         pass_filenames: true
 
       # 后端 Python 有效代码行数检查（不含空行和注释，上限 500 行）
-      # pre-commit 会传入暂存的文件，只检查这些文件
+      # pre-commit 会传入暂存的文件，只检查这些文�?
       - id: check-backend-code-lines
         name: Check backend Python code lines (max 500)
         entry: uv run --no-sync python lifetrace/scripts/check_code_lines.py --include lifetrace,scripts --exclude lifetrace/__pycache__,lifetrace/dist,lifetrace/migrations/versions
@@ -92,12 +92,12 @@ repos:
         require_serial: true
 
       # Tauri Rust 有效代码行数检查（不含空行和注释，上限 500 行）
-      # pre-commit 会传入暂存的文件，只检查这些文件
+      # pre-commit 会传入暂存的文件，只检查这些文�?
       - id: check-tauri-rust-code-lines
         name: Check Tauri Rust code lines (max 500)
-        entry: node free-todo-frontend/scripts/check_rust_code_lines.js --include src-tauri/src --exclude src-tauri/target
+        entry: node lifetrace-frontend/scripts/check_rust_code_lines.js --include src-tauri/src --exclude src-tauri/target
         language: system
-        files: ^free-todo-frontend/src-tauri/.*\.rs$
+        files: ^lifetrace-frontend/src-tauri/.*\.rs$
         pass_filenames: true
 
       # Rust format check (rustfmt)
@@ -105,7 +105,7 @@ repos:
         name: Rust format (rustfmt)
         entry: python scripts/precommit_rustfmt.py
         language: python
-        files: ^free-todo-frontend/src-tauri/.*\.rs$
+        files: ^lifetrace-frontend/src-tauri/.*\.rs$
         pass_filenames: false
 
       # Rust linter (clippy)
@@ -113,5 +113,5 @@ repos:
         name: Rust linter (clippy)
         entry: python scripts/precommit_clippy.py
         language: python
-        files: ^free-todo-frontend/src-tauri/.*\.rs$
+        files: ^lifetrace-frontend/src-tauri/.*\.rs$
         pass_filenames: false

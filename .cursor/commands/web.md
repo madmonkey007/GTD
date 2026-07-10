@@ -1,4 +1,4 @@
-# Frontend Development Quick Commands (free-todo-frontend version)
+# Frontend Development Quick Commands (lifetrace-frontend version)
 
 ## Tech Stack Information
 
@@ -29,7 +29,7 @@ Create a new React component based on project conventions, including:
 - Responsive design
 - Internationalization support (if needed)
 
-Please create components in the `free-todo-frontend/components/` directory and follow the project's code conventions.
+Please create components in the `lifetrace-frontend/components/` directory and follow the project's code conventions.
 
 ### Creating Shadcn UI Components
 
@@ -53,8 +53,8 @@ Create custom components based on existing Shadcn UI components:
 
 The project uses next-intl for internationalization, with language switching managed through Zustand store (no URL routing mode).
 
-- **Translation Files**: `free-todo-frontend/messages/zh.json` and `en.json`
-- **Request Configuration**: `free-todo-frontend/i18n/request.ts`
+- **Translation Files**: `lifetrace-frontend/messages/zh.json` and `en.json`
+- **Request Configuration**: `lifetrace-frontend/i18n/request.ts`
 - **Language Management**: `lib/store/locale.ts` (syncs to cookie on switch)
 - **Access Method**: `useTranslations(namespace)` imported from `next-intl`
 
@@ -156,8 +156,8 @@ The project uses **Orval + TanStack Query + Zod** to implement type-safe API cal
 Located in `lib/generated/fetcher.ts`, responsible for:
 - Environment adaptation (client/server URL)
 - **Automatic naming style conversion**:
-  - Request: camelCase â†’ snake_case (frontend style â†’ backend style)
-  - Response: snake_case â†’ camelCase (backend style â†’ frontend style)
+  - Request: camelCase â†?snake_case (frontend style â†?backend style)
+  - Response: snake_case â†?camelCase (backend style â†?frontend style)
 - Time string normalization (handling timezone suffix)
 - Unified error handling
 - Zod schema runtime validation
@@ -181,7 +181,7 @@ Orval does not support Server-Sent Events, need to manually implement in `lib/ap
 ### Development Workflow
 
 1. **Backend API changes**: Run `pnpm orval` to regenerate code, check `git diff lib/generated/`
-2. **New API**: Backend updates OpenAPI â†’ Generate code â†’ Encapsulate in `lib/query/` â†’ Component usage
+2. **New API**: Backend updates OpenAPI â†?Generate code â†?Encapsulate in `lib/query/` â†?Component usage
 3. **Debugging**: Add logs in fetcher to view request/response and validation errors
 
 ---

@@ -26,10 +26,10 @@ This document details the development standards and best practices for the LifeT
 ## 📋 Table of Contents
 
 - [Code Style](#-code-style)
-- [Project Structure](#️-project-structure)
+- [Project Structure](#�?project-structure)
 - [Naming Conventions](#-naming-conventions)
 - [TypeScript Standards](#-typescript-standards)
-- [React Component Standards](#️-react-component-standards)
+- [React Component Standards](#�?react-component-standards)
 - [State Management](#-state-management)
 - [API Calls](#-api-calls)
 - [Internationalization](#-internationalization)
@@ -67,7 +67,7 @@ pnpm build
 #### Indentation and Formatting
 
 ```typescript
-// ✅ Correct: Use 2 spaces
+// �?Correct: Use 2 spaces
 function MyComponent() {
   const [count, setCount] = useState(0);
 
@@ -78,7 +78,7 @@ function MyComponent() {
   return null;
 }
 
-// ❌ Wrong: Use 4 spaces or tabs
+// �?Wrong: Use 4 spaces or tabs
 function MyComponent() {
     const [count, setCount] = useState(0);
     return <div>Count: {count}</div>;
@@ -88,18 +88,18 @@ function MyComponent() {
 #### Quotes and Semicolons
 
 ```typescript
-// ✅ Correct: Use double quotes, no semicolons
+// �?Correct: Use double quotes, no semicolons
 const message = "Hello, World!"
 const name = "Alice"
 
-// ❌ Wrong: Use single quotes and semicolons
+// �?Wrong: Use single quotes and semicolons
 const message = 'Hello, World!';
 ```
 
 #### Imports
 
 ```typescript
-// ✅ Correct: Import order and grouping
+// �?Correct: Import order and grouping
 // 1. React and Next.js core
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -120,42 +120,42 @@ import type { Task } from "@/lib/types"
 // 5. Styles
 import styles from "./page.module.css"
 
-// ❌ Wrong: Mixed order
+// �?Wrong: Mixed order
 import { Button } from "@/components/common/Button"
 import { useState } from "react"
 import axios from "axios"
 ```
 
-## 🏗️ Project Structure
+## 🏗�?Project Structure
 
 ```
-free-todo-frontend/
+lifetrace-frontend/
 ├── app/                      # Next.js App Router
-│   ├── layout.tsx           # Root layout
-│   ├── page.tsx             # Home page
-│   └── apps/                # Feature pages
-│       ├── todo-list/       # Todo list
-│       ├── todo-detail/     # Todo detail
-│       └── [feature]/       # Other features
+�?  ├── layout.tsx           # Root layout
+�?  ├── page.tsx             # Home page
+�?  └── apps/                # Feature pages
+�?      ├── todo-list/       # Todo list
+�?      ├── todo-detail/     # Todo detail
+�?      └── [feature]/       # Other features
 ├── components/              # React components
-│   ├── common/             # Common components
-│   ├── layout/             # Layout components
-│   └── [feature]/          # Feature components
+�?  ├── common/             # Common components
+�?  ├── layout/             # Layout components
+�?  └── [feature]/          # Feature components
 ├── lib/                    # Utilities
-│   ├── api.ts             # API client (streaming APIs)
-│   ├── generated/         # Orval-generated API code
-│   │   ├── [module]/      # Split by feature modules
-│   │   ├── fetcher.ts     # Custom Fetcher
-│   │   └── schemas/       # Zod schemas
-│   ├── query/             # TanStack Query hooks wrapper
-│   │   └── keys.ts        # Query Keys management
-│   ├── types/             # Unified type definitions (camelCase)
-│   ├── store/             # Zustand state management
-│   ├── hooks/             # Custom Hooks
-│   └── utils.ts           # Utility functions
+�?  ├── api.ts             # API client (streaming APIs)
+�?  ├── generated/         # Orval-generated API code
+�?  �?  ├── [module]/      # Split by feature modules
+�?  �?  ├── fetcher.ts     # Custom Fetcher
+�?  �?  └── schemas/       # Zod schemas
+�?  ├── query/             # TanStack Query hooks wrapper
+�?  �?  └── keys.ts        # Query Keys management
+�?  ├── types/             # Unified type definitions (camelCase)
+�?  ├── store/             # Zustand state management
+�?  ├── hooks/             # Custom Hooks
+�?  └── utils.ts           # Utility functions
 ├── messages/              # Internationalization files
-│   ├── zh.json            # Chinese translations
-│   └── en.json            # English translations
+�?  ├── zh.json            # Chinese translations
+�?  └── en.json            # English translations
 └── public/                # Static assets
 ```
 
@@ -164,17 +164,17 @@ free-todo-frontend/
 ### File Naming
 
 ```
-# ✅ Correct: Components use PascalCase
+# �?Correct: Components use PascalCase
 Button.tsx
 TaskCard.tsx
 UserProfile.tsx
 
-# ✅ Correct: Non-components use camelCase
+# �?Correct: Non-components use camelCase
 api.ts
 utils.ts
 use-tasks.ts
 
-# ❌ Wrong: Inconsistent naming
+# �?Wrong: Inconsistent naming
 button.tsx
 task_card.tsx
 ```
@@ -182,26 +182,26 @@ task_card.tsx
 ### Component Naming
 
 ```typescript
-// ✅ Correct: PascalCase
+// �?Correct: PascalCase
 export function TaskCard() {}
 export function UserProfile() {}
 export default function HomePage() {}
 
-// ❌ Wrong: camelCase
+// �?Wrong: camelCase
 export function taskCard() {}
 ```
 
 ### Variables and Functions
 
 ```typescript
-// ✅ Correct: camelCase
+// �?Correct: camelCase
 const userName = "Alice"
 const taskCount = 10
 
 function getUserProfile() {}
 function calculateTotal() {}
 
-// ❌ Wrong: PascalCase or snake_case
+// �?Wrong: PascalCase or snake_case
 const UserName = "Alice"
 const task_count = 10
 ```
@@ -209,36 +209,36 @@ const task_count = 10
 ### Constants
 
 ```typescript
-// ✅ Correct: UPPER_SNAKE_CASE
+// �?Correct: UPPER_SNAKE_CASE
 const MAX_RETRY_COUNT = 3
 const API_BASE_URL = "https://api.example.com"
 const DEFAULT_PAGE_SIZE = 10
 
-// ❌ Wrong: camelCase
+// �?Wrong: camelCase
 const maxRetryCount = 3
 ```
 
 ### Hooks
 
 ```typescript
-// ✅ Correct: Start with "use"
+// �?Correct: Start with "use"
 function useTasks() {}
 function useUser() {}
 function useDebounce() {}
 
-// ❌ Wrong: No "use" prefix
+// �?Wrong: No "use" prefix
 function getTasks() {}
 ```
 
 ### Event Handlers
 
 ```typescript
-// ✅ Correct: Use "handle" prefix
+// �?Correct: Use "handle" prefix
 function handleClick() {}
 function handleSubmit() {}
 function handleChange(e: ChangeEvent<HTMLInputElement>) {}
 
-// ✅ Correct: Callback props use "on" prefix
+// �?Correct: Callback props use "on" prefix
 <Button onClick={handleClick} />
 <Input onChange={handleChange} />
 ```
@@ -263,7 +263,7 @@ function handleChange(e: ChangeEvent<HTMLInputElement>) {}
 ### Type Definitions
 
 ```typescript
-// ✅ Correct: Define clear types
+// �?Correct: Define clear types
 interface Task {
   id: number
   title: string
@@ -276,7 +276,7 @@ interface Task {
 
 type TaskStatus = "pending" | "in_progress" | "completed"
 
-// ❌ Wrong: Use any
+// �?Wrong: Use any
 interface Task {
   id: number
   title: string
@@ -287,7 +287,7 @@ interface Task {
 ### Component Props
 
 ```typescript
-// ✅ Correct: Define Props interface
+// �?Correct: Define Props interface
 interface TaskCardProps {
   task: Task
   onEdit?: (task: Task) => void
@@ -304,7 +304,7 @@ export function TaskCard({
   // Component implementation
 }
 
-// ✅ Correct: Use generics
+// �?Correct: Use generics
 interface ListProps<T> {
   items: T[]
   renderItem: (item: T) => React.ReactNode
@@ -329,7 +329,7 @@ export function List<T>({ items, renderItem, keyExtractor }: ListProps<T>) {
 ### Function Components
 
 ```typescript
-// ✅ Correct: Use function components
+// �?Correct: Use function components
 interface UserProfileProps {
   user: User
   onUpdate: (user: User) => void
@@ -346,7 +346,7 @@ export function UserProfile({ user, onUpdate }: UserProfileProps) {
   )
 }
 
-// ❌ Wrong: Use class components (unless necessary)
+// �?Wrong: Use class components (unless necessary)
 class UserProfile extends React.Component<UserProfileProps> {
   render() {
     return <div>{this.props.user.name}</div>
@@ -357,7 +357,7 @@ class UserProfile extends React.Component<UserProfileProps> {
 ### Custom Hooks
 
 ```typescript
-// ✅ Correct: Create custom hooks
+// �?Correct: Create custom hooks
 function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(false)
@@ -399,7 +399,7 @@ function TasksPage() {
 ### Local State (useState)
 
 ```typescript
-// ✅ Correct: Use functional updates
+// �?Correct: Use functional updates
 function Counter() {
   const [count, setCount] = useState(0)
 
@@ -534,8 +534,8 @@ export const queryKeys = {
 Located in `lib/generated/fetcher.ts`, responsible for:
 - Environment adaptation (client/server URL)
 - **Automatic naming style conversion**:
-  - Request: camelCase → snake_case (frontend style → backend style)
-  - Response: snake_case → camelCase (backend style → frontend style)
+  - Request: camelCase �?snake_case (frontend style �?backend style)
+  - Response: snake_case �?camelCase (backend style �?frontend style)
 - Time string normalization (handle missing timezone suffix)
 - Unified error handling
 - Zod schema runtime validation
@@ -580,7 +580,7 @@ export async function sendChatMessageStream(
 ### Development Workflow
 
 1. **Backend API changes**: Run `pnpm orval` to regenerate code, check `git diff lib/generated/`
-2. **New API**: Backend updates OpenAPI → Generate code → Wrap in `lib/query/` → Use in components
+2. **New API**: Backend updates OpenAPI �?Generate code �?Wrap in `lib/query/` �?Use in components
 3. **Debugging**: Add logs in fetcher to view requests/responses and validation errors
 
 ## 🌍 Internationalization
@@ -595,7 +595,7 @@ The project uses **next-intl** for internationalization, managed through Zustand
 ### Using Internationalization
 
 ```typescript
-// ✅ Correct: Use translation hook
+// �?Correct: Use translation hook
 import { useTranslations } from "next-intl"
 
 function TaskList() {
@@ -609,7 +609,7 @@ function TaskList() {
   )
 }
 
-// ❌ Wrong: Hard-coded text
+// �?Wrong: Hard-coded text
 function TaskList() {
   const locale = useLocale()
   return <h1>{locale === "zh" ? "任务列表" : "Task List"}</h1>
@@ -629,7 +629,7 @@ function TaskList() {
 The project uses Tailwind CSS 4 and shadcn/ui component library.
 
 ```typescript
-// ✅ Correct: Use Tailwind utility classes with clsx/tailwind-merge
+// �?Correct: Use Tailwind utility classes with clsx/tailwind-merge
 import { cn } from "@/lib/utils" // tailwind-merge wrapper
 
 function Button({ children, variant = "primary", className }: ButtonProps) {
@@ -679,12 +679,12 @@ function MyComponent() {
 }
 ```
 
-## ⚡ Performance
+## �?Performance
 
 ### React.memo
 
 ```typescript
-// ✅ Correct: Use React.memo
+// �?Correct: Use React.memo
 export const TaskCard = React.memo(function TaskCard({ task }: TaskCardProps) {
   return (
     <div>
@@ -698,7 +698,7 @@ export const TaskCard = React.memo(function TaskCard({ task }: TaskCardProps) {
 ### useCallback and useMemo
 
 ```typescript
-// ✅ Correct: Use useCallback
+// �?Correct: Use useCallback
 function TaskList({ tasks }: TaskListProps) {
   const handleTaskClick = useCallback((taskId: number) => {
     console.log("Task clicked:", taskId)
@@ -713,7 +713,7 @@ function TaskList({ tasks }: TaskListProps) {
   )
 }
 
-// ✅ Correct: Use useMemo
+// �?Correct: Use useMemo
 function TaskStats({ tasks }: TaskStatsProps) {
   const stats = useMemo(() => ({
     total: tasks.length,
@@ -764,12 +764,12 @@ describe("TaskCard", () => {
 })
 ```
 
-## ♿ Accessibility
+## �?Accessibility
 
 ### Semantic HTML
 
 ```typescript
-// ✅ Correct: Use semantic tags
+// �?Correct: Use semantic tags
 function TaskList({ tasks }: TaskListProps) {
   return (
     <section>
@@ -788,7 +788,7 @@ function TaskList({ tasks }: TaskListProps) {
   )
 }
 
-// ❌ Wrong: Overuse divs
+// �?Wrong: Overuse divs
 function TaskList({ tasks }: TaskListProps) {
   return (
     <div>
@@ -808,7 +808,7 @@ function TaskList({ tasks }: TaskListProps) {
 ### ARIA Attributes
 
 ```typescript
-// ✅ Correct: Use ARIA attributes
+// �?Correct: Use ARIA attributes
 function Button({ loading, children }: ButtonProps) {
   return (
     <button
@@ -827,7 +827,7 @@ function Button({ loading, children }: ButtonProps) {
 ### XSS Protection
 
 ```typescript
-// ✅ Correct: React auto-escapes
+// �?Correct: React auto-escapes
 function TaskDescription({ description }: { description: string }) {
   return <p>{description}</p>
 }
@@ -844,13 +844,13 @@ function TaskDescription({ html }: { html: string }) {
 ### Environment Variables
 
 ```typescript
-// ✅ Correct: Use environment variables
+// �?Correct: Use environment variables
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 // NEXT_PUBLIC_ prefix exposes to client
 // Without prefix, only available on server
 ```
 
-## ✅ Code Review Checklist
+## �?Code Review Checklist
 
 Before submitting code, ensure:
 

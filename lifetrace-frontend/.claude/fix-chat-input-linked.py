@@ -3,7 +3,7 @@
 
 import os
 
-BASE = "D:\\manus\\FreeTodo\\free-todo-frontend"
+BASE = "D:\\manus\\FreeTodo\\lifetrace-frontend"
 path = os.path.join(BASE, "apps/chat/components/input/ChatInputSection.tsx")
 
 with open(path, 'r', encoding='utf-8') as f:

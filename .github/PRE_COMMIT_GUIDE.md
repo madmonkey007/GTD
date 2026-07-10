@@ -137,7 +137,7 @@ If you see an error like this when committing:
 
 ```
 Check frontend TS/TSX code lines (max 500)............................Failed
-âŒ The following files exceed 500 lines:
+â?The following files exceed 500 lines:
   apps/chat/components/ChatPanel.tsx -> 623 lines
 ```
 
@@ -218,25 +218,25 @@ repos:
     hooks:
       - id: biome-check
         additional_dependencies: ["@biomejs/biome@2.3.13"]
-        files: ^(free-todo-frontend/)
+        files: ^(lifetrace-frontend/)
 
   # Local hooks
   - repo: local
     hooks:
       # TypeScript type checking
-      - id: tsc-free-todo-frontend
-        name: TypeScript type check (free-todo-frontend)
-        entry: bash -c 'cd free-todo-frontend && pnpm run type-check'
+      - id: tsc-lifetrace-frontend
+        name: TypeScript type check (lifetrace-frontend)
+        entry: bash -c 'cd lifetrace-frontend && pnpm run type-check'
         language: system
-        files: ^free-todo-frontend/.*\.(ts|tsx)$
+        files: ^lifetrace-frontend/.*\.(ts|tsx)$
         pass_filenames: false
 
       # Frontend code line count check (max 500 lines of effective code)
       - id: check-frontend-code-lines
         name: Check frontend TS/TSX code lines (max 500)
-        entry: node free-todo-frontend/scripts/check_code_lines.js --include apps,components,electron,lib --exclude lib/generated
+        entry: node lifetrace-frontend/scripts/check_code_lines.js --include apps,components,electron,lib --exclude lib/generated
         language: system
-        files: ^free-todo-frontend/.*\.(ts|tsx)$
+        files: ^lifetrace-frontend/.*\.(ts|tsx)$
         pass_filenames: true
 
       # Backend code line count check (max 500 lines of effective code)
@@ -250,7 +250,7 @@ repos:
 
 **Key Configuration**:
 - `files: ^lifetrace/` - Only check Python files in the `lifetrace/` directory
-- `files: ^free-todo-frontend/` - Only check frontend files in the `free-todo-frontend/` directory
+- `files: ^lifetrace-frontend/` - Only check frontend files in the `lifetrace-frontend/` directory
 - `language_version: python3.12` - Specify Python version
 - `args: [ --fix ]` - Automatically fix fixable issues
 - `additional_dependencies` - Specify dependency version for Biome
@@ -318,17 +318,17 @@ pre-commit run --all-files
 
 ## Best Practices
 
-1. âœ… **Run checks before each commit**
+1. âœ?**Run checks before each commit**
    ```bash
    pre-commit run --all-files
    ```
 
-2. âœ… **Update check tools regularly**
+2. âœ?**Update check tools regularly**
    ```bash
    pre-commit autoupdate
    ```
 
-3. âœ… **Ensure all team members have hooks installed when collaborating**
+3. âœ?**Ensure all team members have hooks installed when collaborating**
    ```bash
    git clone <repo>
    cd <repo>
@@ -338,9 +338,9 @@ pre-commit run --all-files
    pre-commit run --all-files
    ```
 
-4. âœ… **Don't use `--no-verify` unless it's an emergency**
+4. âœ?**Don't use `--no-verify` unless it's an emergency**
 
-5. âœ… **Maintain consistent Python code style**
+5. âœ?**Maintain consistent Python code style**
 
 ---
 
@@ -379,13 +379,13 @@ The script supports two execution modes:
 
 ```bash
 # Check all frontend TS/TSX files
-node free-todo-frontend/scripts/check_code_lines.js
+node lifetrace-frontend/scripts/check_code_lines.js
 
 # Check all backend Python files
 uv run python lifetrace/scripts/check_code_lines.py
 
 # Use custom parameters
-node free-todo-frontend/scripts/check_code_lines.js --include apps,components,electron --exclude lib/generated --max 600
+node lifetrace-frontend/scripts/check_code_lines.js --include apps,components,electron --exclude lib/generated --max 600
 uv run python lifetrace/scripts/check_code_lines.py --include lifetrace --exclude lifetrace/__pycache__ --max 600
 ```
 
@@ -393,7 +393,7 @@ uv run python lifetrace/scripts/check_code_lines.py --include lifetrace --exclud
 
 ```bash
 # Check only specified files
-node free-todo-frontend/scripts/check_code_lines.js apps/chat/ChatPanel.tsx apps/todo/TodoList.tsx
+node lifetrace-frontend/scripts/check_code_lines.js apps/chat/ChatPanel.tsx apps/todo/TodoList.tsx
 uv run python lifetrace/scripts/check_code_lines.py lifetrace/routers/chat.py lifetrace/services/todo.py
 ```
 

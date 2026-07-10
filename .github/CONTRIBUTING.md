@@ -11,7 +11,7 @@ Thank you for your interest in the LifeTrace project! We welcome and appreciate 
 ## ğŸ“‹ Table of Contents
 
 - [Getting Started](#-getting-started)
-- [Development Setup](#ï¸-development-setup)
+- [Development Setup](#ï¸?development-setup)
 - [Git Flow Workflow](#-git-flow-workflow)
 - [Contribution Workflow](#-contribution-workflow)
 - [Coding Standards](#-coding-standards)
@@ -67,7 +67,7 @@ Thank you for your interest in the LifeTrace project! We welcome and appreciate 
 - Performance optimization
 - Code refactoring
 
-## ğŸ› ï¸ Development Setup
+## ğŸ› ï¸?Development Setup
 
 ### Prerequisites
 
@@ -136,7 +136,7 @@ python -m lifetrace.server
 
 ```bash
 # Navigate to frontend directory
-cd free-todo-frontend
+cd lifetrace-frontend
 
 # Install pnpm (if not already installed)
 npm install -g pnpm
@@ -187,7 +187,7 @@ This documentation includes:
 - ğŸ“ Branch naming conventions
 - ğŸ¯ Common development scenario examples
 - ğŸ’¡ Best practices and tips
-- â“ FAQ
+- â?FAQ
 - ğŸš¦ Workflow diagrams
 - ğŸ“š Git command cheat sheet
 
@@ -303,7 +303,7 @@ For detailed frontend guidelines, see: [**Frontend Development Guidelines**](FRO
 **Quick Check**:
 
 ```bash
-cd free-todo-frontend
+cd lifetrace-frontend
 
 # Run ESLint
 pnpm lint
@@ -412,7 +412,7 @@ PR titles should follow the same convention as commit messages:
 ## ğŸ“¸ Screenshots (if applicable)
 <!-- Provide screenshots for UI-related changes -->
 
-## âœ… Checklist
+## âœ?Checklist
 - [ ] Code follows project coding standards
 - [ ] Performed self-review of code
 - [ ] Code has appropriate comments
@@ -435,13 +435,13 @@ PR titles should follow the same convention as commit messages:
 
 ### Review Standards
 
-- âœ… Code quality and readability
-- âœ… Follow project coding standards
-- âœ… Feature completeness
-- âœ… Test coverage
-- âœ… Documentation completeness
-- âœ… Performance impact
-- âœ… Backward compatibility
+- âœ?Code quality and readability
+- âœ?Follow project coding standards
+- âœ?Feature completeness
+- âœ?Test coverage
+- âœ?Documentation completeness
+- âœ?Performance impact
+- âœ?Backward compatibility
 
 ## ğŸ› Reporting Issues
 
@@ -518,7 +518,7 @@ Thanks to all the people who have contributed to LifeTrace!
 ![Contributors](https://contrib.rocks/image?repo=madmonkey007/GTD)
 -->
 
-## â“ FAQ
+## â?FAQ
 
 ### I'm new to programming. Can I contribute?
 

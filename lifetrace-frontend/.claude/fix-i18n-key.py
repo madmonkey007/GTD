@@ -3,7 +3,7 @@
 
 import os
 
-BASE = "D:\\manus\\FreeTodo\\free-todo-frontend\\lib\\i18n\\messages"
+BASE = "D:\\manus\\FreeTodo\\lifetrace-frontend\\lib\\i18n\\messages"
 
 for lang, val in [("zh.json", "移除"), ("en.json", "Remove")]:
     path = os.path.join(BASE, lang)
