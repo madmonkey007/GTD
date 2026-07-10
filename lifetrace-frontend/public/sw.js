@@ -1,9 +1,8 @@
-const CACHE_NAME = "freetodo-v1";
+const CACHE_NAME = "lifetrace-v1";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
-  "/icon-192x192.png",
-  "/icon-512x512.png",
+  "/logo.png",
 ];
 
 // Install: cache static assets

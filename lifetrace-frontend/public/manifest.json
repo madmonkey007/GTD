@@ -1,7 +1,7 @@
 {
-  "name": "GTD",
-  "short_name": "GTD",
-  "description": "A todo app that tracks your life.",
+  "name": "LifeTrace",
+  "short_name": "LifeTrace",
+  "description": "AI-powered smart life tracking & management platform.",
   "start_url": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
