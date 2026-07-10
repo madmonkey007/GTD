@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNoteChatStore } from "@/lib/store/note-chat-store";
+import { useUiStore } from "@/lib/store/ui-store";
 
 export type DiaryFilterMode = "all" | "last7" | "random";
 
@@ -257,6 +258,7 @@ export function DiaryEditor({
 	}, [filterMode, heatmapFilterDate, debouncedSearch]);
 	const { data: notesData, isLoading: isNotesLoading } = useJournals(journalQuery);
 	const addLinkedNote = useNoteChatStore((s) => s.addLinkedNote);
+	const { getFeatureByPosition, setPanelFeature } = useUiStore();
 	const autoFilledRef = useRef(false);
 	const inlineTagRef = useRef(onInlineTag);
 	inlineTagRef.current = onInlineTag;
@@ -1133,6 +1135,22 @@ export function DiaryEditor({
 																date: note.date,
 																tags: note.tags.map((t) => t.tagName),
 															});
+															// 打开 Chat 面板
+															const positions = ["panelA", "panelB", "panelC"] as const;
+															let found = false;
+															for (const pos of positions) {
+																if (getFeatureByPosition(pos) === "chat") {
+																	if (pos === "panelA" && !useUiStore.getState().isPanelAOpen) useUiStore.getState().togglePanelA();
+																	else if (pos === "panelB" && !useUiStore.getState().isPanelBOpen) useUiStore.getState().togglePanelB();
+																	else if (pos === "panelC" && !useUiStore.getState().isPanelCOpen) useUiStore.getState().togglePanelC();
+																	found = true;
+																	break;
+																}
+															}
+															if (!found) {
+																setPanelFeature("panelB", "chat");
+																if (!useUiStore.getState().isPanelBOpen) useUiStore.getState().togglePanelB();
+															}
 														}}
 														title={locale === "zh" ? "添加到对话" : "Add to chat"}
 														className="rounded p-1 -mt-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 hover:text-primary hover:bg-primary/10 transition-all duration-150 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
