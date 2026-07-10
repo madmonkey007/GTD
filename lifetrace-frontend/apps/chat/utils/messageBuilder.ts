@@ -5,6 +5,7 @@ export interface BuildPayloadMessageParams {
 	trimmedText: string;
 	userLabel: string;
 	todoContext: string;
+	noteContext?: string;
 }
 
 /**
@@ -25,13 +26,19 @@ export interface PayloadMessageResult {
 export const buildPayloadMessage = (
 	params: BuildPayloadMessageParams,
 ): PayloadMessageResult => {
-	const { trimmedText, userLabel, todoContext } = params;
+	const { trimmedText, userLabel, todoContext, noteContext } = params;
+
+	const contextParts = [todoContext];
+	if (noteContext) {
+		contextParts.push(noteContext);
+	}
+	const combinedContext = contextParts.filter(Boolean).join("\n\n");
 
 	return {
-		payloadMessage: `${todoContext}
+		payloadMessage: `${combinedContext}
 
 ${userLabel}: ${trimmedText}`,
-		contextForBackend: todoContext,
+		contextForBackend: combinedContext,
 	};
 };
 

@@ -23,6 +23,7 @@ import type { ToolCallEvent } from "@/lib/api";
 import { sendChatMessageStream } from "@/lib/api";
 import { queryKeys } from "@/lib/query/keys";
 import { useChatStore } from "@/lib/store/chat-store";
+import { useNoteChatStore } from "@/lib/store/note-chat-store";
 import type { Todo } from "@/lib/types";
 
 /**
@@ -120,6 +121,15 @@ export const useSendMessage = ({
 			const todoContext = hasSelection
 				? buildHierarchicalTodoContext(effectiveTodos, todos, t, tCommon)
 				: buildTodoContextBlock([], t("noTodoContext"), t);
+
+			// 构建笔记上下文
+			const linkedNotes = useNoteChatStore.getState().linkedNotes;
+			const noteContext = linkedNotes.length > 0
+				? `[关联笔记]\n${linkedNotes.map((note) =>
+					`笔记 ID: ${note.id}\n笔记标题: ${note.name || "未命名"}\n笔记内容: ${note.userNotes || "无内容"}\n日期: ${note.date}\n标签: ${note.tags.join(", ") || "无"}`
+				).join("\n---\n")}\n---`
+				: "";
+
 			const userLabel = t("userInput");
 
 			// 使用工具函数构建 payload
@@ -128,6 +138,7 @@ export const useSendMessage = ({
 					trimmedText,
 					userLabel,
 					todoContext,
+					noteContext,
 				});
 
 			// 创建消息

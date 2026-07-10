@@ -29,6 +29,7 @@ import {
 	MessageSquarePlus,
 	ArrowUpLeft,
 	Search,
+	MessageCircle,
 } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import { useJournals } from "@/lib/query";
@@ -51,6 +52,8 @@ import {
 	AlertDialogAction,
 	AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useNoteChatStore } from "@/lib/store/note-chat-store";
 
 export type DiaryFilterMode = "all" | "last7" | "random";
 
@@ -252,7 +255,8 @@ export function DiaryEditor({
 		}
 		return params;
 	}, [filterMode, heatmapFilterDate, debouncedSearch]);
-	const { data: notesData } = useJournals(journalQuery);
+	const { data: notesData, isLoading: isNotesLoading } = useJournals(journalQuery);
+	const addLinkedNote = useNoteChatStore((s) => s.addLinkedNote);
 	const autoFilledRef = useRef(false);
 	const inlineTagRef = useRef(onInlineTag);
 	inlineTagRef.current = onInlineTag;
@@ -909,7 +913,22 @@ export function DiaryEditor({
 						</button>
 					</div>
 				)}
-				{sortedNotes.length === 0 ? (
+				{isNotesLoading ? (
+					// 骨架屏加载效果
+					<div className="space-y-3">
+						{Array.from({ length: 5 }).map((_, i) => (
+							<div key={i} className="rounded-xl border border-border/30 bg-card px-4 py-3 animate-pulse">
+								<Skeleton className="h-3 bg-muted rounded w-3/4 mb-2" />
+								<Skeleton className="h-2.5 bg-muted rounded w-full mb-1.5" />
+								<Skeleton className="h-2.5 bg-muted rounded w-2/3 mb-2" />
+								<div className="flex gap-2">
+									<Skeleton className="h-4 bg-muted rounded-full w-12" />
+									<Skeleton className="h-4 bg-muted rounded-full w-16" />
+								</div>
+							</div>
+						))}
+					</div>
+				) : sortedNotes.length === 0 ? (
 					<div className="text-xs text-muted-foreground/50 italic text-center pt-8">
 						{locale === "zh" ? "暂无笔记" : "No notes yet"}
 					</div>
@@ -1102,14 +1121,33 @@ export function DiaryEditor({
 												)}
 											</div>
 											{!isEditing && (
-												<button
-													type="button"
-													onClick={(e) => { e.stopPropagation(); onSimilarClick?.(note.id); }}
-													title={t("similarNotes")}
-													className="rounded-lg p-1.5 text-muted-foreground/30 opacity-0 group-hover:opacity-100 hover:text-primary hover:bg-primary/10 transition-all duration-150 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-												>
-													<GitFork className="w-3.5 h-3.5" />
-												</button>
+												<>
+													<button
+														type="button"
+														onClick={(e) => {
+															e.stopPropagation();
+															addLinkedNote({
+																id: note.id,
+																name: note.name,
+																userNotes: note.userNotes,
+																date: note.date,
+																tags: note.tags.map((t) => t.tagName),
+															});
+														}}
+														title={locale === "zh" ? "添加到对话" : "Add to chat"}
+														className="rounded p-1 -mt-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 hover:text-primary hover:bg-primary/10 transition-all duration-150 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+													>
+														<MessageCircle className="w-3.5 h-3.5" />
+													</button>
+													<button
+														type="button"
+														onClick={(e) => { e.stopPropagation(); onSimilarClick?.(note.id); }}
+														title={t("similarNotes")}
+														className="rounded p-1 -mt-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 hover:text-primary hover:bg-primary/10 transition-all duration-150 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+													>
+														<GitFork className="w-3.5 h-3.5" />
+													</button>
+												</>
 											)}
 											<DropdownMenu>
 												<DropdownMenuTrigger asChild>

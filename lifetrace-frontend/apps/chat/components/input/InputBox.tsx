@@ -3,6 +3,7 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { LinkedNotes } from "./LinkedNotes";
 
 type InputBoxProps = {
 	inputValue: string;
@@ -42,6 +43,7 @@ export function InputBox({
 	onAtClick,
 	onSlashTyped,
 	linkedTodos,
+	locale = "en",
 	maxHeight = "40vh",
 }: InputBoxProps) {
 	const t = useTranslations("chat");
@@ -148,6 +150,9 @@ export function InputBox({
 			>
 				{/* 关联待办区域 */}
 				{linkedTodos}
+
+				{/* 关联笔记区域 */}
+				<LinkedNotes locale={locale} />
 
 				{/* 单行布局：输入框和按钮在同一行 */}
 				<div className="flex items-center gap-2">
