@@ -514,7 +514,9 @@ When creating a feature request, include:
 
 Thanks to all the people who have contributed to LifeTrace!
 
+<!-- Uncomment when there are multiple contributors:
 ![Contributors](https://contrib.rocks/image?repo=madmonkey007/GTD)
+-->
 
 ## ❓ FAQ
 

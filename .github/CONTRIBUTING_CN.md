@@ -519,7 +519,9 @@ PR 标题应该遵循与提交信息相同的规范：
 
 感谢所有为 LifeTrace 做出贡献的人！
 
+<!-- Uncomment when there are multiple contributors:
 ![Contributors](https://contrib.rocks/image?repo=madmonkey007/GTD)
+-->
 
 ## ❓ 常见问题
 
