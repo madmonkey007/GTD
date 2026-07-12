@@ -9,6 +9,9 @@ import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import { sendChatMessageStream } from "@/lib/api";
 import type { ChatMessage } from "@/apps/chat/types";
+import { LinkedNotes } from "@/apps/chat/components/input/LinkedNotes";
+import { useNoteChatStore } from "@/lib/store/note-chat-store";
+import { useLocaleStore } from "@/lib/store/locale";
 
 // ─── Tab definitions ───
 
@@ -347,6 +350,16 @@ function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: bo
 
 // ─── Main component ───
 
+// 构建关联笔记上下文（格式与全局 ChatPanel 的 useSendMessage 保持一致）
+function buildNoteContext() {
+	const notes = useNoteChatStore.getState().linkedNotes;
+	return notes.length > 0
+		? `[关联笔记]\n${notes.map((n) =>
+			`笔记标题: ${n.name || "未命名"}\n笔记内容: ${n.userNotes || "无内容"}\n日期: ${n.date}\n标签: ${n.tags.join(", ") || "无"}`
+		).join("\n---\n")}\n---`
+		: "";
+}
+
 type DiaryChatPanelProps = {
 	noteContent: string;
 };
@@ -359,6 +372,8 @@ export function DiaryChatPanel({ noteContent }: DiaryChatPanelProps) {
 	const [error, setError] = useState<string | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
 	const listRef = useRef<HTMLDivElement>(null);
+	const clearLinkedNotes = useNoteChatStore((s) => s.clearLinkedNotes);
+	const { locale } = useLocaleStore();
 
 	useEffect(() => {
 		if (listRef.current) {
@@ -383,6 +398,7 @@ export function DiaryChatPanel({ noteContent }: DiaryChatPanelProps) {
 				),
 				(id) => id && setConversationId(id),
 				ac.signal,
+				locale,
 			);
 		} catch (err) {
 			if (ac.signal.aborted) return;
@@ -395,15 +411,16 @@ export function DiaryChatPanel({ noteContent }: DiaryChatPanelProps) {
 			setIsStreaming(false);
 			abortRef.current = null;
 		}
-	}, [conversationId]);
+	}, [conversationId, locale]);
 
 	const handleTabClick = useCallback((tab: TabDef) => {
 		if (isStreaming) return;
 		const id = createId();
 		setMessages((prev) => [...prev, { id, role: "assistant", content: "" }]);
-		const prompt = TAB_PROMPTS[tab.key]?.replace("{{notes}}", noteContent || "（暂无笔记内容）")
+		const basePrompt = TAB_PROMPTS[tab.key]?.replace("{{notes}}", noteContent || "（暂无笔记内容）")
 			?? "请分析以上笔记内容。";
-		doStream(prompt, id);
+		const noteCtx = buildNoteContext();
+		doStream(noteCtx ? `${noteCtx}\n\n${basePrompt}` : basePrompt, id);
 	}, [noteContent, isStreaming, doStream]);
 
 	const handleSendInput = useCallback(() => {
@@ -418,8 +435,10 @@ export function DiaryChatPanel({ noteContent }: DiaryChatPanelProps) {
 			{ id: uid, role: "user", content: text },
 			{ id: aid, role: "assistant", content: "" },
 		]);
-		doStream(text, aid);
-	}, [inputValue, isStreaming, doStream]);
+		const noteCtx = buildNoteContext();
+		doStream(noteCtx ? `${noteCtx}\n\n${text}` : text, aid);
+		clearLinkedNotes();
+	}, [inputValue, isStreaming, doStream, clearLinkedNotes]);
 
 	const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key === "Enter" && !e.shiftKey) {
@@ -496,6 +515,7 @@ export function DiaryChatPanel({ noteContent }: DiaryChatPanelProps) {
 			{/* Bottom: input */}
 			<div className="flex-shrink-0 border-t border-border/30 bg-muted/10">
 				<div className="px-3 pb-3 pt-3">
+					<LinkedNotes locale="zh" />
 					<div className="flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3.5 py-2.5 transition-all duration-200 focus-within:border-primary/30 focus-within:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)]">
 						<input
 							value={inputValue}
