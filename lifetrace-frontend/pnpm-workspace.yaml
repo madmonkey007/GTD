@@ -1,6 +1,9 @@
 packages:
   - "."
+dangerouslyAllowAllBuilds: true
 onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - "@swc/core"
   - electron
   - electron-winstaller
   - esbuild
