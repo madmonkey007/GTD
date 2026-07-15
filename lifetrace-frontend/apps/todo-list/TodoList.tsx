@@ -318,6 +318,11 @@ export function TodoList() {
 		// 普通单击：只选择当前 todo
 		setSelectedTodoId(todoId);
 		setAnchorTodoId(todoId);
+		// 确保右侧详情面板打开
+		const { isPanelBOpen, togglePanelB } = useUiStore.getState();
+		if (!isPanelBOpen) {
+			togglePanelB();
+		}
 	};
 
 	const handleCreateTodo = async (e?: React.FormEvent) => {
