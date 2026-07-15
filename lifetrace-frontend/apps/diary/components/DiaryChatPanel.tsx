@@ -418,12 +418,17 @@ export function DiaryChatPanel({ noteContent, showBackButton = false, onClose }:
 
 	const handleTabClick = useCallback((tab: TabDef) => {
 		if (isStreaming) return;
-		const id = createId();
-		setMessages((prev) => [...prev, { id, role: "assistant", content: "" }]);
+		const uid = createId();
+		const aid = createId();
+		setMessages((prev) => [
+			...prev,
+			{ id: uid, role: "user", content: `🧠 ${tab.label}` },
+			{ id: aid, role: "assistant", content: "" },
+		]);
 		const basePrompt = TAB_PROMPTS[tab.key]?.replace("{{notes}}", noteContent || "（暂无笔记内容）")
 			?? "请分析以上笔记内容。";
 		const noteCtx = buildNoteContext();
-		doStream(noteCtx ? `${noteCtx}\n\n${basePrompt}` : basePrompt, id);
+		doStream(noteCtx ? `${noteCtx}\n\n${basePrompt}` : basePrompt, aid);
 	}, [noteContent, isStreaming, doStream]);
 
 	const handleSendInput = useCallback(() => {
