@@ -411,7 +411,16 @@ class AgnoAgentService:
         result = None
 
         if chunk.event == RunEvent.run_content:
-            result = chunk.content if chunk.content else None
+            parts = []
+            # 提取 reasoning_content（DeepSeek 的思考过程）
+            reasoning = getattr(chunk, "reasoning_content", None)
+            if reasoning:
+                parts.append(f"[THINK]{reasoning}[/THINK]")
+            # 提取常规内容
+            if chunk.content:
+                parts.append(chunk.content)
+            if parts:
+                result = "".join(parts)
         elif include_tool_events:
             if chunk.event == RunEvent.tool_call_started:
                 result = self._handle_tool_call_started(chunk)

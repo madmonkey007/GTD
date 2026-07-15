@@ -199,6 +199,41 @@ function createId() {
 	return `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+// Parse [THINK]...[/THINK] markers from content
+// Handles both complete and unclosed (during streaming) markers
+function parseThinkingContent(content: string): Array<{ type: "text" | "think"; content: string }> {
+	const parts: Array<{ type: "text" | "think"; content: string }> = [];
+	const regex = /\[THINK\]([\s\S]*?)\[\/THINK\]/g;
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+
+	while ((match = regex.exec(content)) !== null) {
+		// Text before the thinking block
+		if (match.index > lastIndex) {
+			parts.push({ type: "text", content: content.slice(lastIndex, match.index) });
+		}
+		// The thinking block
+		parts.push({ type: "think", content: match[1] });
+		lastIndex = regex.lastIndex;
+	}
+
+	// Handle remaining content — check for unclosed [THINK] (during streaming)
+	const remaining = content.slice(lastIndex);
+	if (remaining) {
+		const unclosedMatch = remaining.match(/\[THINK\]([\s\S]*)/);
+		if (unclosedMatch) {
+			if (unclosedMatch.index! > 0) {
+				parts.push({ type: "text", content: remaining.slice(0, unclosedMatch.index) });
+			}
+			parts.push({ type: "think", content: unclosedMatch[1] });
+		} else {
+			parts.push({ type: "text", content: remaining });
+		}
+	}
+
+	return parts;
+}
+
 // ─── Empty state ───
 
 function EmptyState({ onTabSelect }: { onTabSelect: (tab: TabDef) => void }) {
@@ -254,6 +289,32 @@ function MarkdownContent({ text }: { text: string }) {
 		<div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:mb-2 prose-headings:mt-4 prose-headings:text-foreground prose-headings:font-semibold prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-li:leading-relaxed prose-code:px-1 prose-code:py-0.5 prose-code:rounded-md prose-code:bg-muted/60 prose-code:text-foreground prose-code:text-[11px] prose-pre:bg-muted/40 prose-pre:border prose-pre:border-border/40 prose-pre:rounded-xl prose-strong:text-foreground">
 			<ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
 		</div>
+	);
+}
+
+// ─── Thinking block ───
+
+function ThinkingBlock({ content }: { content: string }) {
+	return (
+		<details className="group mt-1.5">
+			<summary className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors select-none list-none [&::-webkit-details-marker]:hidden [&::marker]:hidden">
+				<svg
+					className="w-3 h-3 transition-transform group-open:rotate-90"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="2"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+				>
+					<path d="m9 18 6-6-6-6" />
+				</svg>
+				<span>思考过程</span>
+			</summary>
+			<div className="mt-1.5 pl-4 text-xs leading-relaxed text-muted-foreground/70 italic border-l-2 border-muted-foreground/20 whitespace-pre-wrap">
+				{content}
+			</div>
+		</details>
 	);
 }
 
@@ -336,7 +397,17 @@ function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: bo
 								<StreamingIndicator />
 							) : msg.content ? (
 								<div className="text-[13px]">
-									<MarkdownContent text={msg.content} />
+									{msg.content.includes("[THINK]") ? (
+										parseThinkingContent(msg.content).map((part, i) =>
+											part.type === "think" ? (
+												<ThinkingBlock key={i} content={part.content} />
+											) : part.content ? (
+												<MarkdownContent key={i} text={part.content} />
+											) : null,
+										)
+									) : (
+										<MarkdownContent text={msg.content} />
+									)}
 								</div>
 							) : null}
 						</>

@@ -1,6 +1,7 @@
 """Agno 模式处理器（基于 Agno 框架的 Agent）。"""
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,15 @@ from ..helpers import (
 )
 
 logger = get_logger()
+
+
+# 思考标记正则：用于从存储内容中移除 [THINK]...[/THINK]
+_THINK_PATTERN = re.compile(r"\[THINK\].*?\[/THINK\]")
+
+
+def _strip_thinking_tags(text: str) -> str:
+    """移除文本中的 [THINK]...[/THINK] 思考标记，仅用于数据库存储。"""
+    return _THINK_PATTERN.sub("", text)
 
 
 def _strip_tool_events(
@@ -182,6 +192,8 @@ def create_agno_streaming_response(
                 cleaned, pending_tool_chunk, parsed_events = _strip_tool_events(
                     chunk, pending_tool_chunk
                 )
+                # 移除 [THINK]...[/THINK] 标记，避免存入数据库
+                cleaned = _strip_thinking_tags(cleaned)
                 if cleaned:
                     storage_chunks.append(cleaned)
                 if parsed_events:
