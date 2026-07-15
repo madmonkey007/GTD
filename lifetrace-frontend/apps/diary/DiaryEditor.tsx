@@ -54,7 +54,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNoteChatStore } from "@/lib/store/note-chat-store";
-import { useUiStore } from "@/lib/store/ui-store";
 
 export type DiaryFilterMode = "all" | "last7" | "random";
 
@@ -270,7 +269,6 @@ export function DiaryEditor({
 	}, [filterMode, heatmapFilterDate, debouncedSearch]);
 	const { data: notesData, isLoading: isNotesLoading } = useJournals(journalQuery);
 	const addLinkedNote = useNoteChatStore((s) => s.addLinkedNote);
-	const { getFeatureByPosition, setPanelFeature } = useUiStore();
 	const autoFilledRef = useRef(false);
 	const inlineTagRef = useRef(onInlineTag);
 	inlineTagRef.current = onInlineTag;
@@ -1176,14 +1174,6 @@ export function DiaryEditor({
 																userNotes: note.userNotes,
 																date: note.date,
 																tags: note.tags.map((t) => t.tagName),
-															});
-															// 打开 Chat 面板 - 切换到 list 视图（日记视图不使用面板系统）
-															useUiStore.getState().setActiveView("list");
-															// 等一帧让视图渲染后再设置面板
-															requestAnimationFrame(() => {
-																useUiStore.getState().setPanelPinned("panelB", false);
-																setPanelFeature("panelB", "chat");
-																if (!useUiStore.getState().isPanelBOpen) useUiStore.getState().togglePanelB();
 															});
 														}}
 														title={locale === "zh" ? "添加到对话" : "Add to chat"}
