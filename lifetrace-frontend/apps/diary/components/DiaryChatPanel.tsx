@@ -394,6 +394,7 @@ export function DiaryChatPanel({ noteContent, showBackButton = false, onClose }:
 					message: prompt,
 					userInput: prompt,
 					conversationId: conversationId ?? undefined,
+					mode: "auto",
 				},
 				(chunk) => setMessages((prev) =>
 					prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m),
