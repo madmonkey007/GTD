@@ -282,6 +282,19 @@ export function TodoDetail() {
 	const previewPlacement =
 		leftNeighborOpen && leftNeighborFeature === "chat" ? "left" : "right";
 
+	if (!todo) {
+		return (
+			<div className="flex h-full flex-col overflow-hidden bg-background">
+				<DetailHeader activeView={activeView} onViewChange={setActiveView} />
+				<div className="flex-1 flex items-center justify-center px-6">
+					<div className="text-center">
+						<p className="text-sm text-muted-foreground">选择一个待办查看详情</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="flex h-full flex-col overflow-hidden bg-background">
 			<DetailHeader
