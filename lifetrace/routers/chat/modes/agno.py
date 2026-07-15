@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi.responses import StreamingResponse
+from openai import OpenAI
 
 from lifetrace.llm.agno_agent import (
     TOOL_EVENT_PREFIX,
@@ -15,6 +16,7 @@ from lifetrace.llm.agno_agent import (
 from lifetrace.schemas.chat import ChatMessage
 from lifetrace.services.chat_service import ChatService
 from lifetrace.util.logging_config import get_logger
+from lifetrace.util.settings import settings
 
 from ..helpers import (
     get_conversation_history,
@@ -183,23 +185,52 @@ def create_agno_streaming_response(
         tool_events: list[dict[str, Any]] = []
         pending_tool_chunk = ""
         try:
-            for chunk in agno_service.stream_response(
-                message=message.message,
-                conversation_history=conversation_history,
-                session_id=session_id,
-            ):
-                yield chunk
-                cleaned, pending_tool_chunk, parsed_events = _strip_tool_events(
-                    chunk, pending_tool_chunk
-                )
-                # 移除 [THINK]...[/THINK] 标记，避免存入数据库
-                cleaned = _strip_thinking_tags(cleaned)
-                if cleaned:
-                    storage_chunks.append(cleaned)
-                if parsed_events:
-                    tool_events.extend(parsed_events)
+            use_direct_api = not (message.selected_tools or external_tools)
+            if use_direct_api:
+                client = OpenAI(api_key=settings.llm.api_key, base_url=settings.llm.base_url)
+                model = settings.llm.model
 
-            # 丢弃未完成的工具事件残片，避免写入历史
+                messages_for_api: list[dict[str, str]] = []
+                system_intro = "你是一个智能助手。"
+                messages_for_api.append({"role": "system", "content": system_intro})
+
+                for hist_msg in conversation_history:
+                    role = hist_msg.get("role", "user")
+                    content = hist_msg.get("content", "")
+                    messages_for_api.append({"role": role, "content": content})
+
+                stream = client.chat.completions.create(
+                    model=model,
+                    messages=messages_for_api,
+                    stream=True,
+                )
+
+                for chunk in stream:
+                    if not chunk.choices:
+                        continue
+                    delta = chunk.choices[0].delta
+                    reasoning = getattr(delta, "reasoning_content", None)
+                    if reasoning:
+                        yield f"[THINK]{reasoning}[/THINK]"
+                    if delta.content:
+                        yield delta.content
+                        storage_chunks.append(delta.content)
+            else:
+                for chunk in agno_service.stream_response(
+                    message=message.message,
+                    conversation_history=conversation_history,
+                    session_id=session_id,
+                ):
+                    yield chunk
+                    cleaned, pending_tool_chunk, parsed_events = _strip_tool_events(
+                        chunk, pending_tool_chunk
+                    )
+                    cleaned = _strip_thinking_tags(cleaned)
+                    if cleaned:
+                        storage_chunks.append(cleaned)
+                    if parsed_events:
+                        tool_events.extend(parsed_events)
+
             storage_content = "".join(storage_chunks).strip()
             metadata = (
                 json.dumps({"tool_events": tool_events}, ensure_ascii=False)
