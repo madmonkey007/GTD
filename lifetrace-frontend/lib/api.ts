@@ -4,7 +4,7 @@
  */
 function getStreamApiBaseUrl(): string {
 	// 流式请求始终直接调用后端，避免 Next.js 代理导致的缓冲/压缩问题
-	return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
+	return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 }
 
 // ============================================================================
