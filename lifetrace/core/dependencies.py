@@ -33,7 +33,9 @@ from lifetrace.services.chat_service import ChatService
 from lifetrace.services.event_service import EventService
 from lifetrace.services.journal_service import JournalService
 from lifetrace.services.todo_service import TodoService
+from lifetrace.services.zero_think_service import ZeroThinkService
 from lifetrace.storage.database_base import DatabaseBase
+from lifetrace.storage.zero_think_manager import ZeroThinkManager
 from lifetrace.util.settings import settings
 
 
@@ -186,3 +188,20 @@ def get_ocr_processor():
 def get_settings():
     """获取配置对象"""
     return settings
+
+
+# ========== ZeroThink 模块依赖注入 ==========
+
+
+def get_zero_think_manager(
+    db_base: DatabaseBase = Depends(get_db_base),
+) -> ZeroThinkManager:
+    """获取零秒思考管理器实例"""
+    return ZeroThinkManager(db_base)
+
+
+def get_zero_think_service(
+    manager: ZeroThinkManager = Depends(get_zero_think_manager),
+) -> ZeroThinkService:
+    """获取零秒思考服务实例"""
+    return ZeroThinkService(manager)

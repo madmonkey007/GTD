@@ -1,11 +1,14 @@
 "use client";
 
-import { Award, BookOpen, CalendarDays, Heart, LayoutGrid, ListTodo, Timer } from "lucide-react";
+import { Award, BookOpen, BrainCircuit, CalendarDays, Heart, LayoutGrid, ListTodo, Timer, Settings } from "lucide-react";
+import Image from "next/image";
+import { useOpenSettings } from "@/lib/hooks/useOpenSettings";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CalendarPanel } from "@/apps/calendar/CalendarPanel";
 import { HabitsPanel } from "@/apps/habits/HabitsPanel";
 import { DiaryPanel } from "@/apps/diary";
 import { AchievementsPanel } from "@/apps/achievements/AchievementsPanel";
+import { ZeroThinkPanel } from "@/apps/zero-think";
 import { PomodoroView } from "@/apps/pomodoro/PomodoroView";
 import { QuadrantsView } from "@/apps/quadrants/QuadrantsView";
 import { useWindowAdaptivePanels } from "@/lib/hooks/useWindowAdaptivePanels";
@@ -49,37 +52,78 @@ const SIDEBAR_NAV_ITEMS: {
 	{ id: "habits", label: "习惯", icon: Heart },
 	{ id: "diary", label: "笔记", icon: BookOpen },
 	{ id: "achievements", label: "成就", icon: Award },
+	{ id: "zeroThink", label: "零秒思考", icon: BrainCircuit },
 ];
 
 function SidebarNav() {
 	const { activeView, setActiveView } = useUiStore();
+	const { openSettings } = useOpenSettings();
 
 	return (
-		<nav className="flex flex-col items-center gap-1 py-3">
-			{SIDEBAR_NAV_ITEMS.map((item) => {
-				const Icon = item.icon;
-				const isActive = activeView === item.id;
-				return (
-					<button
-						key={item.id}
-						type="button"
-						onClick={() => setActiveView(item.id)}
-						title={item.label}
-						className={cn(
-							"group relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-							"hover:bg-muted/50",
-							isActive
-								? "bg-primary/10 text-primary"
-								: "text-muted-foreground",
-						)}
-					>
-						{isActive && (
-							<div className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
-						)}
-						<Icon className="h-5 w-5" />
-					</button>
-				);
-			})}
+		<nav className="flex flex-col items-center h-full py-2">
+			{/* Logo at top */}
+			<button
+				onClick={() => setActiveView("list")}
+				className="relative h-6 w-6 shrink-0 mb-2.5"
+				title="GTD"
+				type="button"
+			>
+				<Image
+					src="/free-todo-logos/free_todo_icon_4_dark_with_grid.png"
+					alt="GTD"
+					fill
+					className="object-contain block dark:hidden"
+					priority
+				/>
+				<Image
+					src="/free-todo-logos/free_todo_icon_4_with_grid.png"
+					alt="GTD"
+					fill
+					className="object-contain hidden dark:block"
+					priority
+				/>
+			</button>
+
+			{/* Navigation items in the middle */}
+			<div className="flex flex-col items-center gap-0.5">
+				{SIDEBAR_NAV_ITEMS.map((item) => {
+					const Icon = item.icon;
+					const isActive = activeView === item.id;
+					return (
+						<button
+							key={item.id}
+							type="button"
+							onClick={() => setActiveView(item.id)}
+							title={item.label}
+							className={cn(
+								"group relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+								"hover:bg-muted/50",
+								isActive
+									? "bg-primary/10 text-primary"
+									: "text-muted-foreground",
+							)}
+						>
+							{isActive && (
+								<div className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
+							)}
+							<Icon className="h-4.5 w-4.5" />
+						</button>
+					);
+				})}
+			</div>
+
+			{/* Spacer to push settings to bottom */}
+			<div className="flex-1" />
+
+			{/* Settings button at bottom */}
+			<button
+				onClick={openSettings}
+				type="button"
+				className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+				title="设置"
+			>
+				<Settings className="h-4.5 w-4.5" />
+			</button>
 		</nav>
 	);
 }
@@ -323,7 +367,7 @@ export function PanelRegion({
 		setMounted(true);
 	}, []);
 
-	const { activeView, sidebarWidth } = useUiStore();
+	const { activeView, sidebarWidth, setActiveView } = useUiStore();
 
 	// 计算容器高度
 	const panelsContainerHeight = useMemo(() => {
@@ -383,13 +427,13 @@ export function PanelRegion({
 						: {}),
 				}}
 			>
-				{/* 左侧固定导航侧边栏 */}
-				<div
-					className="flex flex-col overflow-hidden shrink-0 border-r border-border/40"
-					style={{ width: `${SIDEBAR_WIDTH}px` }}
-				>
-					<SidebarNav />
-				</div>
+			{/* 左侧固定导航侧边栏 */}
+			<div
+				className="flex flex-col h-full shrink-0 border-r border-border/40 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+				style={{ width: `${SIDEBAR_WIDTH}px` }}
+			>
+				<SidebarNav />
+			</div>
 
 				{/* 主内容区 */}
 				<div
@@ -420,6 +464,7 @@ export function PanelRegion({
 							{activeView === "habits" && <HabitsPanel />}
 							{activeView === "diary" && <DiaryPanel />}
 							{activeView === "achievements" && <AchievementsPanel />}
+							{activeView === "zeroThink" && <ZeroThinkPanel setActiveView={(view: string) => setActiveView(view as SidebarView)} />}
 						</div>
 					)}
 				</div>

@@ -58,6 +58,8 @@
     "costTrackingPlaceholder": "Placeholder: view cost tracking here",
     "achievementsLabel": "Achievements",
     "achievementsPlaceholder": "Placeholder: plug an achievements component here",
+    "zeroThinkLabel": "Zero Think",
+    "zeroThinkPlaceholder": "Select a feature",
     "screenshotsLabel": "Screenshots (Debug)",
     "screenshotsPlaceholder": "Event timeline with screenshots (dev mode only)",
     "debugShotsLabel": "Debug Shots",
@@ -388,6 +390,7 @@
     "screenshots": "Screenshots",
     "debugShots": "Debug Shots",
     "audio": "Audio",
+    "zeroThink": "Zero Think",
     "unassigned": "Unassigned"
   },
   "panelMenu": {

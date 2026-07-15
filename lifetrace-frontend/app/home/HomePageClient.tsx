@@ -2,7 +2,6 @@
 
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppHeader } from "@/components/layout/AppHeader";
 import { PanelRegion } from "@/components/layout/PanelRegion";
 import { GlobalDndProvider } from "@/lib/dnd";
 import { useAutoRecording } from "@/lib/hooks/useAutoRecording";
@@ -238,7 +237,6 @@ export default function HomePageClient() {
 						overflow: "hidden",
 					}}
 				>
-					<AppHeader hasNotifications={notifications.length > 0} />
 					<div
 						className="flex-1 min-h-0 overflow-hidden bg-zinc-300 dark:bg-zinc-800"
 						>

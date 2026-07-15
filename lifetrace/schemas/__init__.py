@@ -27,6 +27,12 @@ from lifetrace.schemas.vector import (
     VectorStatsResponse,
 )
 from lifetrace.schemas.vision import VisionChatRequest, VisionChatResponse
+from lifetrace.schemas.zero_think import (
+    ZeroThinkCardCreate,
+    ZeroThinkCardResponse,
+    ZeroThinkDailySummary,
+    ZeroThinkStatsResponse,
+)
 
 __all__ = [
     "ChatMessage",
@@ -51,4 +57,8 @@ __all__ = [
     "VectorStatsResponse",
     "VisionChatRequest",
     "VisionChatResponse",
+    "ZeroThinkCardCreate",
+    "ZeroThinkCardResponse",
+    "ZeroThinkDailySummary",
+    "ZeroThinkStatsResponse",
 ]

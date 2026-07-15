@@ -139,6 +139,12 @@ interface DiaryEditorProps {
 	onAnnotate?: (note: JournalView) => void;
 	onCompareNotes?: (sourceNote: JournalView, currentNote: JournalView) => void;
 	relatedNotesData?: JournalView[];
+	showLeftToggle?: boolean;
+	showRightToggle?: boolean;
+	isLeftOpen?: boolean;
+	isRightOpen?: boolean;
+	onToggleLeft?: () => void;
+	onToggleRight?: () => void;
 }
 
 type FormatKey = "bold" | "underline" | "highlight" | "ol" | "ul" | "tag";
@@ -178,6 +184,12 @@ export function DiaryEditor({
 	onAnnotate,
 	onCompareNotes,
 	relatedNotesData,
+	showLeftToggle = false,
+	showRightToggle = false,
+	isLeftOpen = false,
+	isRightOpen = false,
+	onToggleLeft,
+	onToggleRight,
 }: DiaryEditorProps) {
 	const t = useTranslations("journalPanel");
 	const locale = useLocale();
@@ -406,17 +418,6 @@ export function DiaryEditor({
 		}
 	}, [draft.name, draft.userNotes]);
 
-	const autoResize = useCallback(() => {
-		const ta = editorRef.current;
-		if (!ta) return;
-		ta.style.height = "auto";
-		ta.style.height = ta.scrollHeight + "px";
-	}, []);
-
-	useEffect(() => {
-		autoResize();
-	}, [draft.userNotes, autoResize]);
-
 	const insertTagFromAutocomplete = useCallback((tagName: string) => {
 		const div = editorRef.current;
 		if (!div) return;
@@ -589,6 +590,24 @@ export function DiaryEditor({
 		ta.style.height = ta.scrollHeight + "px";
 	}, [editContent, editingCardId]);
 
+	const handleNewNoteFocus = useCallback(() => {
+		setIsFocused(true);
+		const el = editorRef.current;
+		if (!el) return;
+		el.style.height = "auto";
+		el.style.height = el.scrollHeight + 48 + "px";
+	}, []);
+
+	const handleNewNoteBlur = useCallback(() => {
+		setIsFocused(false);
+		onUserNotesBlur(getEditorText());
+		const el = editorRef.current;
+		if (!el) return;
+		const text = el.innerText || "";
+		if (text.trim()) return;
+		el.style.height = "";
+	}, []);
+
 	const toggleCard = (id: number) => {
 		setExpandedCards((prev) => {
 			const next = new Set(prev);
@@ -643,22 +662,48 @@ export function DiaryEditor({
 			<div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>
 			{/* Input area - auto-expanding (hidden when searching or filtering) */}
 			{/* Search bar */}
-			<div className="relative mb-2 mx-4">
-				<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
-				<input
-					type="text"
-					value={searchQuery}
-					onChange={(e) => setSearchQuery(e.target.value)}
-					placeholder="搜索笔记..."
-					className="w-full h-8 rounded-lg border border-border/30 bg-background/50 pl-8 pr-8 text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] transition-all duration-200"
-				/>
-				{searchQuery && (
+			<div className="relative mb-2 mx-4 flex items-center gap-1">
+				{showLeftToggle && (
 					<button
 						type="button"
-						onClick={() => setSearchQuery("")}
-						className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 hover:text-muted-foreground transition-colors"
+						onClick={onToggleLeft}
+						className={`flex-shrink-0 p-1 -ml-1 transition-colors ${isLeftOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
 					>
-						<X className="w-3.5 h-3.5" />
+						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+							<line x1="3" y1="6" x2="21" y2="6"/>
+							<line x1="3" y1="12" x2="21" y2="12"/>
+							<line x1="3" y1="18" x2="21" y2="18"/>
+						</svg>
+					</button>
+				)}
+				<div className="relative flex-1">
+					<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
+					<input
+						type="text"
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+						placeholder="搜索笔记..."
+						className="w-full h-8 rounded-lg border border-border/30 bg-background/50 pl-8 pr-8 text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] transition-all duration-200"
+					/>
+					{searchQuery && (
+						<button
+							type="button"
+							onClick={() => setSearchQuery("")}
+							className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 hover:text-muted-foreground transition-colors"
+						>
+							<X className="w-3.5 h-3.5" />
+						</button>
+					)}
+				</div>
+				{showRightToggle && (
+					<button
+						type="button"
+						onClick={onToggleRight}
+						className={`flex-shrink-0 p-1 -mr-1 transition-colors ${isRightOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+							<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+						</svg>
 					</button>
 				)}
 			</div>
@@ -673,11 +718,6 @@ export function DiaryEditor({
 						contentEditable
 						suppressContentEditableWarning
 						onInput={handleEditorInput}
-						onBlur={() => {
-							setIsFocused(false);
-							onUserNotesBlur(getEditorText());
-						}}
-						onFocus={() => setIsFocused(true)}
 						onKeyDown={(e) => {
 							if (!tagAutocompleteVisible || filteredTags.length === 0) return;
 							if (e.key === 'ArrowDown') {
@@ -737,8 +777,10 @@ export function DiaryEditor({
 								document.execCommand('insertText', false, insertText);
 							}
 						}}
+						onFocus={handleNewNoteFocus}
+						onBlur={handleNewNoteBlur}
 						data-placeholder={t("contentPlaceholder")}
-						className="w-full text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-none px-3 pt-3 min-h-[120px] whitespace-pre-wrap empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/70"
+						className="w-full text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-none px-3 pt-3 min-h-[80px] h-[80px] whitespace-pre-wrap empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/70"
 					/>
 					{/* Tag autocomplete dropdown for new note editor */}
 					{tagAutocompleteVisible && filteredTags.length > 0 && !editingCardId && cursorPos && (
@@ -1135,22 +1177,14 @@ export function DiaryEditor({
 																date: note.date,
 																tags: note.tags.map((t) => t.tagName),
 															});
-															// 打开 Chat 面板
-															const positions = ["panelA", "panelB", "panelC"] as const;
-															let found = false;
-															for (const pos of positions) {
-																if (getFeatureByPosition(pos) === "chat") {
-																	if (pos === "panelA" && !useUiStore.getState().isPanelAOpen) useUiStore.getState().togglePanelA();
-																	else if (pos === "panelB" && !useUiStore.getState().isPanelBOpen) useUiStore.getState().togglePanelB();
-																	else if (pos === "panelC" && !useUiStore.getState().isPanelCOpen) useUiStore.getState().togglePanelC();
-																	found = true;
-																	break;
-																}
-															}
-															if (!found) {
+															// 打开 Chat 面板 - 切换到 list 视图（日记视图不使用面板系统）
+															useUiStore.getState().setActiveView("list");
+															// 等一帧让视图渲染后再设置面板
+															requestAnimationFrame(() => {
+																useUiStore.getState().setPanelPinned("panelB", false);
 																setPanelFeature("panelB", "chat");
 																if (!useUiStore.getState().isPanelBOpen) useUiStore.getState().togglePanelB();
-															}
+															});
 														}}
 														title={locale === "zh" ? "添加到对话" : "Add to chat"}
 														className="rounded p-1 -mt-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 hover:text-primary hover:bg-primary/10 transition-all duration-150 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"

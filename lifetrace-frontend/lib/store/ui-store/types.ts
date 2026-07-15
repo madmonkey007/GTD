@@ -7,7 +7,7 @@ export type DockDisplayMode = "fixed" | "auto-hide";
 export type SidebarMode = "today" | "last7days" | "list" | null;
 
 // 侧边栏导航视图类型
-export type SidebarView = "list" | "calendar" | "quadrants" | "pomodoro" | "habits" | "diary" | "achievements";
+export type SidebarView = "list" | "calendar" | "quadrants" | "pomodoro" | "habits" | "diary" | "achievements" | "zeroThink";
 
 // 布局预设类型
 export interface LayoutPreset {

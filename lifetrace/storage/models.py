@@ -471,6 +471,26 @@ class Transcription(TimestampMixin, table=True):
         return f"<Transcription(id={self.id}, audio_recording_id={self.audio_recording_id})>"
 
 
+class ZeroThinkCard(TimestampMixin, table=True):
+    """零秒思考卡片模型"""
+
+    __tablename__: ClassVar[str] = "zero_think_cards"
+
+    id: str = Field(max_length=64, primary_key=True)  # 唯一ID
+    user_id: str = Field(max_length=64, index=True)  # 用户ID
+    date: str = Field(max_length=10, index=True)  # YYYY-MM-DD
+    question: str = Field(max_length=500)  # 问题标题（必须包含?）
+    answers: str = Field(sa_column=Column(Text))  # JSON数组：4-6条答案
+    day_index: int = Field(default=1)  # 今天第几个问题（1-10）
+    mode: str = Field(default="scattered", max_length=20)  # scattered | batch
+    duration_ms: int = Field(default=0)  # 实际耗时（毫秒）
+    is_locked: bool = Field(default=False)  # 是否已锁定
+    category: str = Field(default="", max_length=100)  # AI分类场景
+
+    def __repr__(self):
+        return f"<ZeroThinkCard(id={self.id}, question={self.question[:20]})>"
+
+
 # 为兼容旧代码，保留 Base 引用（指向 SQLModel.metadata）
 # 这样现有的 Base.metadata.create_all() 调用仍然有效
 Base = SQLModel

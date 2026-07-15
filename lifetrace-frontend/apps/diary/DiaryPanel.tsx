@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DiaryEditor } from "@/apps/diary/DiaryEditor";
@@ -86,6 +86,30 @@ export function DiaryPanel() {
 		autoGenerateObjectiveEnabled,
 		autoGenerateAiEnabled,
 	} = useJournalStore();
+
+	// Responsive layout
+	const containerRef = useRef<HTMLDivElement>(null);
+	const [containerWidth, setContainerWidth] = useState(0);
+	const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
+	const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
+
+	useEffect(() => {
+		const el = containerRef.current;
+		if (!el) return;
+		const observer = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				setContainerWidth(entry.contentRect.width);
+			}
+		});
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, []);
+
+	// Derived state: when container is wide enough, show sidebars inline
+	// left=288px + right=280px(min) + gaps=8px + middle needs ~400px min
+	// So at containerWidth >= ~976, all 3 panels can fit
+	const showLeftInline = containerWidth >= 1000 || containerWidth === 0;
+	const showRightInline = containerWidth >= 900 || containerWidth === 0;
 	const [showTrash, setShowTrash] = useState(false);
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
 	const { stats, filterMode, setFilterMode } = useDiaryStats();
@@ -296,13 +320,15 @@ const handleSaveCardEdit = async (
 	): JournalCreate => ({
 		name: updatedDraft.name || undefined,
 		user_notes: updatedDraft.userNotes,
-		date: formatDateInput(updatedDraft.date),
+		date: updatedDraft.id ? formatDateInput(updatedDraft.date) : formatDateInput(new Date()),
 		content_format: "markdown",
 		content_objective: updatedDraft.contentObjective || null,
 		content_ai: updatedDraft.contentAi || null,
 		mood: updatedDraft.mood || null,
 		energy: updatedDraft.energy,
-		day_bucket_start: bucket.bucketStart.toISOString(),
+		day_bucket_start: updatedDraft.id
+			? bucket.bucketStart.toISOString()
+			: resolveBucketRange(new Date(), refreshMode, fixedTime, workHoursEnd, customTime).bucketStart.toISOString(),
 		tags,
 		related_todo_ids: updatedDraft.relatedTodoIds,
 		related_activity_ids: updatedDraft.relatedActivityIds,
@@ -541,10 +567,11 @@ const handleSaveCardEdit = async (
 
 		return ( <>
 			<div className="flex h-full flex-col overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20">
-			<div className="flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-2">
+			<div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-2 relative">
 
 					
-				<DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} onFilterModeChange={(mode) => { setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => setShowTrash(true)} selectedTag={selectedTag} onSelectTag={(tag) => { setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} />
+				{/* Left sidebar — inline when wide, otherwise hidden (drawer overlay) */}
+				{showLeftInline && <DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} onFilterModeChange={(mode) => { setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => setShowTrash(true)} selectedTag={selectedTag} onSelectTag={(tag) => { setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} />}
 				<div className="flex-1 min-w-0 max-w-[800px] flex flex-col">
 					{showTrash ? (
 						<DiaryTrashView
@@ -588,16 +615,66 @@ const handleSaveCardEdit = async (
 							}
 							onSubmit={handleSubmitNotes}
 							onInlineTag={handleInlineTag}
+							showLeftToggle={!showLeftInline}
+							showRightToggle={!showRightInline}
+							isLeftOpen={leftDrawerOpen}
+							isRightOpen={rightDrawerOpen}
+							onToggleLeft={() => setLeftDrawerOpen(prev => !prev)}
+							onToggleRight={() => setRightDrawerOpen(prev => !prev)}
 						/>
 						</>
 					)}
 
 				</div>
 
-		{/* Right-side chat panel for AI analysis */}
-		<div className="w-[380px] shrink-0 flex flex-col rounded-(--radius) bg-[oklch(var(--card))] shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_1px_2px_-1px_rgba(0,0,0,0.06)] overflow-hidden">
-			<DiaryChatPanel noteContent={noteContent} />
-		</div>
+		{/* Right-side chat panel for AI analysis — inline when wide, otherwise hidden (drawer overlay) */}
+		{showRightInline && (
+			<div className="w-[380px] flex-shrink min-w-[280px] flex flex-col rounded-(--radius) bg-[oklch(var(--card))] shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_1px_3px_0_rgba(0,0,0,0.06)] overflow-hidden">
+				<DiaryChatPanel noteContent={noteContent} />
+			</div>
+		)}
+
+		{/* Left drawer overlay */}
+		<AnimatePresence>
+			{!showLeftInline && leftDrawerOpen && (
+				<>
+					<motion.div
+						key="left-drawer-backdrop"
+						initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+						className="fixed inset-0 z-30 bg-black/30" onClick={() => setLeftDrawerOpen(false)}
+					/>
+					<motion.div
+						key="left-drawer"
+						initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }}
+						transition={{ type: "spring", damping: 30, stiffness: 300 }}
+						className="absolute left-0 top-0 z-40 h-full w-72 shadow-xl"
+					>
+						<DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} onFilterModeChange={(mode) => { setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => setShowTrash(true)} selectedTag={selectedTag} onSelectTag={(tag) => { setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} />
+					</motion.div>
+				</>
+			)}
+		</AnimatePresence>
+
+		{/* Right drawer overlay */}
+		<AnimatePresence>
+			{!showRightInline && rightDrawerOpen && (
+				<>
+					<motion.div
+						key="right-drawer-backdrop"
+						initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+						className="fixed inset-0 z-30 bg-black/30" onClick={() => setRightDrawerOpen(false)}
+					/>
+					<motion.div
+						key="right-drawer"
+						initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+						transition={{ type: "spring", damping: 30, stiffness: 300 }}
+						className="absolute right-0 top-0 z-40 h-full w-[380px] shadow-xl"
+					>
+						<DiaryChatPanel noteContent={noteContent} showBackButton onClose={() => setRightDrawerOpen(false)} />
+					</motion.div>
+				</>
+			)}
+		</AnimatePresence>
 		</div>
 	</div>
 			{annotateTarget && <AnnotationModal

@@ -351,6 +351,25 @@ class DatabaseBase:
                         ["extraction_status"],
                         "CREATE INDEX IF NOT EXISTS idx_transcriptions_extraction_status ON transcriptions(extraction_status)",
                     ),
+                    # 零秒思考相关索引
+                    (
+                        "idx_zero_think_cards_user_id",
+                        "zero_think_cards",
+                        ["user_id"],
+                        "CREATE INDEX IF NOT EXISTS idx_zero_think_cards_user_id ON zero_think_cards(user_id)",
+                    ),
+                    (
+                        "idx_zero_think_cards_date",
+                        "zero_think_cards",
+                        ["date"],
+                        "CREATE INDEX IF NOT EXISTS idx_zero_think_cards_date ON zero_think_cards(date)",
+                    ),
+                    (
+                        "idx_zero_think_cards_user_date",
+                        "zero_think_cards",
+                        ["user_id", "date"],
+                        "CREATE INDEX IF NOT EXISTS idx_zero_think_cards_user_date ON zero_think_cards(user_id, date)",
+                    ),
                 ]
 
                 # 创建索引
