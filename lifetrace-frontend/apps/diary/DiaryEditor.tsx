@@ -660,7 +660,7 @@ export function DiaryEditor({
 			<div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>
 			{/* Input area - auto-expanding (hidden when searching or filtering) */}
 			{/* Search bar */}
-			<div className="relative mb-2 mx-4 flex items-center gap-1">
+			<div className="relative mt-2 mb-2 mx-4 flex items-center gap-1">
 				{showLeftToggle && (
 					<button
 						type="button"
@@ -706,7 +706,7 @@ export function DiaryEditor({
 				)}
 			</div>
 			{!debouncedSearch && !heatmapFilterDate && !tagFilter && !similarToNoteId && (
-			<div className="px-4 pt-3 pb-2">
+			<div className="px-4 pt-2 pb-2">
 				<div
 					className={"relative rounded-xl border bg-background transition-all duration-200 "
 						+ (isFocused ? "border-primary/40 shadow-[0_0_0_1px_rgba(var(--primary)/0.08)]" : "border-border/40")}
