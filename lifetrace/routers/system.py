@@ -21,15 +21,9 @@ router = APIRouter(prefix="/api", tags=["system"])
 # LifeTrace 相关进程关键字
 LIFETRACE_KEYWORDS = [
     "lifetrace",
-    "lifetrace.recorder",
     "lifetrace.processor",
-    "lifetrace.ocr",
-    "lifetrace.jobs.recorder",
     "lifetrace.jobs.processor",
-    "lifetrace.jobs.ocr",
-    "recorder.py",
     "processor.py",
-    "ocr.py",
     "server.py",
     "start_all_services.py",
 ]

@@ -299,19 +299,10 @@ def _sync_job_enabled_to_config(job_id: str, enabled: bool):
         enabled: 是否启用
     """
     # 定义任务ID到配置路径的映射
-    job_config_map = {
-        "recorder_job": "jobs.recorder.enabled",
-        "ocr_job": "jobs.ocr.enabled",
-        "clean_data_job": "jobs.clean_data.enabled",
-        "activity_aggregator_job": "jobs.activity_aggregator.enabled",
-        "todo_recorder_job": "jobs.todo_recorder.enabled",
-        "proactive_ocr_job": "jobs.proactive_ocr.enabled",
-    }
+    job_config_map = {}
 
-    # 联动配置：todo_recorder_job 与 auto_todo_detection 联动
-    linked_config_map = {
-        "todo_recorder_job": "jobs.auto_todo_detection.enabled",
-    }
+    # 联动配置（已无截图相关任务，保留结构以备扩展）
+    linked_config_map = {}
 
     if job_id in job_config_map:
         config_key = job_config_map[job_id]
@@ -346,14 +337,7 @@ def _sync_job_interval_to_config(
         hours: 小时数
     """
     # 定义任务ID到配置路径的映射
-    job_config_map = {
-        "recorder_job": "jobs.recorder.interval",
-        "ocr_job": "jobs.ocr.interval",
-        "clean_data_job": "jobs.clean_data.interval",
-        "activity_aggregator_job": "jobs.activity_aggregator.interval",
-        "todo_recorder_job": "jobs.todo_recorder.interval",
-        "proactive_ocr_job": "jobs.proactive_ocr.interval",
-    }
+    job_config_map = {}
 
     if job_id in job_config_map:
         config_key = job_config_map[job_id]

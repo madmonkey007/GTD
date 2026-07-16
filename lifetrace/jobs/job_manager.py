@@ -2,6 +2,9 @@
 """
 后台任务管理器
 负责管理所有后台任务的启动、停止和配置更新
+
+注：屏幕录制/OCR/主动OCR/活动聚合/截图清理/自动待办检测/Todo专用录制
+等截图相关定时任务已移除（用户不需要）。
 """
 
 from functools import lru_cache
@@ -14,46 +17,10 @@ from lifetrace.util.settings import settings
 logger = get_logger()
 
 
-def _execute_capture_task():
-    from lifetrace.jobs.recorder import execute_capture_task
-
-    return execute_capture_task()
-
-
-def _execute_todo_capture_task():
-    from lifetrace.jobs.todo_recorder import execute_todo_capture_task
-
-    return execute_todo_capture_task()
-
-
-def _execute_ocr_task():
-    from lifetrace.jobs.ocr import execute_ocr_task
-
-    return execute_ocr_task()
-
-
-def _execute_activity_aggregation_task():
-    from lifetrace.jobs.activity_aggregator import execute_activity_aggregation_task
-
-    return execute_activity_aggregation_task()
-
-
-def _execute_clean_data_task():
-    from lifetrace.jobs.clean_data import execute_clean_data_task
-
-    return execute_clean_data_task()
-
-
 def _execute_deadline_reminder_task():
     from lifetrace.jobs.deadline_reminder import execute_deadline_reminder_task
 
     return execute_deadline_reminder_task()
-
-
-def _execute_proactive_ocr_task():
-    from lifetrace.jobs.proactive_ocr import execute_proactive_ocr_task
-
-    return execute_proactive_ocr_task()
 
 
 def execute_audio_recording_status_check():
@@ -119,29 +86,11 @@ class JobManager:
             logger.warning("调度器启动失败，停止后台任务初始化")
             return
 
-        # 启动录制器任务（事件处理已集成到录制器中，截图后立即处理）
-        self._start_recorder_job()
-
-        # 启动 Todo 专用录制器任务（与自动待办检测联动）
-        self._start_todo_recorder_job()
-
-        # 启动OCR任务
-        self._start_ocr_job()
-
-        # 启动活动聚合任务
-        self._start_activity_aggregator()
-
-        # 启动数据清理任务
-        self._start_clean_data_job()
-
         # 启动 DDL 提醒任务
         self._start_deadline_reminder_job()
 
         # 启动用户自定义自动化任务
         self._start_automation_tasks()
-
-        # 启动主动OCR任务
-        self._start_proactive_ocr_job()
 
         # 启动音频录制状态检查任务
         self._start_audio_recording_job()
@@ -176,192 +125,6 @@ class JobManager:
             except Exception as e:
                 logger.error(f"停止调度器失败: {e}")
 
-    def _start_recorder_job(self):
-        """启动录制器任务"""
-        if not self._is_module_active("screenshot"):
-            logger.info("截图模块未启用，跳过录制器任务")
-            return
-        enabled = settings.get("jobs.recorder.enabled")
-
-        try:
-            # 仅在启用时预先初始化，避免阻塞启动
-            if enabled:
-                from lifetrace.jobs.recorder import get_recorder_instance
-
-                get_recorder_instance()
-                logger.info("录制器实例已初始化")
-
-            scheduler = self._get_scheduler()
-            if not scheduler:
-                return
-
-            # 添加录制器定时任务（使用可序列化的函数，无论是否启用都添加）
-            recorder_interval = settings.get("jobs.recorder.interval")
-            recorder_id = settings.get("jobs.recorder.id")
-            scheduler.add_interval_job(
-                func=_execute_capture_task,  # 使用模块级别的函数
-                job_id="recorder_job",
-                name=recorder_id,
-                seconds=recorder_interval,
-                replace_existing=True,
-            )
-            logger.info(f"录制器定时任务已添加，间隔: {recorder_interval}秒")
-
-            # 如果未启用，则暂停任务
-            if not enabled:
-                scheduler.pause_job("recorder_job")
-                logger.info("录制器服务未启用，已暂停")
-        except Exception as e:
-            logger.error(f"启动录制器任务失败: {e}", exc_info=True)
-
-    def _start_todo_recorder_job(self):
-        """启动 Todo 专用录制器任务
-
-        此任务与自动待办检测功能联动：
-        - 仅在白名单应用激活时截图
-        - 截图后直接触发自动待办检测
-        - 与通用录制器完全独立
-        """
-        if not self._is_module_active("todo_extraction", "todo"):
-            logger.info("待办提取模块未启用，跳过 Todo 录制器任务")
-            return
-        enabled = settings.get("jobs.todo_recorder.enabled", False)
-
-        try:
-            # 仅在启用时预先初始化
-            if enabled:
-                from lifetrace.jobs.todo_recorder import get_todo_recorder_instance
-
-                get_todo_recorder_instance()
-                logger.info("Todo 录制器实例已初始化")
-
-            scheduler = self._get_scheduler()
-            if not scheduler:
-                return
-
-            # 添加 Todo 录制器定时任务（无论是否启用都添加）
-            todo_recorder_interval = settings.get("jobs.todo_recorder.interval", 5)
-            todo_recorder_id = settings.get("jobs.todo_recorder.id", "todo_recorder")
-            scheduler.add_interval_job(
-                func=_execute_todo_capture_task,
-                job_id="todo_recorder_job",
-                name=todo_recorder_id,
-                seconds=todo_recorder_interval,
-                replace_existing=True,
-            )
-            logger.info(f"Todo 录制器定时任务已添加，间隔: {todo_recorder_interval}秒")
-
-            # 如果未启用，则暂停任务
-            if not enabled:
-                scheduler.pause_job("todo_recorder_job")
-                logger.info("Todo 录制器服务未启用，已暂停")
-        except Exception as e:
-            logger.error(f"启动 Todo 录制器任务失败: {e}", exc_info=True)
-
-    def _start_ocr_job(self):
-        """启动OCR任务"""
-        if not self._is_module_active("ocr"):
-            logger.info("OCR 模块未启用，跳过 OCR 任务")
-            return
-        enabled = settings.get("jobs.ocr.enabled")
-
-        try:
-            scheduler = self._get_scheduler()
-            if not scheduler:
-                return
-
-            # 添加OCR定时任务（无论是否启用都添加）
-            ocr_interval = settings.get("jobs.ocr.interval")
-            ocr_id = settings.get("jobs.ocr.id")
-            scheduler.add_interval_job(
-                func=_execute_ocr_task,
-                job_id="ocr_job",
-                name=ocr_id,
-                seconds=ocr_interval,
-                replace_existing=True,
-            )
-            logger.info(f"OCR定时任务已添加，间隔: {ocr_interval}秒")
-
-            # 如果未启用，则暂停任务
-            if not enabled:
-                scheduler.pause_job("ocr_job")
-                logger.info("OCR服务未启用，已暂停")
-        except Exception as e:
-            logger.error(f"启动OCR任务失败: {e}", exc_info=True)
-
-    def _start_activity_aggregator(self):
-        """启动活动聚合任务"""
-        if not self._is_module_active("activity"):
-            logger.info("活动模块未启用，跳过活动聚合任务")
-            return
-        enabled = settings.get("jobs.activity_aggregator.enabled")
-
-        try:
-            # 仅在启用时预先初始化
-            if enabled:
-                from lifetrace.jobs.activity_aggregator import get_aggregator_instance
-
-                get_aggregator_instance()
-                logger.info("活动聚合服务实例已初始化")
-
-            scheduler = self._get_scheduler()
-            if not scheduler:
-                return
-
-            # 添加到调度器（无论是否启用都添加）
-            interval = settings.get("jobs.activity_aggregator.interval")
-            aggregator_id = settings.get("jobs.activity_aggregator.id")
-            scheduler.add_interval_job(
-                func=_execute_activity_aggregation_task,
-                job_id="activity_aggregator_job",
-                name=aggregator_id,
-                seconds=interval,
-                replace_existing=True,
-            )
-            logger.info(f"活动聚合定时任务已添加，间隔: {interval}秒")
-
-            # 如果未启用，则暂停任务
-            if not enabled:
-                scheduler.pause_job("activity_aggregator_job")
-                logger.info("活动聚合服务未启用，已暂停")
-        except Exception as e:
-            logger.error(f"启动活动聚合服务失败: {e}", exc_info=True)
-
-    def _start_clean_data_job(self):
-        """启动数据清理任务"""
-        enabled = settings.get("jobs.clean_data.enabled")
-
-        try:
-            # 仅在启用时预先初始化
-            if enabled:
-                from lifetrace.jobs.clean_data import get_clean_data_instance
-
-                get_clean_data_instance()
-                logger.info("数据清理服务实例已初始化")
-
-            scheduler = self._get_scheduler()
-            if not scheduler:
-                return
-
-            # 添加到调度器（无论是否启用都添加）
-            interval = settings.get("jobs.clean_data.interval")
-            clean_data_id = settings.get("jobs.clean_data.id")
-            scheduler.add_interval_job(
-                func=_execute_clean_data_task,
-                job_id="clean_data_job",
-                name=clean_data_id,
-                seconds=interval,
-                replace_existing=True,
-            )
-            logger.info(f"数据清理定时任务已添加，间隔: {interval}秒")
-
-            # 如果未启用，则暂停任务
-            if not enabled:
-                scheduler.pause_job("clean_data_job")
-                logger.info("数据清理服务未启用，已暂停")
-        except Exception as e:
-            logger.error(f"启动数据清理服务失败: {e}", exc_info=True)
-
     def _start_deadline_reminder_job(self):
         """启动 DDL 提醒任务"""
         if not self._is_module_active("todo", "notification"):
@@ -392,47 +155,6 @@ class JobManager:
             logger.info("DDL 提醒任务已同步")
         except Exception as e:
             logger.error(f"启动 DDL 提醒任务失败: {e}", exc_info=True)
-
-    def _start_proactive_ocr_job(self):
-        """启动主动OCR任务"""
-        if not self._is_module_active("proactive_ocr"):
-            logger.info("主动 OCR 模块未启用，跳过主动 OCR 任务")
-            return
-        enabled = settings.get("jobs.proactive_ocr.enabled", False)
-
-        try:
-            # 仅在启用时预先初始化
-            if enabled:
-                from lifetrace.jobs.proactive_ocr.service import get_proactive_ocr_service
-
-                get_proactive_ocr_service()
-                logger.info("主动OCR服务实例已初始化")
-
-            scheduler = self._get_scheduler()
-            if not scheduler:
-                return
-
-            # 添加到调度器（无论是否启用都添加）
-            interval = settings.get("jobs.proactive_ocr.interval", 1.0)
-            proactive_ocr_id = settings.get("jobs.proactive_ocr.id", "proactive_ocr")
-            scheduler.add_interval_job(
-                func=_execute_proactive_ocr_task,
-                job_id="proactive_ocr_job",
-                name=proactive_ocr_id,
-                seconds=interval,
-                replace_existing=True,
-            )
-            logger.info(f"主动OCR定时任务已添加，间隔: {interval}秒")
-
-            # 如果未启用，则暂停任务
-            if not enabled:
-                scheduler.pause_job("proactive_ocr_job")
-                logger.info("主动OCR服务未启用，已暂停")
-            else:
-                # 如果启用，立即执行一次以启动服务
-                _execute_proactive_ocr_task()
-        except Exception as e:
-            logger.error(f"启动主动OCR任务失败: {e}", exc_info=True)
 
     def _start_automation_tasks(self):
         """启动用户自定义自动化任务"""
@@ -479,7 +201,7 @@ class JobManager:
             )
             logger.info(f"音频录制状态检查任务已添加，间隔: {interval}秒")
 
-            # 如果未启用，则暂停任务
+            # 如果未启用，则暂停
             if not enabled:
                 scheduler.pause_job("audio_recording_job")
                 logger.info("音频录制服务未启用，已暂停")

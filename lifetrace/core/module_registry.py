@@ -37,7 +37,6 @@ MODULES: tuple[ModuleDefinition, ...] = (
     ModuleDefinition(id="search", router_module="lifetrace.routers.search"),
     ModuleDefinition(id="screenshot", router_module="lifetrace.routers.screenshot"),
     ModuleDefinition(id="event", router_module="lifetrace.routers.event"),
-    ModuleDefinition(id="ocr", router_module="lifetrace.routers.ocr"),
     ModuleDefinition(
         id="vector",
         router_module="lifetrace.routers.vector",
@@ -64,7 +63,6 @@ MODULES: tuple[ModuleDefinition, ...] = (
     ModuleDefinition(id="notification", router_module="lifetrace.routers.notification"),
     ModuleDefinition(id="floating_capture", router_module="lifetrace.routers.floating_capture"),
     ModuleDefinition(id="audio", router_module="lifetrace.routers.audio"),
-    ModuleDefinition(id="proactive_ocr", router_module="lifetrace.routers.proactive_ocr"),
     ModuleDefinition(id="zero_think", router_module="lifetrace.routers.zero_think"),
 )
 

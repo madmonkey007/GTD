@@ -11,7 +11,6 @@ from collections.abc import Callable
 from typing import Any
 
 from lifetrace.core.lazy_services import reinit_rag_service
-from lifetrace.jobs.job_manager import get_job_manager
 from lifetrace.util.logging_config import get_logger
 from lifetrace.util.settings import settings
 
@@ -177,63 +176,6 @@ def _on_llm_base_url_change(_old_val: Any, _new_val: Any):
         logger.info("LLM Base URL 变更，已重新初始化 RAG 服务")
     except Exception as e:
         logger.error(f"重新初始化 RAG 服务失败: {e}")
-
-
-@on_config_change("jobs.recorder.enabled")
-def _on_recorder_toggle(_old_val: Any, new_val: Any):
-    """录制器任务开关变更"""
-    try:
-        manager = get_job_manager()
-        scheduler = manager.scheduler_manager
-        if not scheduler:
-            logger.warning("调度器未初始化，无法更新录制器任务状态")
-            return
-        if new_val:
-            scheduler.resume_job("recorder_job")
-            logger.info("录制器任务已启用")
-        else:
-            scheduler.pause_job("recorder_job")
-            logger.info("录制器任务已暂停")
-    except Exception as e:
-        logger.error(f"变更录制器任务状态失败: {e}")
-
-
-@on_config_change("jobs.ocr.enabled")
-def _on_ocr_toggle(_old_val: Any, new_val: Any):
-    """OCR 任务开关变更"""
-    try:
-        manager = get_job_manager()
-        scheduler = manager.scheduler_manager
-        if not scheduler:
-            logger.warning("调度器未初始化，无法更新 OCR 任务状态")
-            return
-        if new_val:
-            scheduler.resume_job("ocr_job")
-            logger.info("OCR 任务已启用")
-        else:
-            scheduler.pause_job("ocr_job")
-            logger.info("OCR 任务已暂停")
-    except Exception as e:
-        logger.error(f"变更 OCR 任务状态失败: {e}")
-
-
-@on_config_change("jobs.auto_todo_detection.enabled")
-def _on_auto_todo_detection_toggle(_old_val: Any, new_val: Any):
-    """自动待办检测任务开关变更"""
-    try:
-        manager = get_job_manager()
-        scheduler = manager.scheduler_manager
-        if not scheduler:
-            logger.warning("调度器未初始化，无法更新自动待办检测任务状态")
-            return
-        if new_val:
-            scheduler.resume_job("auto_todo_detection_job")
-            logger.info("自动待办检测任务已启用")
-        else:
-            scheduler.pause_job("auto_todo_detection_job")
-            logger.info("自动待办检测任务已暂停")
-    except Exception as e:
-        logger.error(f"变更自动待办检测任务状态失败: {e}")
 
 
 @on_config_change("vector_db.enabled")

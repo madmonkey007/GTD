@@ -682,6 +682,7 @@ const handleSaveCardEdit = async (
 				onClose={() => setAnnotateTarget(null)}
 				sourceNote={annotateTarget}
 				onSubmit={handleAnnotate}
+				recentTags={recentTags}
 			/>}
 			{compareTarget && <CompareNotesModal
 				isOpen={true}

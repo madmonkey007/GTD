@@ -39,8 +39,13 @@ const normalizeTags = (
 		.filter((tag) => typeof tag === "object" && tag !== null)
 		.map((tag) => ({
 			id: (tag.id as number) ?? 0,
-			tagName: (tag.tagName as string) ?? "",
-		}));
+			// 后端返回 snake_case 的 tag_name，兼容 camelCase 的 tagName
+			tagName:
+				(tag.tagName as string) ??
+				(tag.tag_name as string) ??
+				"",
+		}))
+		.filter((tag) => tag.tagName !== "");
 
 const normalizeJournal = (raw: Record<string, unknown>) => ({
 	id: raw.id as number,
