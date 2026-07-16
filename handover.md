@@ -198,6 +198,61 @@ DELETE /api/zero-think/{card_id}     → 删除卡片
 
 ---
 
+
+
+### 7. 零秒思考完善 + DiaryPanel 响应式布局 + 整体 UI 统一（2026年7月16日）
+
+#### 7.1 零秒思考功能完善
+
+| 改动 | 说明 |
+|------|------|
+| 移除强制 ? 后缀 | QuestionInput.tsx 取消自动补问号 |
+| 主题适配 | 硬编码 zinc 色值替换为 bg-background 等语义类 |
+| 内容居中 | 添加 max-w-2xl mx-auto |
+| 按钮样式统一 | bg-amber-400 改为 bg-primary |
+| 字体大小统一 | 按钮 text-sm font-medium |
+| 返回按钮条件渲染 | 只在内页显示，首页隐藏 |
+| 移除 AnimatePresence | React 19 下导致阶段切换空白 |
+| Auto-save Q&A to Journal | 提交答案自动创建 Journal 条目 |
+
+#### 7.2 DiaryPanel 响应式布局
+
+- DiaryPanel.tsx: ResizeObserver 监听容器宽度，<1000px 左折叠为抽屉，<900px 右折叠
+- DiaryEditor.tsx: 搜索栏添加汉堡按钮 + chat 图标
+- DiaryChatPanel.tsx: 抽屉模式左上角返回按钮
+
+#### 7.3 顶部栏移除 + 侧栏重构
+
+- 移除 AppHeader (HomePageClient.tsx)
+- Logo 移到侧栏顶部 (PanelRegion.tsx)
+- 设置按钮移到侧栏底部 (PanelRegion.tsx)
+
+#### 7.4 输入框交互优化
+
+- 默认 h-[80px] (防止初始 240px)
+- 聚焦展开 +48px, 失焦空内容缩回
+- 移除 autoResize useEffect (根因: scrollHeight 覆盖 CSS)
+
+#### 7.5 Bug 修复
+
+| Bug | 修复 |
+|-----|------|
+| 笔记聊天按钮跳到 TODO Chat | 只保留 addLinkedNote |
+| 待办详情面板不显示 | 空状态守卫 + togglePanelB() |
+| Chat Offline (mode:auto) | 改为 mode:agno |
+| Chat Failed to fetch (8100) | 默认端口改为 8001 |
+| 思考过程不显示 | 无工具时直接 OpenAI SDK 调用 |
+
+#### 7.6 思考过程展开收起 (DeepSeek reasoning_content)
+
+- 后端 agno.py: 无工具时直接 OpenAI SDK 调用, delta.reasoning_content 以 [THINK] 标记输出
+- 前端 DiaryChatPanel.tsx: parseThinkingContent() + ThinkingBlock (details/summary 可折叠)
+
+#### 7.7 CSS 微调
+
+- 搜索栏添加 mt-2, 底部输入框 pt-3 -> pt-2
+
+
 ## 已知问题 / 待办事项
 
 ### 1. 日记视图聊天按钮（需要继续修复）
