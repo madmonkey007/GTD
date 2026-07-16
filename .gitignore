@@ -104,6 +104,13 @@ dist-backend/
 !**/public/favicon.ico
 !**/public/logo.png
 !**/public/icon.png
+# PWA icons (referenced in manifest.json and layout.tsx)
+!**/public/icon-192x192.png
+!**/public/icon-512x512.png
+# App logo variants referenced in AppHeader/PanelRegion/Island/tray-manager
+!**/public/free-todo-logos/free_todo_icon_4.png
+!**/public/free-todo-logos/free_todo_icon_4_with_grid.png
+!**/public/free-todo-logos/free_todo_icon_4_dark_with_grid.png
 
 # GitHub assets (large images)
 **/.github/assets/*.png
