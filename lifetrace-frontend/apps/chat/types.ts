@@ -34,6 +34,8 @@ export type ChatMessage = {
 	content: string;
 	/** 工具调用步骤（仅 assistant 消息可能有） */
 	toolCallSteps?: ToolCallStep[];
+	/** 用户消息附带的笔记卡片（仅 user 消息可能有） */
+	attachedNotes?: { id: number; name: string; preview: string; date: string }[];
 };
 
 export type ChatMode = "agno";

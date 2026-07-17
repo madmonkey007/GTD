@@ -630,7 +630,7 @@ const handleSaveCardEdit = async (
 		{/* Right-side chat panel for AI analysis — inline when wide, otherwise hidden (drawer overlay) */}
 		{showRightInline && (
 			<div className="w-[380px] flex-shrink min-w-[280px] flex flex-col rounded-(--radius) bg-[oklch(var(--card))] shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_1px_3px_0_rgba(0,0,0,0.06)] overflow-hidden">
-				<DiaryChatPanel noteContent={noteContent} />
+				<DiaryChatPanel noteContent={noteContent} currentJournalId={activeJournal?.id ?? null} />
 			</div>
 		)}
 

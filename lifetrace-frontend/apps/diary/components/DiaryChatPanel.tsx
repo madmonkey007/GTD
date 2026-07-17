@@ -296,7 +296,7 @@ function MarkdownContent({ text }: { text: string }) {
 
 function ThinkingBlock({ content }: { content: string }) {
 	return (
-		<details className="group mt-1.5">
+		<details className="group mt-1.5" open>
 			<summary className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors select-none list-none [&::-webkit-details-marker]:hidden [&::marker]:hidden">
 				<svg
 					className="w-3 h-3 transition-transform group-open:rotate-90"
@@ -369,34 +369,41 @@ function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: bo
 			initial={{ opacity: 0, y: 8, scale: 0.98 }}
 			animate={{ opacity: 1, y: 0, scale: 1 }}
 			transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-			className="flex gap-2.5 group"
+			className={`flex group ${isUser ? "justify-end" : "justify-start"}`}
 		>
-			<div className={`flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center mt-0.5 ring-1 ${
-				isUser
-					? "bg-primary/10 text-primary ring-primary/10"
-					: "bg-muted/50 text-muted-foreground ring-border/30"
-			}`}>
-				{isUser ? (
-					<MessageSquareText className="w-3.5 h-3.5" />
-				) : (
-					<Sparkles className="w-3.5 h-3.5" />
+			<div className={isUser ? "max-w-[85%] min-w-0" : "w-full min-w-0"}>
+				{/* 用户消息：先渲染附带的笔记卡片，再渲染文本 */}
+				{isUser && msg.attachedNotes && msg.attachedNotes.length > 0 && (
+					<div className="flex flex-col gap-1.5 mb-1.5 items-end">
+						{msg.attachedNotes.map((n) => (
+							<div key={n.id} className="w-full max-w-full rounded-lg border border-border/40 bg-background px-2.5 py-1.5">
+								<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
+									<MessageSquareText className="w-3 h-3" />
+									<span className="truncate">{n.name}</span>
+									{n.date && <span className="ml-auto shrink-0">{n.date.slice(5, 10)}</span>}
+								</div>
+								{n.preview && (
+									<p className="mt-0.5 text-[11px] text-muted-foreground/60 line-clamp-2 leading-relaxed">{n.preview}</p>
+								)}
+							</div>
+						))}
+					</div>
 				)}
-			</div>
-
-			<div className="flex-1 min-w-0">
-				<div className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+				<div className={`px-3.5 text-sm leading-relaxed ${
 					isUser
-						? "bg-primary/8 text-foreground border border-primary/10"
-						: "bg-muted/25 text-foreground border border-border/30"
-				}`}>
+						? "inline-block rounded-lg py-1.5 text-foreground"
+						: "rounded-2xl py-2.5 text-foreground border border-border/30 bg-muted/25"
+				}`} style={isUser ? { backgroundColor: "#EFEFEE" } : undefined}>
 					{isUser ? (
-						<p className="whitespace-pre-wrap text-[13px]">{msg.content}</p>
+						msg.content ? (
+							<p className="whitespace-pre-wrap text-[13px]">{msg.content}</p>
+						) : null
 					) : (
 						<>
 							{msg.content === "" && isStreaming ? (
 								<StreamingIndicator />
 							) : msg.content ? (
-								<div className="text-[13px]">
+								<div className="text-[13px] [&_details+div]:mt-3 [&_details]:mb-3">
 									{msg.content.includes("[THINK]") ? (
 										parseThinkingContent(msg.content).map((part, i) =>
 											part.type === "think" ? (
@@ -421,6 +428,100 @@ function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: bo
 
 // ─── Main component ───
 
+// 笔记页思维教练 system prompt（用户不可见，仅注入后端）
+const THINKING_COACH_SYSTEM_PROMPT = `你是一个思维教练，不是助手。
+你的任务是帮用户发现他自己没有意识到的思维模式和逻辑盲点。
+用户会给你一条当前笔记，以及系统提供的关联笔记。
+---
+【第一步：判断任务类型】
+拿到笔记后，先问自己两个问题：
+问题1：这条笔记内部，或者和关联笔记之间，有没有逻辑冲突？
+- 用户引用了多个观点，但这些观点其实互相矛盾
+- 用户的结论跳步了，中间缺少推导
+- 用户把两件不同的事当成了同一件事
+问题2：这些笔记是否共享一个底层假设，
+但用户把它当成了自然规律，而不是一种选择？
+- 多条笔记在讲不同的事，但底层逻辑是同一套
+- 用户反复用同一个框架衡量不同的事情
+- 这个框架有代价，但用户没有意识到
+---
+【第二步：执行任务】
+如果问题1是yes：
+做逻辑解剖
+- 指出冲突或跳步在哪
+- 不要帮用户和解，让冲突暴露出来
+- 不要给结论，让用户自己面对这个张力
+如果问题2是yes：
+做模式映射
+- 给底层假设命名
+- 指出这个假设如何影响用户看待事情，或者看待自己
+- 指出这个假设的代价，不要评判，只是暴露
+如果两个都是yes：
+先做逻辑解剖，再做模式映射
+顺序不能反
+---
+【第三步：结尾提问】
+最后提一个问题
+- 必须是用户自己能回答的
+- 需要认真想，不能用是或否回答
+- 问题指向用户还没想清楚的那个地方
+---
+【语气规则】
+- 不夸奖用户想得好
+- 不给建议，不提供解决方案
+- 不总结，不收束
+- 直接说，不绕弯
+- 可以温和，但不回避尖锐的地方
+- 说用户的逻辑，不说用户这个人
+  （先分析逻辑，再映射到人；顺序反了用户会感觉被评判）
+---
+【格式规则】
+- 不要分点列清单
+- 用自然段落
+- 长度控制在300字以内
+- 结尾问题单独成段
+
+你会收到：
+- 1条当前笔记
+- 4条主题相关笔记
+- 2条跨域笔记（主题不同但可能有底层关联）
+处理顺序：
+先读当前笔记，再读相关笔记，最后看跨域笔记
+跨域笔记不一定有关联，如果连不上就忽略
+如果连得上，优先用它做模式映射`;
+
+// 格式化单条笔记为上下文文本
+// 兼容后端 snake_case（user_notes）和前端 camelCase（userNotes）两种字段名
+function formatJournalForContext(j: { name?: string | null; userNotes?: string | null; user_notes?: string | null; date?: string | null; tags?: { tagName: string }[] | string[] } | null | undefined, label: string): string {
+	if (!j) return "";
+	const name = j.name || "未命名";
+	const notes = j.userNotes || j.user_notes || "无内容";
+	const date = j.date || "";
+	const tags = Array.isArray(j.tags) ? j.tags.map((t: any) => typeof t === "string" ? t : t?.tagName).filter(Boolean) : [];
+	return `[${label}]\n标题: ${name}\n日期: ${date}\n标签: ${tags.join(", ") || "无"}\n内容: ${notes}`;
+}
+
+// 拉取洞察上下文（当前笔记 + 4相似 + 2跨域），失败返回 null
+async function fetchInsightContext(journalId: number | null | undefined): Promise<{ text: string; current: Record<string, unknown> | null; similarCount: number; crossCount: number } | null> {
+	if (!journalId) return null;
+	try {
+		const baseUrl = (typeof window !== "undefined" && (window as any).__BACKEND_URL__) || "http://localhost:8001";
+		const resp = await fetch(`${baseUrl}/api/journals/${journalId}/insight-context`, { headers: { "Accept": "application/json" } });
+		if (!resp.ok) return null;
+		const data = await resp.json();
+		const current = data.current;
+		const similar: any[] = data.similar || [];
+		const cross: any[] = data.cross_domain || [];
+		if (!current) return null;
+		const parts: string[] = [formatJournalForContext(current, "当前笔记")];
+		if (similar.length) parts.push(similar.map((n, i) => formatJournalForContext(n, `主题相关笔记 ${i + 1}`)).join("\n---\n"));
+		if (cross.length) parts.push(cross.map((n, i) => formatJournalForContext(n, `跨域笔记 ${i + 1}`)).join("\n---\n"));
+		return { text: parts.join("\n\n"), current, similarCount: similar.length, crossCount: cross.length };
+	} catch {
+		return null;
+	}
+}
+
 // 构建关联笔记上下文（格式与全局 ChatPanel 的 useSendMessage 保持一致）
 function buildNoteContext() {
 	const notes = useNoteChatStore.getState().linkedNotes;
@@ -433,11 +534,12 @@ function buildNoteContext() {
 
 type DiaryChatPanelProps = {
 	noteContent: string;
+	currentJournalId?: number | null;
 	showBackButton?: boolean;
 	onClose?: () => void;
 };
 
-export function DiaryChatPanel({ noteContent, showBackButton = false, onClose }: DiaryChatPanelProps) {
+export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton = false, onClose }: DiaryChatPanelProps) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [inputValue, setInputValue] = useState("");
 	const [isStreaming, setIsStreaming] = useState(false);
@@ -466,6 +568,7 @@ export function DiaryChatPanel({ noteContent, showBackButton = false, onClose }:
 					userInput: prompt,
 					conversationId: conversationId ?? undefined,
 					mode: "agno",
+					systemPrompt: THINKING_COACH_SYSTEM_PROMPT,
 				},
 				(chunk) => setMessages((prev) =>
 					prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m),
@@ -502,22 +605,52 @@ export function DiaryChatPanel({ noteContent, showBackButton = false, onClose }:
 		doStream(noteCtx ? `${noteCtx}\n\n${basePrompt}` : basePrompt, aid);
 	}, [noteContent, isStreaming, doStream]);
 
-	const handleSendInput = useCallback(() => {
-		if (!inputValue.trim() || isStreaming) return;
+	const handleSendInput = useCallback(async () => {
+		if (isStreaming) return;
+		const linked = useNoteChatStore.getState().linkedNotes;
+		const hasCard = linked.length > 0 || !!currentJournalId;
+		if (!inputValue.trim() && !hasCard) return;
 		setError(null);
 		const text = inputValue.trim();
 		setInputValue("");
 		const uid = createId();
 		const aid = createId();
+		// "当前笔记"取最近添加的卡片；没有手动添加则用当前选中日期的笔记
+		const latestNoteId = linked.length > 0 ? linked[linked.length - 1].id : currentJournalId;
+		const insight = await fetchInsightContext(latestNoteId);
+		let noteCtx = "";
+		let attachedNotes: { id: number; name: string; preview: string; date: string }[] | undefined;
+		if (insight) {
+			noteCtx = insight.text;
+		} else {
+			noteCtx = buildNoteContext();
+		}
+		// attachedNotes 展示所有手动添加的卡片（按添加顺序）
+		if (linked.length > 0) {
+			attachedNotes = linked.map((n) => ({
+				id: n.id,
+				name: n.name || "未命名",
+				preview: (n.userNotes || "").slice(0, 80),
+				date: n.date || "",
+			}));
+		} else if (insight?.current) {
+			const cur = insight.current as Record<string, unknown>;
+			attachedNotes = [{
+				id: Number(cur.id),
+				name: String(cur.name || "未命名"),
+				preview: String(cur.user_notes || cur.userNotes || "").slice(0, 80),
+				date: String(cur.date || ""),
+			}];
+		}
 		setMessages((prev) => [
 			...prev,
-			{ id: uid, role: "user", content: text },
+			{ id: uid, role: "user", content: text, attachedNotes },
 			{ id: aid, role: "assistant", content: "" },
 		]);
-		const noteCtx = buildNoteContext();
-		doStream(noteCtx ? `${noteCtx}\n\n${text}` : text, aid);
+		const prompt = noteCtx ? `${noteCtx}\n\n${text || "请分析以上笔记内容。"}` : text;
+		doStream(prompt, aid);
 		clearLinkedNotes();
-	}, [inputValue, isStreaming, doStream, clearLinkedNotes]);
+	}, [inputValue, isStreaming, doStream, clearLinkedNotes, currentJournalId]);
 
 	const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key === "Enter" && !e.shiftKey) {
@@ -621,7 +754,7 @@ export function DiaryChatPanel({ noteContent, showBackButton = false, onClose }:
 								<Square className="w-3.5 h-3.5 fill-current" />
 							</button>
 						) : (
-							<button type="button" onClick={handleSendInput} disabled={!inputValue.trim()} title="发送"
+							<button type="button" onClick={handleSendInput} disabled={isStreaming || (!inputValue.trim() && !currentJournalId && useNoteChatStore.getState().linkedNotes.length === 0)} title="发送"
 								className="flex items-center justify-center rounded-lg bg-primary/10 p-1.5 text-primary hover:bg-primary/20 transition-colors disabled:opacity-25 disabled:cursor-not-allowed">
 								<Send className="w-3.5 h-3.5" />
 							</button>

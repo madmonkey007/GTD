@@ -191,13 +191,19 @@ def create_agno_streaming_response(
                 model = settings.llm.model
 
                 messages_for_api: list[dict[str, str]] = []
-                system_intro = "你是一个智能助手。"
+                # 优先使用前端传入的 system_prompt（如笔记页的思维教练），
+                # 没传则用默认的通用助手提示词
+                system_intro = message.system_prompt or "你是一个智能助手。"
                 messages_for_api.append({"role": "system", "content": system_intro})
 
-                for hist_msg in conversation_history:
+                for hist_msg in (conversation_history or []):
                     role = hist_msg.get("role", "user")
                     content = hist_msg.get("content", "")
                     messages_for_api.append({"role": role, "content": content})
+
+                # 当前用户消息（含笔记/待办上下文）必须单独加入请求，
+                # 否则首次回复时 AI 看不到上下文（它被 get_conversation_history 排除在历史外）
+                messages_for_api.append({"role": "user", "content": message.message})
 
                 stream = client.chat.completions.create(
                     model=model,
@@ -205,16 +211,29 @@ def create_agno_streaming_response(
                     stream=True,
                 )
 
+                # 思考过程合并：连续的 reasoning_content 合并到一个 [THINK]...[/THINK] 块，
+                # 避免每个 SSE chunk 都包一层导致前端渲染出几十个折叠块
+                in_thinking = False
                 for chunk in stream:
                     if not chunk.choices:
                         continue
                     delta = chunk.choices[0].delta
                     reasoning = getattr(delta, "reasoning_content", None)
                     if reasoning:
-                        yield f"[THINK]{reasoning}[/THINK]"
+                        if not in_thinking:
+                            yield "[THINK]"
+                            in_thinking = True
+                        yield reasoning
+                    else:
+                        if in_thinking:
+                            yield "[/THINK]"
+                            in_thinking = False
                     if delta.content:
                         yield delta.content
                         storage_chunks.append(delta.content)
+                # 流结束时如果还在思考块内，补上闭合标签
+                if in_thinking:
+                    yield "[/THINK]"
             else:
                 for chunk in agno_service.stream_response(
                     message=message.message,

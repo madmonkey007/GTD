@@ -70,6 +70,24 @@ async def get_journal(
         raise HTTPException(status_code=500, detail=f"获取日记详情失败: {e!s}") from e
 
 
+@router.get("/api/journals/{journal_id}/insight-context")
+async def get_insight_context(
+    journal_id: int = Path(..., description="日记ID"),
+    service: JournalService = Depends(get_journal_service),
+):
+    """获取洞察上下文：当前笔记 + 4条相似笔记 + 2条跨域笔记
+
+    用于笔记页"思维分析"功能，给大模型提供更丰富的上下文以获得更深层次洞察。
+    """
+    try:
+        return service.get_insight_context(journal_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取洞察上下文失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取洞察上下文失败: {e!s}") from e
+
+
 @router.put("/api/journals/{journal_id}", response_model=JournalResponse)
 async def update_journal(
     journal_id: int = Path(..., description="日记ID"),

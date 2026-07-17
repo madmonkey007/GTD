@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_
 
 from lifetrace.llm.journal_generation_service import journal_generation_service
+from lifetrace.llm.vector_db import create_vector_db
 from lifetrace.schemas.journal import (
     JournalAutoLinkCandidate,
     JournalAutoLinkRequest,
@@ -46,10 +47,131 @@ class JournalService:
     def __init__(self, repository: IJournalRepository, db_base: DatabaseBase):
         self.repository = repository
         self.db_base = db_base
+        # 向量库（用于笔记语义检索，可能为 None）
+        self._vector_db = create_vector_db()
+        if self._vector_db is None:
+            logger.info("Journal 向量检索不可用（vector_db 未初始化）")
 
     def _normalize_name(self, name: str | None) -> str:
         cleaned = (name or "").strip()
         return cleaned or "Untitled"
+
+    def _index_journal(
+        self,
+        journal_id: int,
+        name: str,
+        user_notes: str,
+        tags: list[str] | None,
+    ) -> None:
+        """把笔记写入向量库（失败只记日志，不抛异常）"""
+        if self._vector_db is None:
+            return
+        try:
+            self._vector_db.upsert_journal(journal_id, name or "", user_notes or "", tags)
+        except Exception as e:
+            logger.warning(f"索引笔记 {journal_id} 到向量库失败: {e}")
+
+    def get_insight_context(
+        self,
+        journal_id: int,
+        similar_count: int = 4,
+        cross_domain_count: int = 2,
+        similar_min_score: float = 0.95,
+        cross_domain_range: tuple[float, float] = (0.45, 0.58),
+    ) -> dict[str, Any]:
+        """获取洞察上下文：当前笔记 + 相似笔记 + 跨域笔记
+
+        取数逻辑：
+        - 第一层（相似）：用当前笔记做 embedding 查询，取相似度最高的 N 条，
+          排除相似度过高的（>similar_min_score，基本是重复笔记）
+        - 第二层（跨域）：从相似度中等区间随机抽取 M 条，
+          这个区间的笔记有一点关联但不是同一话题
+
+        Args:
+            journal_id: 当前笔记 ID
+            similar_count: 相似层取数数量
+            cross_domain_count: 跨域层取数数量
+            similar_min_score: 相似度高于此值视为重复，排除
+            cross_domain_range: 跨域层的相似度区间 (low, high)
+
+        Returns:
+            {"current": {...}, "similar": [...], "cross_domain": [...]}
+        """
+        current = self.repository.get_by_id(journal_id)
+        if not current:
+            raise HTTPException(status_code=404, detail="笔记不存在")
+
+        result: dict[str, Any] = {
+            "current": current,
+            "similar": [],
+            "cross_domain": [],
+        }
+
+        if self._vector_db is None:
+            logger.warning("向量库不可用，无法获取相似/跨域笔记")
+            return result
+
+        # 构建查询文本（标题 + 标签 + 正文）
+        query_text = self._vector_db._build_journal_text(
+            current.get("name", ""),
+            current.get("user_notes", ""),
+            current.get("tags", []),
+        )
+        if not query_text.strip():
+            return result
+
+        # 检索（多取一些用于分层）
+        retrieve_k = max(50, similar_count + cross_domain_count + 10)
+        raw = self._vector_db.search_similar_journals(
+            query_text=query_text,
+            top_k=retrieve_k,
+            exclude_journal_id=journal_id,
+        )
+        if not raw:
+            return result
+
+        # 第一层：相似（score <= similar_min_score，按 score 降序取前 N）
+        similar_pool = [r for r in raw if r["score"] <= similar_min_score]
+        similar_sorted = sorted(similar_pool, key=lambda x: x["score"], reverse=True)
+        similar_hits = similar_sorted[:similar_count]
+        similar_ids = [r["journal_id"] for r in similar_hits if r["journal_id"] is not None]
+
+        # 第二层：跨域（score 在 cross_domain_range 内，随机取 M 条）
+        low, high = cross_domain_range
+        cross_pool = [r for r in raw if low <= r["score"] <= high]
+        # 排除已选入相似层的
+        cross_pool = [r for r in cross_pool if r["journal_id"] not in similar_ids]
+        # 随机抽取（数量不足就全给）
+        import random as _random
+
+        _random.shuffle(cross_pool)
+        cross_hits = cross_pool[:cross_domain_count]
+        cross_ids = [r["journal_id"] for r in cross_hits if r["journal_id"] is not None]
+
+        # 批量取笔记详情
+        all_ids = similar_ids + cross_ids
+        if all_ids:
+            details = {d["id"]: d for d in self._get_journals_by_ids(all_ids)}
+            result["similar"] = [details[i] for i in similar_ids if i in details]
+            result["cross_domain"] = [details[i] for i in cross_ids if i in details]
+
+        return result
+
+    def _get_journals_by_ids(self, journal_ids: list[int]) -> list[dict[str, Any]]:
+        """按 ID 批量获取笔记（复用 repository 的 list，再过滤）"""
+        if not journal_ids:
+            return []
+        # repository 没有按 ids 批量查的接口，用 list_journals 取较大集合后过滤
+        id_set = set(journal_ids)
+        # 取一个足够大的 limit 覆盖目标笔记
+        all_journals = self.repository.list_journals(
+            limit=max(500, len(journal_ids) * 5),
+            offset=0,
+            start_date=None,
+            end_date=None,
+            search=None,
+        )
+        return [j for j in all_journals if j.get("id") in id_set]
 
     def _resolve_day_bucket_range(
         self, date: datetime, day_bucket_start: datetime | None
@@ -217,6 +339,9 @@ class JournalService:
         if not journal_id:
             raise HTTPException(status_code=500, detail="创建日记失败")
 
+        # 写入向量库（失败不阻塞主流程）
+        self._index_journal(journal_id, payload.name, payload.user_notes, data.tags)
+
         logger.info(f"成功创建日记: {journal_id} - {payload.name}")
         return self.get_journal(journal_id)
 
@@ -236,6 +361,16 @@ class JournalService:
         if not self.repository.update(journal_id, payload):
             raise HTTPException(status_code=500, detail="更新日记失败")
 
+        # 更新向量库（用最新内容重建索引）
+        updated = self.repository.get_by_id(journal_id)
+        if updated:
+            self._index_journal(
+                journal_id,
+                updated.get("name", ""),
+                updated.get("user_notes", ""),
+                updated.get("tags", []),
+            )
+
         logger.info(f"成功更新日记: {journal_id}")
         return self.get_journal(journal_id)
 
@@ -245,6 +380,10 @@ class JournalService:
             raise HTTPException(status_code=404, detail="日记不存在")
         if not self.repository.delete(journal_id):
             raise HTTPException(status_code=500, detail="删除日记失败")
+
+        # 从向量库删除
+        if self._vector_db is not None:
+            self._vector_db.delete_journal(journal_id)
 
         logger.info(f"成功删除日记: {journal_id}")
 

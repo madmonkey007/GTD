@@ -44,7 +44,8 @@ class VectorDatabase:
         # 初始化
         self.embedding_client: CloudEmbeddingClient | None = None
         self.chroma_client = None
-        self.collection = None
+        self.collection = None  # 默认 OCR 集合（向后兼容）
+        self._collections: dict[str, Any] = {}  # 多集合缓存：name -> chroma Collection
 
         # 配置参数
         self.vector_db_path = get_vector_db_dir()
@@ -94,12 +95,38 @@ class VectorDatabase:
                 name=self.collection_name,
                 metadata={"description": "LifeTrace OCR text embeddings"},
             )
+            self._collections[self.collection_name] = self.collection
 
             logger.info("Vector database initialized successfully")
 
         except Exception as e:
             logger.error(f"Failed to initialize vector database: {e}")
             raise
+
+    def get_collection(self, name: str, description: str = "", distance_metric: str = "l2") -> Any:
+        """获取或创建指定名称的集合（多集合支持）
+
+        Args:
+            name: 集合名称
+            description: 集合描述（仅新建时生效）
+            distance_metric: 距离度量，"l2"（默认）或 "cosine"
+
+        Returns:
+            ChromaDB Collection 对象
+        """
+        if self.chroma_client is None:
+            raise RuntimeError("Chroma client not initialized")
+        if name in self._collections:
+            return self._collections[name]
+        col = self.chroma_client.get_or_create_collection(
+            name=name,
+            metadata={
+                "description": description or f"LifeTrace collection: {name}",
+                "hnsw:space": distance_metric,
+            },
+        )
+        self._collections[name] = col
+        return col
 
     def embed_text(self, text: str) -> list[float]:
         """将文本转换为向量嵌入（使用云端 API）
@@ -464,11 +491,154 @@ class VectorDatabase:
                 name=self.collection_name,
                 metadata={"description": "LifeTrace OCR text embeddings"},
             )
+            self._collections[self.collection_name] = self.collection
             self.logger.info(f"Reset collection {self.collection_name}")
             return True
         except Exception as e:
             self.logger.error(f"Failed to reset collection: {e}")
             return False
+
+    # ─── Journal 向量索引（笔记语义检索） ───
+
+    JOURNAL_COLLECTION = "lifetrace_journal_v2"
+
+    def _journal_doc_id(self, journal_id: int) -> str:
+        return f"journal_{journal_id}"
+
+    def _build_journal_text(self, name: str, user_notes: str, tags: list[Any] | None) -> str:
+        """构建用于 embedding 的笔记文本（标题 + 标签 + 正文）
+
+        tags 可以是字符串列表，也可以是 Tag ORM 对象列表（取 .tag_name）。
+        """
+        parts: list[str] = []
+        if name and name.strip():
+            parts.append(name.strip())
+        if tags:
+            tag_names: list[str] = []
+            for t in tags:
+                if t is None:
+                    continue
+                if isinstance(t, str):
+                    tag_names.append(t)
+                else:
+                    # ORM 对象：取 tag_name 属性
+                    tn = getattr(t, "tag_name", None) or getattr(t, "name", None)
+                    if tn:
+                        tag_names.append(str(tn))
+            if tag_names:
+                parts.append(" ".join(f"#{tn}" for tn in tag_names))
+        if user_notes and user_notes.strip():
+            parts.append(user_notes.strip())
+        return "\n".join(parts)
+
+    def upsert_journal(
+        self,
+        journal_id: int,
+        name: str,
+        user_notes: str,
+        tags: list[Any] | None = None,
+    ) -> bool:
+        """写入或更新笔记到向量库
+
+        Args:
+            journal_id: 笔记 ID
+            name: 笔记标题
+            user_notes: 笔记正文
+            tags: 标签列表
+        """
+        text = self._build_journal_text(name, user_notes, tags)
+        if not text.strip():
+            return False
+        try:
+            collection = self.get_collection(
+                self.JOURNAL_COLLECTION, "LifeTrace journal embeddings", distance_metric="cosine"
+            )
+            embedding = self.embed_text(text)
+            if not embedding:
+                return False
+            doc_id = self._journal_doc_id(journal_id)
+            # 先删后加，避免重复 id 报错
+            try:
+                collection.delete(ids=[doc_id])
+            except Exception:
+                pass
+            collection.add(
+                documents=[text],
+                embeddings=[embedding],
+                metadatas=[{"journal_id": journal_id, "text_length": len(text)}],
+                ids=[doc_id],
+            )
+            self.logger.debug(f"Indexed journal {journal_id} ({len(text)} chars)")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to upsert journal {journal_id}: {e}")
+            return False
+
+    def delete_journal(self, journal_id: int) -> bool:
+        """从向量库删除笔记"""
+        try:
+            collection = self.get_collection(self.JOURNAL_COLLECTION)
+            doc_id = self._journal_doc_id(journal_id)
+            collection.delete(ids=[doc_id])
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to delete journal {journal_id} from vector db: {e}")
+            return False
+
+    def search_similar_journals(
+        self,
+        query_text: str,
+        top_k: int = 20,
+        exclude_journal_id: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """语义检索相似笔记
+
+        Args:
+            query_text: 查询文本（通常是当前笔记内容）
+            top_k: 返回数量
+            exclude_journal_id: 排除的笔记 ID（当前笔记自身）
+
+        Returns:
+            结果列表，每项含 journal_id, document, distance, score
+            （score = 1 - distance，越大越相似）
+        """
+        if not query_text or not query_text.strip():
+            return []
+        try:
+            collection = self.get_collection(self.JOURNAL_COLLECTION)
+            query_embedding = self.embed_text(query_text)
+            if not query_embedding:
+                return []
+            results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=top_k,
+            )
+            results_dict = cast("dict[str, Any]", results)
+            ids = (results_dict.get("ids") or [[]])[0]
+            documents = (results_dict.get("documents") or [[]])[0]
+            metadatas = (results_dict.get("metadatas") or [[]])[0]
+            distances = (results_dict.get("distances") or [[]])[0]
+
+            formatted: list[dict[str, Any]] = []
+            for i in range(len(ids)):
+                meta = metadatas[i] if metadatas else {}
+                jid = meta.get("journal_id")
+                if exclude_journal_id is not None and jid == exclude_journal_id:
+                    continue
+                dist = distances[i] if i < len(distances) else None
+                score = max(0.0, 1.0 - dist) if dist is not None else 0.0
+                formatted.append(
+                    {
+                        "journal_id": jid,
+                        "document": documents[i] if i < len(documents) else "",
+                        "distance": dist,
+                        "score": score,
+                    }
+                )
+            return formatted
+        except Exception as e:
+            self.logger.error(f"Failed to search similar journals: {e}")
+            return []
 
 
 def create_vector_db() -> VectorDatabase | None:
