@@ -184,38 +184,59 @@ def create_external_tool(tool_name: str, **kwargs) -> Toolkit | None:  # noqa: P
     return _safe_tool_init(tool_class)
 
 
+# 笔记工具名集合：用于判断是否启用笔记能力，进而选择对应的 instructions
+NOTE_TOOL_NAMES = {
+	"create_note",
+	"update_note",
+	"delete_note",
+	"search_notes",
+	"list_notes_by_tags",
+	"list_notes_by_date",
+	"get_insight",
+	"suggest_note_tags",
+}
+
+
 def _build_instructions(
-    lang: str,
-    has_tools: bool,
-    use_all_freetodo_tools: bool,
-    has_external_tools: bool,
+	lang: str,
+	has_tools: bool,
+	use_all_freetodo_tools: bool,
+	has_external_tools: bool,
+	selected_tools: list[str] | None = None,
 ) -> list[str] | None:
-    """构建 Agent 的 instructions
+	"""构建 Agent 的 instructions
 
-    Args:
-        lang: 语言代码
-        has_tools: 是否有任何工具启用
-        use_all_freetodo_tools: 是否使用全部 FreeTodo 工具
-        has_external_tools: 是否有外部工具
+	Args:
+		lang: 语言代码
+		has_tools: 是否有任何工具启用
+		use_all_freetodo_tools: 是否使用全部 FreeTodo 工具
+		has_external_tools: 是否有外部工具
+		selected_tools: 实际选中的工具名列表（用于按需切换 instructions）
 
-    Returns:
-        instructions 列表或 None
-    """
-    if has_tools:
-        # 只要有工具启用，就加载完整的 instructions.yaml（含子任务创建等说明）
-        instructions = get_message(lang, "instructions")
-        if instructions and instructions != "[instructions]":
-            return [instructions]
+	Returns:
+		instructions 列表或 None
+	"""
+	if has_tools:
+		# 启用了笔记工具时，使用笔记能力说明（避免 AI 自认"只能管待办"而拒绝创建笔记）
+		has_note_tools = bool(selected_tools and set(selected_tools) & NOTE_TOOL_NAMES)
+		key = "notes_instructions" if has_note_tools else "instructions"
+		instructions = get_message(lang, key)
+		if instructions and instructions != f"[{key}]":
+			return [instructions]
+		# 回退到通用 instructions
+		instructions = get_message(lang, "instructions")
+		if instructions and instructions != "[instructions]":
+			return [instructions]
 
-    # 简化的 instructions（无工具时）
-    if lang == "zh":
-        return ["你是 FreeTodo 智能助手。当前没有启用任何工具，请直接回答用户的问题。"]
+	# 简化的 instructions（无工具时）
+	if lang == "zh":
+		return ["你是 FreeTodo 智能助手。当前没有启用任何工具，请直接回答用户的问题。"]
 
-    # English
-    return [
-        "You are the FreeTodo assistant. No tools are currently enabled. "
-        "Please answer the user's questions directly."
-    ]
+	# English
+	return [
+		"You are the FreeTodo assistant. No tools are currently enabled. "
+		"Please answer the user's questions directly."
+	]
 
 
 class AgnoAgentService:
@@ -249,6 +270,8 @@ class AgnoAgentService:
         """
         try:
             self.lang = lang or DEFAULT_LANG
+            # 思考过程合并状态：跨 chunk 跟踪，避免每个 reasoning token 都包一层 [THINK]
+            self._in_thinking = False
             tools_to_use = self._initialize_tools(
                 selected_tools, external_tools, external_tools_config
             )
@@ -261,7 +284,11 @@ class AgnoAgentService:
             has_external_tools = bool(external_tools and len(external_tools) > 0)
 
             instructions_list = _build_instructions(
-                self.lang, bool(tools_to_use), use_all_freetodo_tools, has_external_tools
+                self.lang,
+				bool(tools_to_use),
+				use_all_freetodo_tools,
+				has_external_tools,
+				selected_tools,
             )
 
             self.agent = Agent(
@@ -404,12 +431,27 @@ class AgnoAgentService:
         if chunk.event == RunEvent.run_content:
             parts = []
             # 提取 reasoning_content（DeepSeek 的思考过程）
+            # 合并连续的 reasoning 到同一个 [THINK]...[/THINK] 块，
+            # 避免每个 SSE chunk 都包一层导致前端渲染出几十个折叠块
             reasoning = getattr(chunk, "reasoning_content", None)
+            has_content = bool(chunk.content)
             if reasoning:
-                parts.append(f"[THINK]{reasoning}[/THINK]")
-            # 提取常规内容
-            if chunk.content:
-                parts.append(chunk.content)
+                if not self._in_thinking:
+                    parts.append("[THINK]")
+                    self._in_thinking = True
+                parts.append(reasoning)
+                # 同一 chunk 同时带正文：先闭合思考块再输出正文
+                if has_content:
+                    parts.append("[/THINK]")
+                    self._in_thinking = False
+                    parts.append(chunk.content)
+            else:
+                # 没有推理内容：若之前在思考中，先闭合
+                if self._in_thinking:
+                    parts.append("[/THINK]")
+                    self._in_thinking = False
+                if has_content:
+                    parts.append(chunk.content)
             if parts:
                 result = "".join(parts)
         elif include_tool_events:
@@ -472,6 +514,10 @@ class AgnoAgentService:
             logger.error(f"Agno Agent 流式生成失败: {e}")
             yield f"Agno Agent 处理失败: {e!s}"
         finally:
+            # 流结束时若仍在思考块内，补上闭合标签
+            if self._in_thinking:
+                yield "[/THINK]"
+                self._in_thinking = False
             # 清理 ContextVar
             current_session_id.set(None)
 

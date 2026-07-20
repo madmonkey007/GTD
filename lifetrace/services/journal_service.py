@@ -53,9 +53,13 @@ class JournalService:
         if self._vector_db is None:
             logger.info("Journal 向量检索不可用（vector_db 未初始化）")
 
-    def _normalize_name(self, name: str | None) -> str:
+    def _normalize_name(self, name: str | None, fallback_time: datetime | None = None) -> str:
         cleaned = (name or "").strip()
-        return cleaned or "Untitled"
+        if cleaned:
+            return cleaned
+        if fallback_time:
+            return fallback_time.strftime("%Y-%m-%d %H:%M")
+        return "Untitled"
 
     def _index_journal(
         self,
@@ -351,7 +355,7 @@ class JournalService:
         """创建日记"""
         payload = JournalCreatePayload(
             uid=data.uid,
-            name=self._normalize_name(data.name),
+            name=self._normalize_name(data.name, fallback_time=data.date),
             user_notes=data.user_notes,
             date=data.date,
             content_format=data.content_format or "markdown",

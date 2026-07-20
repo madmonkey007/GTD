@@ -1,41 +1,76 @@
 # Note Management Tools Messages - English
+# All keys are prefixed with note_ to avoid collisions with todo.yaml / tags.yaml
+
+# Agent system instructions (used when note tools are enabled)
+notes_instructions: |
+  You are the FreeTodo assistant. You can help users manage **notes (journals/records)** and todos.
+  This session has note management tools enabled — you have full note CRUD capability.
+
+  **Note tools guide:**
+  1. When the user asks to "create/add a note/record", use create_note (title, content, tags, date)
+  2. When the user asks to "find/search notes containing X", use search_notes
+  3. When the user asks for "notes with tag X", use list_notes_by_tags
+  4. When the user asks for "notes from date range", use list_notes_by_date
+  5. When the user asks to "analyze/get insight on a note", use get_insight
+  6. When the user needs tags for a note, use suggest_note_tags
+
+  **Key disambiguation:**
+  - "add a note test" / "write down xxx" / "journal about xxx" → create_note
+  - "add a todo test" / "remind me to xxx" → create_todo (if available)
+  - Notes and todos are different: notes are records/reflections; todos are things to do. Judge by the user's wording.
+
+  **Title vs Content rules (important):**
+  1. User says "write note: xxx" or "journal: xxx" → xxx is **content (user_notes)**, leave title empty (auto-uses creation time)
+  2. User explicitly gives a title, e.g. "create a note titled yyy with content xxx" → title = yyy, content = xxx
+  3. If user only provides one text block without clear separation → use it as content (user_notes), leave title empty
+  4. Only fill title when you have summarized/refined it yourself, never use the first sentence of content as title
+
+  **Notes:**
+  - After a successful operation, briefly report the result (including the note ID)
+  - If an operation fails, explain why and suggest next steps
+  - You DO have note capability — never say "I don't have note functionality"
 
 # Create
-create_success: "Note #{id} created: {name}"
-create_failed: "Failed to create note: {error}"
+note_create_success: "Note #{id} created: {name}"
+note_create_failed: "Failed to create note: {error}"
 
 # Delete
-delete_success: "Note #{id} deleted"
-delete_not_found: "Note #{id} not found"
-delete_failed: "Failed to delete note: {error}"
+note_delete_success: "Note #{id} deleted"
+note_delete_not_found: "Note #{id} not found"
+note_delete_failed: "Failed to delete note: {error}"
+
+# Update
+note_update_success: "Note #{id} updated"
+note_update_not_found: "Note #{id} not found"
+note_update_failed: "Failed to update note: {error}"
 
 # Search
-search_header: "Search results for \"{keyword}\" ({count} found):\n"
-search_item: "- #{id} {name} (tags: {tags})"
-search_empty: "No notes found matching \"{keyword}\""
+note_search_header: "Search results for \"{keyword}\" ({count} found):\n"
+note_search_item: "- #{id} {name} (tags: {tags})"
+note_search_empty: "No notes found matching \"{keyword}\""
 
 # Filter by tags
-list_by_tags_header: "Notes tagged \"{tags}\" ({count} found):\n"
-list_by_tags_item: "- #{id} {name} ({date}) tags: {tags}"
-list_by_tags_empty: "No notes found with tag \"{tags}\""
+note_list_by_tags_header: "Notes tagged \"{tags}\" ({count} found):\n"
+note_list_by_tags_item: "- #{id} {name} ({date}) tags: {tags}"
+note_list_by_tags_empty: "No notes found with tag \"{tags}\""
 
 # Filter by date
-list_by_date_header: "Notes from {start} to {end} ({count} found):\n"
-list_by_date_item: "- #{id} {name} ({date}) tags: {tags}"
-list_by_date_empty: "No notes found from {start} to {end}"
+note_list_by_date_header: "Notes from {start} to {end} ({count} found):\n"
+note_list_by_date_item: "- #{id} {name} ({date}) tags: {tags}"
+note_list_by_date_empty: "No notes found from {start} to {end}"
 
 # Insight
-insight_header: "📊 Insights for \"{name}\":\n\n"
-insight_similar_header: "📌 Similar notes ({count}):\n"
-insight_similar_item: "  - #{id} {name} (tags: {tags})"
-insight_cross_domain_header: "🔗 Cross-domain ({count}):\n"
-insight_cross_domain_item: "  - #{id} {name} (tags: {tags})"
-insight_no_related: "No related notes found"
-insight_not_found: "Note #{id} not found"
-insight_failed: "Insight analysis failed: {error}"
+note_insight_header: "📊 Insights for \"{name}\":\n\n"
+note_insight_similar_header: "📌 Similar notes ({count}):\n"
+note_insight_similar_item: "  - #{id} {name} (tags: {tags})"
+note_insight_cross_domain_header: "🔗 Cross-domain ({count}):\n"
+note_insight_cross_domain_item: "  - #{id} {name} (tags: {tags})"
+note_insight_no_related: "No related notes found"
+note_insight_not_found: "Note #{id} not found"
+note_insight_failed: "Insight analysis failed: {error}"
 
 # Tag suggestions
-suggest_tags_guide: |
+note_suggest_tags_guide: |
   Please suggest 3-5 suitable tags based on the note name below.
 
   **Note name:** {note_name}
@@ -50,7 +85,7 @@ suggest_tags_guide: |
 
   Please directly suggest tags and show results without calling other tools. Format: Suggested tags: tag1, tag2, tag3
 
-suggest_tags_failed: "Tag suggestion failed: {error}"
+note_suggest_tags_failed: "Tag suggestion failed: {error}"
 
 # Common
-no_tags: "none"
+note_no_tags: "none"

@@ -102,6 +102,7 @@ class FreeTodoToolkit(
             "suggest_tags": self.suggest_tags,
             # Note management (from NoteTools)
             "create_note": self.create_note,
+            "update_note": self.update_note,
             "delete_note": self.delete_note,
             "search_notes": self.search_notes,
             "list_notes_by_tags": self.list_notes_by_tags,

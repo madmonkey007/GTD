@@ -6,341 +6,389 @@ CRUD operations and search for notes (journals).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from lifetrace.llm.agno_tools.base import get_message
 from lifetrace.util.logging_config import get_logger
 
 if TYPE_CHECKING:
-    from lifetrace.services.journal_service import JournalService
+	from lifetrace.services.journal_service import JournalService
 
 logger = get_logger()
 
 
 class NoteTools:
-    """Note management tools mixin"""
+	"""Note management tools mixin"""
 
-    lang: str
-    journal_service: JournalService
+	lang: str
+	journal_service: JournalService
 
-    def _msg(self, key: str, **kwargs) -> str:
-        return get_message(self.lang, key, **kwargs)
+	def _msg(self, key: str, **kwargs) -> str:
+		return get_message(self.lang, key, **kwargs)
 
-    def create_note(
-        self,
-        name: str,
-        user_notes: str = "",
-        tags: str | None = None,
-        date: str | None = None,
-    ) -> str:
-        """Create a new note
+	def create_note(
+		self,
+		name: str = "",
+		user_notes: str = "",
+		tags: str | None = None,
+		date: str | None = None,
+	) -> str:
+		"""Create a new note
 
-        Args:
-            name: Note title (required)
-            user_notes: Note content in markdown format (optional)
-            tags: Comma-separated tags like 'work,meeting' (optional)
-            date: Note date in ISO format like '2024-01-20' (optional, default: today)
+		Args:
+			name: Note title (optional, defaults to current time)
+			user_notes: Note content in markdown format (optional)
+			tags: Comma-separated tags like 'work,meeting' (optional)
+			date: Note date in ISO format like '2024-01-20' (optional, default: today)
 
-        Returns:
-            Success or failure message
-        """
-        try:
-            from lifetrace.schemas.journal import JournalCreate
+		Returns:
+			Success or failure message
+		"""
+		try:
+			from lifetrace.schemas.journal import JournalCreate
 
-            tag_list = []
-            if tags:
-                tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+			tag_list = []
+			if tags:
+				tag_list = [t.strip() for t in tags.split(",") if t.strip()]
 
-            note_date = datetime.now()
-            if date:
-                try:
-                    note_date = datetime.fromisoformat(date)
-                except ValueError:
-                    pass
+			note_date = datetime.now()
+			if date:
+				try:
+					note_date = datetime.fromisoformat(date)
+				except ValueError:
+					pass
 
-            result = self.journal_service.create_journal(
-                JournalCreate(
-                    name=name,
-                    user_notes=user_notes,
-                    tags=tag_list,
-                    date=note_date,
-                )
-            )
-            return self._msg("create_success", id=result.id, name=name)
+				# Default title: use current time if name is empty
+				if not name or not name.strip():
+					name = note_date.strftime("%Y-%m-%d %H:%M")
 
-        except Exception as e:
-            logger.error(f"Failed to create note: {e}")
-            return self._msg("create_failed", error=str(e))
+			result = self.journal_service.create_journal(
+				JournalCreate(
+					name=name,
+					user_notes=user_notes,
+					tags=tag_list,
+					date=note_date,
+				)
+			)
+			return self._msg("note_create_success", id=result.id, name=name)
 
-    def delete_note(self, note_id: int) -> str:
-        """Delete a note by ID
+		except Exception as e:
+			logger.error(f"Failed to create note: {e}")
+			return self._msg("note_create_failed", error=str(e))
 
-        Args:
-            note_id: The ID of the note to delete
+	def delete_note(self, note_id: int) -> str:
+		"""Delete a note by ID
 
-        Returns:
-            Success or failure message
-        """
-        try:
-            self.journal_service.delete_journal(note_id)
-            return self._msg("delete_success", id=note_id)
+		Args:
+			note_id: The ID of the note to delete
 
-        except Exception as e:
-            logger.error(f"Failed to delete note {note_id}: {e}")
-            error_msg = str(e)
-            if "404" in error_msg or "不存在" in error_msg:
-                return self._msg("delete_not_found", id=note_id)
-            return self._msg("delete_failed", error=error_msg)
+		Returns:
+			Success or failure message
+		"""
+		try:
+			self.journal_service.delete_journal(note_id)
+			return self._msg("note_delete_success", id=note_id)
 
-    def search_notes(self, keyword: str, limit: int = 10) -> str:
-        """Search notes by keyword in title and content
+		except Exception as e:
+			logger.error(f"Failed to delete note {note_id}: {e}")
+			error_msg = str(e)
+			if "404" in error_msg or "不存在" in error_msg:
+				return self._msg("note_delete_not_found", id=note_id)
+			return self._msg("note_delete_failed", error=error_msg)
 
-        Args:
-            keyword: Search keyword to match against note title and content
-            limit: Maximum number of notes to return (default: 10)
+	def update_note(
+		self,
+		note_id: int,
+		name: str | None = None,
+		user_notes: str | None = None,
+		tags: str | None = None,
+	) -> str:
+		"""Update an existing note. Only provided fields are updated.
 
-        Returns:
-            Formatted list of matching notes or empty message
-        """
-        try:
-            notes = self.journal_service.list_journals(
-                limit=limit, offset=0, search=keyword
-            )
+		Args:
+			note_id: The ID of the note to update (required)
+			name: New note title (optional)
+			user_notes: New note content in markdown format (optional)
+			tags: Comma-separated tags like 'work,meeting' (optional, overwrites existing tags)
 
-            if not notes.journals:
-                return self._msg("search_empty", keyword=keyword)
+		Returns:
+			Success or failure message
+		"""
+		try:
+			from lifetrace.schemas.journal import JournalUpdate
 
-            result = self._msg(
-                "search_header", keyword=keyword, count=notes.total
-            )
-            for note in notes.journals:
-                tag_str = ", ".join(t.tag_name for t in (note.tags or []))
-                result += (
-                    self._msg(
-                        "search_item",
-                        id=note.id,
-                        name=note.name,
-                        tags=tag_str or self._msg("no_tags"),
-                    )
-                    + "\n"
-                )
+			update_data: dict = {}
+			if name is not None:
+				update_data["name"] = name
+			if user_notes is not None:
+				update_data["user_notes"] = user_notes
+			if tags is not None:
+				update_data["tags"] = [t.strip() for t in tags.split(",") if t.strip()]
 
-            return result.strip()
+			if not update_data:
+				return self._msg("note_update_success", id=note_id)
 
-        except Exception as e:
-            logger.error(f"Failed to search notes: {e}")
-            return self._msg("search_empty", keyword=keyword)
+			self.journal_service.update_journal(
+				note_id, JournalUpdate(**update_data)
+			)
+			return self._msg("note_update_success", id=note_id)
 
-    def list_notes_by_tags(self, tags: str, limit: int = 20) -> str:
-        """List notes filtered by tags
+		except Exception as e:
+			logger.error(f"Failed to update note {note_id}: {e}")
+			error_msg = str(e)
+			if "404" in error_msg or "不存在" in error_msg:
+				return self._msg("note_update_not_found", id=note_id)
+			return self._msg("note_update_failed", error=error_msg)
 
-        Args:
-            tags: Comma-separated tag names to filter by, e.g. 'work,meeting'
-            limit: Maximum number of notes to return (default: 20)
+	def search_notes(self, keyword: str, limit: int = 10) -> str:
+		"""Search notes by keyword in title and content
 
-        Returns:
-            Formatted list of matching notes or empty message
-        """
-        try:
-            tag_list = [t.strip() for t in tags.split(",") if t.strip()]
-            if not tag_list:
-                return self._msg("list_by_tags_empty", tags=tags)
+		Args:
+			keyword: Search keyword to match against note title and content
+			limit: Maximum number of notes to return (default: 10)
 
-            all_notes = self.journal_service.list_journals(
-                limit=max(200, limit), offset=0
-            )
+		Returns:
+			Formatted list of matching notes or empty message
+		"""
+		try:
+			notes = self.journal_service.list_journals(
+				limit=limit, offset=0, start_date=None, end_date=None, search=keyword
+			)
 
-            matches = []
-            for note in all_notes.journals:
-                note_tags = {t.tag_name for t in (note.tags or [])}
-                if any(tag in note_tags for tag in tag_list):
-                    matches.append(note)
+			if not notes.journals:
+				return self._msg("note_search_empty", keyword=keyword)
 
-            matches = matches[:limit]
+			result = self._msg(
+				"note_search_header", keyword=keyword, count=notes.total
+			)
+			for note in notes.journals:
+				tag_str = ", ".join(t.tag_name for t in (note.tags or []))
+				result += (
+					self._msg(
+						"note_search_item",
+						id=note.id,
+						name=note.name,
+						tags=tag_str or self._msg("note_no_tags"),
+					)
+					+ "\n"
+				)
 
-            if not matches:
-                return self._msg("list_by_tags_empty", tags=tags)
+			return result.strip()
 
-            result = self._msg(
-                "list_by_tags_header", tags=tags, count=len(matches)
-            )
-            for note in matches:
-                note_tag_str = ", ".join(
-                    t.tag_name for t in (note.tags or [])
-                )
-                result += (
-                    self._msg(
-                        "list_by_tags_item",
-                        id=note.id,
-                        name=note.name,
-                        date=note.date.strftime("%Y-%m-%d") if note.date else "?",
-                        tags=note_tag_str or self._msg("no_tags"),
-                    )
-                    + "\n"
-                )
+		except Exception as e:
+			logger.error(f"Failed to search notes: {e}")
+			return self._msg("note_search_empty", keyword=keyword)
 
-            return result.strip()
+	def list_notes_by_tags(self, tags: str, limit: int = 20) -> str:
+		"""List notes filtered by tags
 
-        except Exception as e:
-            logger.error(f"Failed to list notes by tags: {e}")
-            return self._msg("list_by_tags_empty", tags=tags)
+		Args:
+			tags: Comma-separated tag names to filter by, e.g. 'work,meeting'
+			limit: Maximum number of notes to return (default: 20)
 
-    def list_notes_by_date(
-        self,
-        start_date: str,
-        end_date: str | None = None,
-        limit: int = 20,
-    ) -> str:
-        """List notes within a date range
+		Returns:
+			Formatted list of matching notes or empty message
+		"""
+		try:
+			tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+			if not tag_list:
+				return self._msg("note_list_by_tags_empty", tags=tags)
 
-        Args:
-            start_date: Start date in ISO format like '2024-01-01'
-            end_date: End date in ISO format like '2024-01-31' (optional, default: start_date)
-            limit: Maximum number of notes to return (default: 20)
+			all_notes = self.journal_service.list_journals(
+				limit=max(200, limit), offset=0, start_date=None, end_date=None
+			)
 
-        Returns:
-            Formatted list of notes or empty message
-        """
-        try:
-            start = datetime.fromisoformat(start_date)
+			matches = []
+			for note in all_notes.journals:
+				note_tags = {t.tag_name for t in (note.tags or [])}
+				if any(tag in note_tags for tag in tag_list):
+					matches.append(note)
 
-            if end_date:
-                end = datetime.fromisoformat(end_date)
-            else:
-                end = start
+			matches = matches[:limit]
 
-            notes = self.journal_service.list_journals(
-                limit=limit, offset=0, start_date=start, end_date=end
-            )
+			if not matches:
+				return self._msg("note_list_by_tags_empty", tags=tags)
 
-            if not notes.journals:
-                return self._msg("list_by_date_empty", start=start_date, end=end_date or start_date)
+			result = self._msg(
+				"note_list_by_tags_header", tags=tags, count=len(matches)
+			)
+			for note in matches:
+				note_tag_str = ", ".join(
+					t.tag_name for t in (note.tags or [])
+				)
+				result += (
+					self._msg(
+						"note_list_by_tags_item",
+						id=note.id,
+						name=note.name,
+						date=note.date.strftime("%Y-%m-%d") if note.date else "?",
+						tags=note_tag_str or self._msg("note_no_tags"),
+					)
+					+ "\n"
+				)
 
-            result = self._msg(
-                "list_by_date_header",
-                start=start_date,
-                end=end_date or start_date,
-                count=notes.total,
-            )
-            for note in notes.journals:
-                tag_str = ", ".join(t.tag_name for t in (note.tags or []))
-                result += (
-                    self._msg(
-                        "list_by_date_item",
-                        id=note.id,
-                        name=note.name,
-                        date=note.date.strftime("%Y-%m-%d") if note.date else "?",
-                        tags=tag_str or self._msg("no_tags"),
-                    )
-                    + "\n"
-                )
+			return result.strip()
 
-            return result.strip()
+		except Exception as e:
+			logger.error(f"Failed to list notes by tags: {e}")
+			return self._msg("note_list_by_tags_empty", tags=tags)
 
-        except Exception as e:
-            logger.error(f"Failed to list notes by date: {e}")
-            return self._msg("list_by_date_empty", start=start_date, end=end_date or start_date)
+	def list_notes_by_date(
+		self,
+		start_date: str,
+		end_date: str | None = None,
+		limit: int = 20,
+	) -> str:
+		"""List notes within a date range
 
-    def get_insight(self, note_id: int) -> str:
-        """Get AI insights for a note by finding similar and cross-domain notes
+		Args:
+			start_date: Start date in ISO format like '2024-01-01'
+			end_date: End date in ISO format like '2024-01-31' (optional, default: start_date)
+			limit: Maximum number of notes to return (default: 20)
 
-        Args:
-            note_id: The ID of the note to get insights for
+		Returns:
+			Formatted list of notes or empty message
+		"""
+		try:
+			start = datetime.fromisoformat(start_date)
 
-        Returns:
-            Insight analysis with similar and cross-domain notes, or error message
-        """
-        try:
-            context = self.journal_service.get_insight_context(
-                journal_id=note_id,
-                similar_count=4,
-                cross_domain_count=2,
-            )
+			if end_date:
+				end = datetime.fromisoformat(end_date)
+			else:
+				end = start
 
-            current = context.get("current", {})
-            similar = context.get("similar", [])
-            cross_domain = context.get("cross_domain", [])
+			notes = self.journal_service.list_journals(
+				limit=limit, offset=0, start_date=start, end_date=end
+			)
 
-            result = self._msg(
-                "insight_header",
-                name=current.get("name", "?"),
-            )
+			if not notes.journals:
+				return self._msg("note_list_by_date_empty", start=start_date, end=end_date or start_date)
 
-            if similar:
-                result += self._msg("insight_similar_header", count=len(similar))
-                for note in similar:
-                    tag_str = ", ".join(
-                        t.get("tag_name", "") for t in (note.get("tags") or [])
-                    )
-                    result += (
-                        self._msg(
-                            "insight_similar_item",
-                            id=note.get("id", "?"),
-                            name=note.get("name", "?"),
-                            tags=tag_str or self._msg("no_tags"),
-                        )
-                        + "\n"
-                    )
+			result = self._msg(
+				"note_list_by_date_header",
+				start=start_date,
+				end=end_date or start_date,
+				count=notes.total,
+			)
+			for note in notes.journals:
+				tag_str = ", ".join(t.tag_name for t in (note.tags or []))
+				result += (
+					self._msg(
+						"note_list_by_date_item",
+						id=note.id,
+						name=note.name,
+						date=note.date.strftime("%Y-%m-%d") if note.date else "?",
+						tags=tag_str or self._msg("note_no_tags"),
+					)
+					+ "\n"
+				)
 
-            if cross_domain:
-                result += self._msg(
-                    "insight_cross_domain_header", count=len(cross_domain)
-                )
-                for note in cross_domain:
-                    tag_str = ", ".join(
-                        t.get("tag_name", "") for t in (note.get("tags") or [])
-                    )
-                    result += (
-                        self._msg(
-                            "insight_cross_domain_item",
-                            id=note.get("id", "?"),
-                            name=note.get("name", "?"),
-                            tags=tag_str or self._msg("no_tags"),
-                        )
-                        + "\n"
-                    )
+			return result.strip()
 
-            if not similar and not cross_domain:
-                result += self._msg("insight_no_related")
+		except Exception as e:
+			logger.error(f"Failed to list notes by date: {e}")
+			return self._msg("note_list_by_date_empty", start=start_date, end=end_date or start_date)
 
-            return result.strip()
+	def get_insight(self, note_id: int) -> str:
+		"""Get AI insights for a note by finding similar and cross-domain notes
 
-        except Exception as e:
-            logger.error(f"Failed to get insight for note {note_id}: {e}")
-            error_msg = str(e)
-            if "404" in error_msg or "不存在" in error_msg:
-                return self._msg("insight_not_found", id=note_id)
-            return self._msg("insight_failed", error=error_msg)
+		Args:
+			note_id: The ID of the note to get insights for
 
-    def suggest_note_tags(self, note_name: str) -> str:
-        """Suggest tags based on note name, referencing existing tags from all notes
+		Returns:
+			Insight analysis with similar and cross-domain notes, or error message
+		"""
+		try:
+			context = self.journal_service.get_insight_context(
+				journal_id=note_id,
+				similar_count=4,
+				cross_domain_count=2,
+			)
 
-        Args:
-            note_name: Name of the note to suggest tags for
+			current = context.get("current", {})
+			similar = context.get("similar", [])
+			cross_domain = context.get("cross_domain", [])
 
-        Returns:
-            Instructions for the Agent to suggest tags directly
-        """
-        try:
-            all_notes = self.journal_service.list_journals(
-                limit=500, offset=0
-            )
-            existing_tags = set()
-            for note in all_notes.journals:
-                for tag in note.tags or []:
-                    existing_tags.add(tag.tag_name)
+			result = self._msg(
+				"note_insight_header",
+				name=current.get("name", "?"),
+			)
 
-            existing_tags_str = (
-                ", ".join(sorted(existing_tags)) if existing_tags else "None"
-            )
+			if similar:
+				result += self._msg("note_insight_similar_header", count=len(similar))
+				for note in similar:
+					tag_str = ", ".join(
+						t.get("tag_name", "") for t in (note.get("tags") or [])
+					)
+					result += (
+						self._msg(
+							"note_insight_similar_item",
+							id=note.get("id", "?"),
+							name=note.get("name", "?"),
+							tags=tag_str or self._msg("note_no_tags"),
+						)
+						+ "\n"
+					)
 
-            suggestion_guide = self._msg(
-                "suggest_tags_guide",
-                note_name=note_name,
-                existing_tags=existing_tags_str,
-            )
-            return suggestion_guide
+			if cross_domain:
+				result += self._msg(
+					"note_insight_cross_domain_header", count=len(cross_domain)
+				)
+				for note in cross_domain:
+					tag_str = ", ".join(
+						t.get("tag_name", "") for t in (note.get("tags") or [])
+					)
+					result += (
+						self._msg(
+							"note_insight_cross_domain_item",
+							id=note.get("id", "?"),
+							name=note.get("name", "?"),
+							tags=tag_str or self._msg("note_no_tags"),
+						)
+						+ "\n"
+					)
 
-        except Exception as e:
-            logger.error(f"Failed to get tag suggestion context: {e}")
-            return self._msg("suggest_tags_failed", error=str(e))
+			if not similar and not cross_domain:
+				result += self._msg("note_insight_no_related")
+
+			return result.strip()
+
+		except Exception as e:
+			logger.error(f"Failed to get insight for note {note_id}: {e}")
+			error_msg = str(e)
+			if "404" in error_msg or "不存在" in error_msg:
+				return self._msg("note_insight_not_found", id=note_id)
+			return self._msg("note_insight_failed", error=error_msg)
+
+	def suggest_note_tags(self, note_name: str) -> str:
+		"""Suggest tags based on note name, referencing existing tags from all notes
+
+		Args:
+			note_name: Name of the note to suggest tags for
+
+		Returns:
+			Instructions for the Agent to suggest tags directly
+		"""
+		try:
+			all_notes = self.journal_service.list_journals(
+				limit=500, offset=0, start_date=None, end_date=None
+			)
+			existing_tags = set()
+			for note in all_notes.journals:
+				for tag in note.tags or []:
+					existing_tags.add(tag.tag_name)
+
+			existing_tags_str = (
+				", ".join(sorted(existing_tags)) if existing_tags else "None"
+			)
+
+			suggestion_guide = self._msg(
+				"note_suggest_tags_guide",
+				note_name=note_name,
+				existing_tags=existing_tags_str,
+			)
+			return suggestion_guide
+
+		except Exception as e:
+			logger.error(f"Failed to get tag suggestion context: {e}")
+			return self._msg("note_suggest_tags_failed", error=str(e))

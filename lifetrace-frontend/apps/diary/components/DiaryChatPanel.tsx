@@ -4,14 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	Check, Copy, Send, Square, Sparkles, MessageSquareText,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import { sendChatMessageStream } from "@/lib/api";
+import type { ToolCallEvent } from "@/lib/api";
 import type { ChatMessage } from "@/apps/chat/types";
 import { LinkedNotes } from "@/apps/chat/components/input/LinkedNotes";
 import { useNoteChatStore } from "@/lib/store/note-chat-store";
 import { useLocaleStore } from "@/lib/store/locale";
+import { queryKeys } from "@/lib/query/keys";
 
 // ─── Tab definitions ───
 
@@ -549,6 +552,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 	const listRef = useRef<HTMLDivElement>(null);
 	const clearLinkedNotes = useNoteChatStore((s) => s.clearLinkedNotes);
 	const { locale } = useLocaleStore();
+	const queryClient = useQueryClient();
 
 	useEffect(() => {
 		if (listRef.current) {
@@ -569,7 +573,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 					conversationId: conversationId ?? undefined,
 					mode: "agno",
 					systemPrompt: THINKING_COACH_SYSTEM_PROMPT,
-				selectedTools: ["create_note","delete_note","search_notes","list_notes_by_tags","list_notes_by_date","get_insight","suggest_note_tags"],
+				selectedTools: ["create_note","update_note","delete_note","search_notes","list_notes_by_tags","list_notes_by_date","get_insight","suggest_note_tags"],
 				},
 				(chunk) => setMessages((prev) =>
 					prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m),
@@ -577,6 +581,14 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 				(id) => id && setConversationId(id),
 				ac.signal,
 				locale,
+				(event: ToolCallEvent) => {
+					if (event.type === "tool_call_end") {
+						const noteMutationTools = ["create_note", "update_note", "delete_note"];
+						if (event.tool_name && noteMutationTools.includes(event.tool_name)) {
+							void queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
+						}
+					}
+				},
 			);
 		} catch (err) {
 			if (ac.signal.aborted) return;
@@ -588,8 +600,9 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 		} finally {
 			setIsStreaming(false);
 			abortRef.current = null;
+			void queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
 		}
-	}, [conversationId, locale]);
+	}, [conversationId, locale, queryClient]);
 
 	const handleTabClick = useCallback((tab: TabDef) => {
 		if (isStreaming) return;
@@ -609,24 +622,16 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 	const handleSendInput = useCallback(async () => {
 		if (isStreaming) return;
 		const linked = useNoteChatStore.getState().linkedNotes;
-		const hasCard = linked.length > 0 || !!currentJournalId;
-		if (!inputValue.trim() && !hasCard) return;
+		if (!inputValue.trim() && linked.length === 0) return;
 		setError(null);
 		const text = inputValue.trim();
 		setInputValue("");
 		const uid = createId();
 		const aid = createId();
-		// "当前笔记"取最近添加的卡片；没有手动添加则用当前选中日期的笔记
-		const latestNoteId = linked.length > 0 ? linked[linked.length - 1].id : currentJournalId;
-		const insight = await fetchInsightContext(latestNoteId);
-		let noteCtx = "";
+		// 只带入用户手动添加的关联笔记，不自动附加当前笔记
+		// （自由输入任务时不应强制带入当前笔记；Agent 可通过 get_insight/search_notes 工具按需取数）
+		const noteCtx = buildNoteContext();
 		let attachedNotes: { id: number; name: string; preview: string; date: string }[] | undefined;
-		if (insight) {
-			noteCtx = insight.text;
-		} else {
-			noteCtx = buildNoteContext();
-		}
-		// attachedNotes 展示所有手动添加的卡片（按添加顺序）
 		if (linked.length > 0) {
 			attachedNotes = linked.map((n) => ({
 				id: n.id,
@@ -634,24 +639,16 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 				preview: (n.userNotes || "").slice(0, 80),
 				date: n.date || "",
 			}));
-		} else if (insight?.current) {
-			const cur = insight.current as Record<string, unknown>;
-			attachedNotes = [{
-				id: Number(cur.id),
-				name: String(cur.name || "未命名"),
-				preview: String(cur.user_notes || cur.userNotes || "").slice(0, 80),
-				date: String(cur.date || ""),
-			}];
 		}
 		setMessages((prev) => [
 			...prev,
 			{ id: uid, role: "user", content: text, attachedNotes },
 			{ id: aid, role: "assistant", content: "" },
 		]);
-		const prompt = noteCtx ? `${noteCtx}\n\n${text || "请分析以上笔记内容。"}` : text;
+		const prompt = noteCtx ? `${noteCtx}\n\n${text}` : text;
 		doStream(prompt, aid);
 		clearLinkedNotes();
-	}, [inputValue, isStreaming, doStream, clearLinkedNotes, currentJournalId]);
+	}, [inputValue, isStreaming, doStream, clearLinkedNotes]);
 
 	const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key === "Enter" && !e.shiftKey) {

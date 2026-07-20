@@ -1,41 +1,77 @@
 # 笔记管理工具消息 - 中文版
+# 所有键统一加 note_ 前缀，避免与 todo.yaml / tags.yaml 的同名键冲突
+# （AgnoToolsMessageLoader 把所有 yaml 合并到一个 dict，后加载的会覆盖先加载的）
+
+# Agent 系统指令（启用笔记工具时使用，明确告知 AI 具备笔记能力，避免误认"只能管待办"而拒绝）
+notes_instructions: |
+  你是 FreeTodo 智能助手，可以帮助用户管理**笔记（日记/记录）**和待办事项。
+  当前会话启用了笔记管理工具，你具备完整的笔记增删查改能力。
+
+  **笔记工具使用指南：**
+  1. 当用户要求"新建/创建笔记/记录"时，使用 create_note（支持标题、内容、标签、日期）
+  2. 当用户要求"找/搜索包含某关键词的笔记"时，使用 search_notes
+  3. 当用户要求"查看某个标签下的笔记"时，使用 list_notes_by_tags
+  4. 当用户要求"查看某段时间的笔记"时，使用 list_notes_by_date
+  5. 当用户要求"分析/洞察某篇笔记"时，使用 get_insight（返回相似和跨域笔记）
+  6. 当用户需要给笔记打标签时，使用 suggest_note_tags 推荐已有标签
+
+  **重要判断：**
+  - "新增笔记 test" / "记录一下xxx" / "写一篇关于xxx的笔记" → 调用 create_note
+  - "新增待办 test" / "提醒我做xxx" → 调用 create_todo（如果有该工具）
+  - 笔记和待办是两种不同的东西：笔记是记录/反思，待办是要做的事。根据用户用词判断。
+
+  **标题与内容的区分规则（重要）：**
+  1. 用户说"创建笔记：xxx"或"记录一下xxx"→ xxx 是**正文内容（user_notes）**，标题留空（自动使用创建时间）
+  2. 用户指定了标题，如"创建一篇标题为yyy的笔记，内容为xxx" → 标题填 yyy，内容填 xxx
+  3. 如果用户只给了一段文字，没有明确区分标题和内容 → 整段文字作为正文（user_notes），标题留空
+  4. 标题只有在自己做了总结提炼时才填入，不要直接把正文第一句当标题
+
+  **注意事项：**
+  - 操作成功后简洁告知用户结果（含笔记 ID）
+  - 如果操作失败，说明原因并提供建议
+  - 你具备笔记能力，不要说"没有笔记功能"
 
 # 创建
-create_success: "成功创建笔记 #{id}: {name}"
-create_failed: "创建笔记失败: {error}"
+note_create_success: "成功创建笔记 #{id}: {name}"
+note_create_failed: "创建笔记失败: {error}"
 
 # 删除
-delete_success: "已删除笔记 #{id}"
-delete_not_found: "未找到笔记 #{id}"
-delete_failed: "删除笔记失败: {error}"
+note_delete_success: "已删除笔记 #{id}"
+note_delete_not_found: "未找到笔记 #{id}"
+note_delete_failed: "删除笔记失败: {error}"
+
+# 更新
+note_update_success: "已更新笔记 #{id}"
+note_update_not_found: "未找到笔记 #{id}"
+note_update_failed: "更新笔记失败: {error}"
 
 # 搜索
-search_header: "搜索 \"{keyword}\" 的结果 (共 {count} 项):\n"
-search_item: "- #{id} {name} (标签: {tags})"
-search_empty: "未找到包含 \"{keyword}\" 的笔记"
+note_search_header: "搜索 \"{keyword}\" 的结果 (共 {count} 项):\n"
+note_search_item: "- #{id} {name} (标签: {tags})"
+note_search_empty: "未找到包含 \"{keyword}\" 的笔记"
 
 # 按标签筛选
-list_by_tags_header: "标签 \"{tags}\" 下的笔记 (共 {count} 项):\n"
-list_by_tags_item: "- #{id} {name} ({date}) 标签: {tags}"
-list_by_tags_empty: "没有找到标签 \"{tags}\" 下的笔记"
+note_list_by_tags_header: "标签 \"{tags}\" 下的笔记 (共 {count} 项):\n"
+note_list_by_tags_item: "- #{id} {name} ({date}) 标签: {tags}"
+note_list_by_tags_empty: "没有找到标签 \"{tags}\" 下的笔记"
 
 # 按日期筛选
-list_by_date_header: "{start} ~ {end} 的笔记 (共 {count} 项):\n"
-list_by_date_item: "- #{id} {name} ({date}) 标签: {tags}"
-list_by_date_empty: "{start} ~ {end} 没有笔记"
+note_list_by_date_header: "{start} ~ {end} 的笔记 (共 {count} 项):\n"
+note_list_by_date_item: "- #{id} {name} ({date}) 标签: {tags}"
+note_list_by_date_empty: "{start} ~ {end} 没有笔记"
 
 # 洞察
-insight_header: "📊 笔记 \"{name}\" 的洞察分析:\n\n"
-insight_similar_header: "📌 相似笔记 (共 {count} 篇):\n"
-insight_similar_item: "  - #{id} {name} (标签: {tags})"
-insight_cross_domain_header: "🔗 跨域关联 (共 {count} 篇):\n"
-insight_cross_domain_item: "  - #{id} {name} (标签: {tags})"
-insight_no_related: "未找到相关笔记"
-insight_not_found: "未找到笔记 #{id}"
-insight_failed: "洞察分析失败: {error}"
+note_insight_header: "📊 笔记 \"{name}\" 的洞察分析:\n\n"
+note_insight_similar_header: "📌 相似笔记 (共 {count} 篇):\n"
+note_insight_similar_item: "  - #{id} {name} (标签: {tags})"
+note_insight_cross_domain_header: "🔗 跨域关联 (共 {count} 篇):\n"
+note_insight_cross_domain_item: "  - #{id} {name} (标签: {tags})"
+note_insight_no_related: "未找到相关笔记"
+note_insight_not_found: "未找到笔记 #{id}"
+note_insight_failed: "洞察分析失败: {error}"
 
 # 标签推荐
-suggest_tags_guide: |
+note_suggest_tags_guide: |
   请根据以下笔记名称，推荐 3-5 个合适的标签。
 
   **笔记名称：** {note_name}
@@ -50,7 +86,7 @@ suggest_tags_guide: |
 
   请直接推荐标签并展示结果，无需调用其他工具。格式：推荐标签: 标签1, 标签2, 标签3
 
-suggest_tags_failed: "标签推荐失败: {error}"
+note_suggest_tags_failed: "标签推荐失败: {error}"
 
 # 通用
-no_tags: "无标签"
+note_no_tags: "无标签"
