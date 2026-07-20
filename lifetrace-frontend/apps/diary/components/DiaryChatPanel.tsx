@@ -314,8 +314,8 @@ function ThinkingBlock({ content }: { content: string }) {
 				</svg>
 				<span>思考过程</span>
 			</summary>
-			<div className="mt-1.5 pl-4 text-xs leading-relaxed text-muted-foreground/70 italic border-l-2 border-muted-foreground/20 whitespace-pre-wrap">
-				{content}
+			<div className="mt-1.5 pl-4 text-xs leading-relaxed text-muted-foreground/70 italic border-l-2 border-muted-foreground/20 prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-p:leading-relaxed">
+				<ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
 			</div>
 		</details>
 	);
