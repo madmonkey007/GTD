@@ -569,6 +569,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 					conversationId: conversationId ?? undefined,
 					mode: "agno",
 					systemPrompt: THINKING_COACH_SYSTEM_PROMPT,
+				selectedTools: ["create_note","delete_note","search_notes","list_notes_by_tags","list_notes_by_date","get_insight","suggest_note_tags"],
 				},
 				(chunk) => setMessages((prev) =>
 					prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m),

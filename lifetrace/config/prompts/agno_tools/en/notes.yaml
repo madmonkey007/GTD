@@ -1,0 +1,56 @@
+# Note Management Tools Messages - English
+
+# Create
+create_success: "Note #{id} created: {name}"
+create_failed: "Failed to create note: {error}"
+
+# Delete
+delete_success: "Note #{id} deleted"
+delete_not_found: "Note #{id} not found"
+delete_failed: "Failed to delete note: {error}"
+
+# Search
+search_header: "Search results for \"{keyword}\" ({count} found):\n"
+search_item: "- #{id} {name} (tags: {tags})"
+search_empty: "No notes found matching \"{keyword}\""
+
+# Filter by tags
+list_by_tags_header: "Notes tagged \"{tags}\" ({count} found):\n"
+list_by_tags_item: "- #{id} {name} ({date}) tags: {tags}"
+list_by_tags_empty: "No notes found with tag \"{tags}\""
+
+# Filter by date
+list_by_date_header: "Notes from {start} to {end} ({count} found):\n"
+list_by_date_item: "- #{id} {name} ({date}) tags: {tags}"
+list_by_date_empty: "No notes found from {start} to {end}"
+
+# Insight
+insight_header: "📊 Insights for \"{name}\":\n\n"
+insight_similar_header: "📌 Similar notes ({count}):\n"
+insight_similar_item: "  - #{id} {name} (tags: {tags})"
+insight_cross_domain_header: "🔗 Cross-domain ({count}):\n"
+insight_cross_domain_item: "  - #{id} {name} (tags: {tags})"
+insight_no_related: "No related notes found"
+insight_not_found: "Note #{id} not found"
+insight_failed: "Insight analysis failed: {error}"
+
+# Tag suggestions
+suggest_tags_guide: |
+  Please suggest 3-5 suitable tags based on the note name below.
+
+  **Note name:** {note_name}
+
+  **Existing tags (for reference, reuse or create new):** {existing_tags}
+
+  **Requirements:**
+  1. Suggest 3-5 relevant tags
+  2. Prefer reusing existing tags
+  3. Create new tags if existing ones don't fit
+  4. Tags should be concise, meaningful, and easy to categorize
+
+  Please directly suggest tags and show results without calling other tools. Format: Suggested tags: tag1, tag2, tag3
+
+suggest_tags_failed: "Tag suggestion failed: {error}"
+
+# Common
+no_tags: "none"

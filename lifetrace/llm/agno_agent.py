@@ -201,26 +201,17 @@ def _build_instructions(
     Returns:
         instructions 列表或 None
     """
-    if use_all_freetodo_tools and not has_external_tools:
-        # Load full instructions from agno_tools/{lang}/instructions.yaml
+    if has_tools:
+        # 只要有工具启用，就加载完整的 instructions.yaml（含子任务创建等说明）
         instructions = get_message(lang, "instructions")
-        return [instructions] if instructions and instructions != "[instructions]" else None
+        if instructions and instructions != "[instructions]":
+            return [instructions]
 
-    # 简化的 instructions
+    # 简化的 instructions（无工具时）
     if lang == "zh":
-        if has_tools:
-            return [
-                "你是 FreeTodo 智能助手，可以帮助用户管理待办事项和执行各种任务。"
-                "请根据用户的问题选择合适的工具来完成任务。"
-            ]
         return ["你是 FreeTodo 智能助手。当前没有启用任何工具，请直接回答用户的问题。"]
 
     # English
-    if has_tools:
-        return [
-            "You are the FreeTodo assistant that helps users manage their todos "
-            "and perform various tasks. Use the appropriate tools to complete tasks."
-        ]
     return [
         "You are the FreeTodo assistant. No tools are currently enabled. "
         "Please answer the user's questions directly."
@@ -263,7 +254,7 @@ class AgnoAgentService:
             )
 
             # 判断工具配置
-            total_freetodo_tools_count = 14
+            total_freetodo_tools_count = 21
             use_all_freetodo_tools = bool(
                 selected_tools and len(selected_tools) == total_freetodo_tools_count
             )

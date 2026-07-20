@@ -13,6 +13,7 @@ from lifetrace.llm.agno_tools.base import AgnoToolsMessageLoader
 from lifetrace.llm.agno_tools.tools import (
     BreakdownTools,
     ConflictTools,
+    NoteTools,
     StatsTools,
     TagTools,
     TimeTools,
@@ -30,6 +31,7 @@ class FreeTodoToolkit(
     ConflictTools,
     StatsTools,
     TagTools,
+    NoteTools,
     Toolkit,
 ):
     """FreeTodo Toolkit - Todo management tools for Agno Agent
@@ -68,6 +70,14 @@ class FreeTodoToolkit(
         self.db_base = db_base
         self.todo_repo = sql_todo_repository_class(db_base)
 
+        # Lazy import for JournalService
+        journal_service_module = importlib.import_module("lifetrace.services.journal_service")
+        journal_repo_module = importlib.import_module("lifetrace.repositories.sql_journal_repository")
+        journal_repo_class = journal_repo_module.SqlJournalRepository
+        self.journal_service = journal_service_module.JournalService(
+            journal_repo_class(db_base), db_base
+        )
+
         # All available tools
         all_tools = {
             # Todo management (from TodoTools)
@@ -90,6 +100,14 @@ class FreeTodoToolkit(
             "list_tags": self.list_tags,
             "get_todos_by_tag": self.get_todos_by_tag,
             "suggest_tags": self.suggest_tags,
+            # Note management (from NoteTools)
+            "create_note": self.create_note,
+            "delete_note": self.delete_note,
+            "search_notes": self.search_notes,
+            "list_notes_by_tags": self.list_notes_by_tags,
+            "list_notes_by_date": self.list_notes_by_date,
+            "get_insight": self.get_insight,
+            "suggest_note_tags": self.suggest_note_tags,
         }
 
         # Filter tools based on selected_tools

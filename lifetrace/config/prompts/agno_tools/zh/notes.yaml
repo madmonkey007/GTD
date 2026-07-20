@@ -1,0 +1,56 @@
+# 笔记管理工具消息 - 中文版
+
+# 创建
+create_success: "成功创建笔记 #{id}: {name}"
+create_failed: "创建笔记失败: {error}"
+
+# 删除
+delete_success: "已删除笔记 #{id}"
+delete_not_found: "未找到笔记 #{id}"
+delete_failed: "删除笔记失败: {error}"
+
+# 搜索
+search_header: "搜索 \"{keyword}\" 的结果 (共 {count} 项):\n"
+search_item: "- #{id} {name} (标签: {tags})"
+search_empty: "未找到包含 \"{keyword}\" 的笔记"
+
+# 按标签筛选
+list_by_tags_header: "标签 \"{tags}\" 下的笔记 (共 {count} 项):\n"
+list_by_tags_item: "- #{id} {name} ({date}) 标签: {tags}"
+list_by_tags_empty: "没有找到标签 \"{tags}\" 下的笔记"
+
+# 按日期筛选
+list_by_date_header: "{start} ~ {end} 的笔记 (共 {count} 项):\n"
+list_by_date_item: "- #{id} {name} ({date}) 标签: {tags}"
+list_by_date_empty: "{start} ~ {end} 没有笔记"
+
+# 洞察
+insight_header: "📊 笔记 \"{name}\" 的洞察分析:\n\n"
+insight_similar_header: "📌 相似笔记 (共 {count} 篇):\n"
+insight_similar_item: "  - #{id} {name} (标签: {tags})"
+insight_cross_domain_header: "🔗 跨域关联 (共 {count} 篇):\n"
+insight_cross_domain_item: "  - #{id} {name} (标签: {tags})"
+insight_no_related: "未找到相关笔记"
+insight_not_found: "未找到笔记 #{id}"
+insight_failed: "洞察分析失败: {error}"
+
+# 标签推荐
+suggest_tags_guide: |
+  请根据以下笔记名称，推荐 3-5 个合适的标签。
+
+  **笔记名称：** {note_name}
+
+  **已有标签（供参考，可复用或创建新标签）：** {existing_tags}
+
+  **推荐要求：**
+  1. 推荐 3-5 个相关标签
+  2. 优先考虑复用已有标签
+  3. 如果已有标签不合适，可以创建新标签
+  4. 标签应该简洁、有意义、便于分类
+
+  请直接推荐标签并展示结果，无需调用其他工具。格式：推荐标签: 标签1, 标签2, 标签3
+
+suggest_tags_failed: "标签推荐失败: {error}"
+
+# 通用
+no_tags: "无标签"
