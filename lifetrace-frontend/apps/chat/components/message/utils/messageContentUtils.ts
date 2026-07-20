@@ -74,6 +74,16 @@ export function removeToolEvents(content: string): string {
 	return result.trim();
 }
 
+/**
+ * 移除 [THINK]...[/THINK] 标记中的思考内容
+ */
+export function removeThinkingTags(content: string): string {
+	return content
+		.replace(/\[THINK\][\s\S]*?\[\/THINK\]/gi, "")
+		.replace(/\[\/?THINK\]/gi, "")
+		.trim();
+}
+
 export type WebSearchSources = Array<{ title: string; url: string }>;
 
 export type ParsedWebSearchMessage = {

@@ -270,6 +270,14 @@ export const useSendMessage = ({
 						if (updatedSteps) {
 							updateAssistantMessage(assistantContent, updatedSteps);
 						}
+
+						// 工具调用结束后，使对应数据缓存失效
+						if (event.type === "tool_call_end") {
+							const todoTools = ["create_todo", "update_todo", "delete_todo", "complete_todo"];
+							if (event.tool_name && todoTools.includes(event.tool_name)) {
+								void queryClient.invalidateQueries({ queryKey: queryKeys.todos.all });
+							}
+						}
 					},
 				);
 

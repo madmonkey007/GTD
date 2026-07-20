@@ -31,6 +31,7 @@ class TodoTools:
         self,
         name: str,
         description: str | None = None,
+        parent_todo_id: int | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
         time_zone: str | None = None,
@@ -43,6 +44,7 @@ class TodoTools:
         Args:
             name: Todo name/title (required)
             description: Detailed description (optional)
+            parent_todo_id: Parent todo ID to create as a subtask (optional)
             start_time: Start time in ISO format like '2024-01-20T14:00:00' (optional)
             end_time: End time in ISO format like '2024-01-20T16:00:00' (optional)
             time_zone: IANA time zone like 'Asia/Shanghai' (optional)
@@ -80,6 +82,7 @@ class TodoTools:
             todo_id = self.todo_repo.create(
                 name=name,
                 description=description,
+                parent_todo_id=parent_todo_id,
                 start_time=parsed_start_time,
                 end_time=parsed_end_time,
                 time_zone=time_zone,
@@ -125,6 +128,7 @@ class TodoTools:
         todo_id: int,
         name: str | None = None,
         description: str | None = None,
+        parent_todo_id: int | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
         time_zone: str | None = None,
@@ -137,6 +141,7 @@ class TodoTools:
             todo_id: The ID of the todo to update
             name: New name (optional)
             description: New description (optional)
+            parent_todo_id: Parent todo ID to set as subtask (optional, use 0 to remove parent)
             start_time: New start time in ISO format (optional)
             end_time: New end time in ISO format (optional)
             time_zone: IANA time zone like 'Asia/Shanghai' (optional)
@@ -156,6 +161,8 @@ class TodoTools:
                 update_kwargs["name"] = name
             if description is not None:
                 update_kwargs["description"] = description
+            if parent_todo_id is not None:
+                update_kwargs["parent_todo_id"] = parent_todo_id if parent_todo_id != 0 else None
             if start_time is not None:
                 with contextlib.suppress(ValueError):
                     update_kwargs["start_time"] = datetime.fromisoformat(
@@ -214,6 +221,9 @@ class TodoTools:
                     priority=todo.get("priority", "none"),
                     name=todo["name"],
                 )
+                parent_id = todo.get("parent_todo_id") or todo.get("parentTodoId")
+                if parent_id:
+                    item += self._msg("list_item_subtask", parent_id=parent_id)
                 start_time = (
                     todo.get("dtstart")
                     or todo.get("due")

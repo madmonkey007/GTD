@@ -122,6 +122,14 @@ export function useTodoCardHandlers({
 
 	const handleStartEditName = (e: React.MouseEvent) => {
 		e.stopPropagation();
+		// select todo + open detail panel, then enter edit mode
+		const { setSelectedTodoId, setTitleAutoEdit } = useTodoStore.getState();
+		setSelectedTodoId(todo.id);
+		setTitleAutoEdit(true);
+		const { isPanelBOpen, togglePanelB } = useUiStore.getState();
+		if (!isPanelBOpen) {
+			togglePanelB();
+		}
 		setEditingName(todo.name);
 		setIsEditingName(true);
 	};

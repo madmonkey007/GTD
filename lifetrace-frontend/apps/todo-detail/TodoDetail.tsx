@@ -44,13 +44,13 @@ export function TodoDetail() {
 		useTodoMutations();
 
 	// 从 Zustand 获取 UI 状态
-	const { selectedTodoId, setSelectedTodoId, onTodoDeleted } = useTodoStore();
+	const { selectedTodoId, setSelectedTodoId, onTodoDeleted, titleAutoEdit, setTitleAutoEdit } = useTodoStore();
 	const { panelFeatureMap, isPanelAOpen, isPanelBOpen } = useUiStore();
 
 	// 各 section 的折叠状态
 	const [showDescription, setShowDescription] = useState(false);
 	const [showNotes, setShowNotes] = useState(true);
-	const [showChildTodos, setShowChildTodos] = useState(true);
+	const [showChildTodos, setShowChildTodos] = useState(false);
 	const [activeView, setActiveView] = useState<"detail" | "artifacts">(
 		"detail",
 	);
@@ -121,6 +121,14 @@ export function TodoDetail() {
 			}
 		};
 	}, []);
+
+	// 清理 titleAutoEdit 标志
+	useEffect(() => {
+		if (titleAutoEdit) {
+			const timer = setTimeout(() => setTitleAutoEdit(false), 100);
+			return () => clearTimeout(timer);
+		}
+	}, [titleAutoEdit, setTitleAutoEdit]);
 
 	if (!todo) {
 		return (
@@ -340,7 +348,7 @@ export function TodoDetail() {
 			<div className="flex-1 overflow-y-auto px-4 py-6">
 				{activeView === "detail" ? (
 					<>
-						<DetailTitle name={todo.name} onNameChange={handleNameChange} />
+						<DetailTitle name={todo.name} onNameChange={handleNameChange} autoEdit={titleAutoEdit} />
 
 						<MetaSection
 							todo={todo}

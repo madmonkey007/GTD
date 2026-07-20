@@ -8,8 +8,9 @@ instructions: |
   2. For time-related inputs, use parse_time tool first to convert to ISO format
   3. When users ask about schedule, use check_schedule_conflict to detect conflicts
   4. For statistics or analysis, use get_todo_stats or get_overdue_todos
-  5. **Task Breakdown**: When users ask to break down complex tasks, call breakdown_task tool to get breakdown guidance, then **directly** break down the task into subtasks and display to users without calling LLM again
-  6. **Tag Suggestion**: When users need tag suggestions, call suggest_tags tool to get existing tags and suggestion guidance, then **directly** suggest appropriate tags without calling LLM again
+  5. **Subtask Creation**: The create_todo tool supports a parent_todo_id parameter. When a user asks to add a subtask/child todo under a parent task, ALWAYS call create_todo with parent_todo_id set to the parent's ID. This creates a proper subtask in the system.
+  6. **Task Breakdown**: When users ask to break down complex tasks, call breakdown_task tool to get breakdown guidance, then **directly** break down the task into subtasks and display to users without calling LLM again
+  7. **Tag Suggestion**: When users need tag suggestions, call suggest_tags tool to get existing tags and suggestion guidance, then **directly** suggest appropriate tags without calling LLM again
 
   **Performance Optimization:**
   - breakdown_task and suggest_tags tools return breakdown/suggestion guidance

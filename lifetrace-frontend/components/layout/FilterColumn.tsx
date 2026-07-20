@@ -25,7 +25,7 @@ export function FilterColumn() {
 		).sort() as string[];
 	}, [allTodos]);
 
-	// 计算各个筛选条件的待办数量
+	// 计算各个筛选条件的待办数量（只统计未完成的待办项）
 	const counts = useMemo(() => {
 		if (!allTodos || !Array.isArray(allTodos)) {
 			return { today: 0, last7days: 0, list: 0, tags: {} as Record<string, number> };
@@ -35,11 +35,14 @@ export function FilterColumn() {
 		const sevenDaysAgo = new Date(today);
 		sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
+		// 只统计未完成的待办
+		const activeTodos = (allTodos as Array<{ startTime?: string | null; endTime?: string | null; tags?: string[]; status?: string }>).filter(t => t.status !== "completed");
+
 		let todayCount = 0;
 		let last7Count = 0;
 		const tagCount: Record<string, number> = {};
 
-		for (const t of allTodos as Array<{ startTime?: string | null; endTime?: string | null; tags?: string[]; status?: string }>) {
+		for (const t of activeTodos) {
 			const scheduleTime = t.startTime ?? t.endTime;
 			if (scheduleTime) {
 				const deadline = new Date(scheduleTime);
@@ -53,7 +56,7 @@ export function FilterColumn() {
 			}
 		}
 
-		return { today: todayCount, last7days: last7Count, list: allTodos.length, tags: tagCount };
+		return { today: todayCount, last7days: last7Count, list: activeTodos.length, tags: tagCount };
 	}, [allTodos]);
 
 	const isFilterActive = sidebarMode !== null || sidebarTag !== null;

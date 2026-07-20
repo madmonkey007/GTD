@@ -433,24 +433,26 @@ const handleSaveCardEdit = async (
 			date: savedDate,
 		};
 
+		// LLM 后台生成（autoLink / 客观记录 / AI视角），不阻塞主流程
+		// 笔记已创建并刷新列表，这些增强在后台完成后各自 invalidate 更新
+		const llmTasks: Promise<void>[] = [];
 		if (autoLinkEnabled) {
-			try {
-				await runAutoLink(saved.id, snapshot);
-			} catch (_error) {
-			}
+			llmTasks.push(
+				runAutoLink(saved.id, snapshot).catch(() => {}),
+			);
 		}
 		if (autoGenerateObjectiveEnabled && !saved.contentObjective) {
-			try {
-				await runObjectiveGeneration(saved.id, snapshot);
-			} catch (_error) {
-			}
+			llmTasks.push(
+				runObjectiveGeneration(saved.id, snapshot).catch(() => {}),
+			);
 		}
 		if (autoGenerateAiEnabled && !saved.contentAi) {
-			try {
-				await runAiGeneration(saved.id, snapshot);
-			} catch (_error) {
-			}
+			llmTasks.push(
+				runAiGeneration(saved.id, snapshot).catch(() => {}),
+			);
 		}
+		// 不 await：后台并发执行，完成后再触发各自 invalidate 更新 UI
+		void Promise.all(llmTasks);
 	};
 	const handleAutoSave = (options?: {
 		tagValue?: string;

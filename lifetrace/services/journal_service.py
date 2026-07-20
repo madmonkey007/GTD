@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from datetime import datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -70,6 +71,35 @@ class JournalService:
             self._vector_db.upsert_journal(journal_id, name or "", user_notes or "", tags)
         except Exception as e:
             logger.warning(f"索引笔记 {journal_id} 到向量库失败: {e}")
+
+    def _index_journal_async(
+        self,
+        journal_id: int,
+        name: str,
+        user_notes: str,
+        tags: list[str] | None,
+    ) -> None:
+        """后台线程索引笔记，不阻塞主请求（embedding API 较慢，约 1-2s）
+
+        笔记创建/更新立即返回，索引在后台完成后写入向量库。
+        """
+        if self._vector_db is None:
+            return
+
+        def _run() -> None:
+            try:
+                self._vector_db.upsert_journal(journal_id, name or "", user_notes or "", tags)
+            except Exception as e:
+                logger.warning(f"后台索引笔记 {journal_id} 到向量库失败: {e}")
+
+        # 复制 tags 避免线程间共享可变对象
+        tags_copy = list(tags) if tags else None
+        thread = threading.Thread(
+            target=_run,
+            args=(journal_id, name, user_notes, tags_copy),
+            daemon=True,
+        )
+        thread.start()
 
     def get_insight_context(
         self,
@@ -339,8 +369,8 @@ class JournalService:
         if not journal_id:
             raise HTTPException(status_code=500, detail="创建日记失败")
 
-        # 写入向量库（失败不阻塞主流程）
-        self._index_journal(journal_id, payload.name, payload.user_notes, data.tags)
+        # 写入向量库（后台异步，不阻塞主请求）
+        self._index_journal_async(journal_id, payload.name, payload.user_notes, data.tags)
 
         logger.info(f"成功创建日记: {journal_id} - {payload.name}")
         return self.get_journal(journal_id)
@@ -361,10 +391,10 @@ class JournalService:
         if not self.repository.update(journal_id, payload):
             raise HTTPException(status_code=500, detail="更新日记失败")
 
-        # 更新向量库（用最新内容重建索引）
+        # 更新向量库（后台异步，用最新内容重建索引）
         updated = self.repository.get_by_id(journal_id)
         if updated:
-            self._index_journal(
+            self._index_journal_async(
                 journal_id,
                 updated.get("name", ""),
                 updated.get("user_notes", ""),

@@ -6,16 +6,25 @@ import { useEffect, useRef, useState } from "react";
 interface DetailTitleProps {
 	name: string;
 	onNameChange?: (newName: string) => void;
+	autoEdit?: boolean;
 }
 
-export function DetailTitle({ name, onNameChange }: DetailTitleProps) {
+export function DetailTitle({ name, onNameChange, autoEdit }: DetailTitleProps) {
 	const t = useTranslations("todoDetail");
 	const [isEditing, setIsEditing] = useState(false);
 	const [editValue, setEditValue] = useState(name);
 	const [isComposing, setIsComposing] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const autoEditConsumed = useRef(false);
 
-	// 当进入编辑模式时，聚焦输入框
+	// 当 autoEdit 为 true 时进入编辑模式（仅一次）
+	useEffect(() => {
+		if (autoEdit && !isEditing && !autoEditConsumed.current) {
+			autoEditConsumed.current = true;
+			setIsEditing(true);
+			setEditValue(name);
+		}
+	}, [autoEdit, name, isEditing]);
 	useEffect(() => {
 		if (isEditing && inputRef.current) {
 			inputRef.current.focus();

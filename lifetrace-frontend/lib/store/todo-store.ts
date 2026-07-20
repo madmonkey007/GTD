@@ -16,6 +16,8 @@ interface TodoUIState {
 	collapsedTodoIds: Set<number>;
 	/** 范围选择的锚点 todo ID（用于 Shift 键范围选择） */
 	anchorTodoId: number | null;
+	/** 是否需要在详情面板中自动编辑标题 */
+	titleAutoEdit: boolean;
 
 	// UI 操作
 	setSelectedTodoId: (id: number | null) => void;
@@ -25,6 +27,7 @@ interface TodoUIState {
 	toggleTodoExpanded: (id: number) => void;
 	isTodoExpanded: (id: number) => boolean;
 	setAnchorTodoId: (id: number | null) => void;
+	setTitleAutoEdit: (value: boolean) => void;
 
 	/** 当 todo 被删除时清理相关的 UI 状态 */
 	onTodoDeleted: (deletedIds: number[]) => void;
@@ -87,6 +90,7 @@ export const useTodoStore = create<TodoUIState>()(
 			selectedTodoIds: [],
 			collapsedTodoIds: new Set<number>(),
 			anchorTodoId: null,
+			titleAutoEdit: false,
 
 			setSelectedTodoId: (id) =>
 				set({
@@ -118,6 +122,8 @@ export const useTodoStore = create<TodoUIState>()(
 
 			setAnchorTodoId: (id) => set({ anchorTodoId: id }),
 
+			setTitleAutoEdit: (value) => set({ titleAutoEdit: value }),
+
 			toggleTodoExpanded: (id) =>
 				set((state) => {
 					const newCollapsed = new Set(state.collapsedTodoIds);
@@ -132,8 +138,9 @@ export const useTodoStore = create<TodoUIState>()(
 				}),
 
 			isTodoExpanded: (id) => {
-				// 如果 id 不在 collapsedTodoIds 中，说明是展开的
-				return !get().collapsedTodoIds.has(id);
+				// 默认收起（子待办默认不展示），只有点击展开按钮后才展开
+				// 如果 id 在 collapsedTodoIds 中，说明是已点击展开的
+				return get().collapsedTodoIds.has(id);
 			},
 
 			onTodoDeleted: (deletedIds) => {

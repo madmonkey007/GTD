@@ -42,8 +42,7 @@ export default function HomePageClient() {
 		const state = useUiStore.getState();
 		const next: Partial<typeof state> = {};
 		if (!state.isPanelAOpen) next.isPanelAOpen = true;
-		if (!state.isPanelBOpen) next.isPanelBOpen = true;
-		if (!state.isPanelCOpen) next.isPanelCOpen = true;
+				if (!state.isPanelCOpen) next.isPanelCOpen = true;
 		if (Object.keys(next).length > 0) {
 			useUiStore.setState(next);
 		}

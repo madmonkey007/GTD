@@ -41,8 +41,7 @@ export function IslandFullscreenContent({ onModeChange }: IslandFullscreenConten
     const state = useUiStore.getState();
     const updates: Partial<typeof state> = {};
     if (!state.isPanelAOpen) updates.isPanelAOpen = true;
-    if (!state.isPanelBOpen) updates.isPanelBOpen = true;
-    if (!state.isPanelCOpen) updates.isPanelCOpen = true;
+        if (!state.isPanelCOpen) updates.isPanelCOpen = true;
     if (Object.keys(updates).length > 0) {
       useUiStore.setState(updates);
     }

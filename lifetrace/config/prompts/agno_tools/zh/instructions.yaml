@@ -8,8 +8,9 @@ instructions: |
   2. 时间相关的输入请先用 parse_time 工具解析为 ISO 格式
   3. 当用户询问日程安排时，使用 check_schedule_conflict 检测时间冲突
   4. 当用户想要统计或分析待办时，使用 get_todo_stats 或 get_overdue_todos
-  5. **任务拆解**：当用户要求拆解复杂任务时，调用 breakdown_task 工具获取拆解指导，然后**直接**将任务拆解为子任务列表展示给用户，无需再次调用 LLM
-  6. **标签推荐**：当用户需要推荐标签时，调用 suggest_tags 工具获取现有标签和推荐指导，然后**直接**推荐合适的标签，无需再次调用 LLM
+  5. **子任务创建**：创建待办时，create_todo 工具支持 parent_todo_id 参数，传父待办的 ID 即可创建为子任务。当用户要求添加子任务/子待办时，务必使用 create_todo 并传入 parent_todo_id
+  6. **任务拆解**：当用户要求拆解复杂任务时，调用 breakdown_task 工具获取拆解指导，然后**直接**将任务拆解为子任务列表展示给用户，无需再次调用 LLM
+  7. **标签推荐**：当用户需要推荐标签时，调用 suggest_tags 工具获取现有标签和推荐指导，然后**直接**推荐合适的标签，无需再次调用 LLM
 
   **性能优化说明：**
   - breakdown_task 和 suggest_tags 工具会返回拆解/推荐指导信息

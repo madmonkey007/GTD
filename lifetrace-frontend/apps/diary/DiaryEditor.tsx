@@ -204,6 +204,10 @@ export function DiaryEditor({
 	const [randomShuffle, setRandomShuffle] = useState(0);
 		const [searchQuery, setSearchQuery] = useState("");
 		const [debouncedSearch, setDebouncedSearch] = useState("");
+	const PAGE_SIZE = 20;
+	const [notesOffset, setNotesOffset] = useState(0);
+	const [allNotes, setAllNotes] = useState<JournalView[]>([]);
+	const [hasMore, setHasMore] = useState(true);
 	const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 	const [cursorPos, setCursorPos] = useState<{ top: number; left: number } | null>(null);
 	const cursorPosRef = useRef<{ top: number; left: number } | null>(null);
@@ -247,7 +251,7 @@ export function DiaryEditor({
 	}, [tagAutocompleteVisible, closeAutocomplete]);
 
 		const journalQuery = useMemo(() => {
-		const params: Record<string, unknown> = { limit: 50, offset: 0 };
+		const params: Record<string, unknown> = { limit: PAGE_SIZE, offset: notesOffset };
 		if (filterMode === "last7") {
 			const now = new Date();
 			const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
@@ -266,8 +270,46 @@ export function DiaryEditor({
 			params.search = debouncedSearch.trim();
 		}
 		return params;
+	}, [filterMode, heatmapFilterDate, debouncedSearch, notesOffset]);
+	const { data: notesData, isLoading: isNotesLoading, isFetching: isNotesFetching } = useJournals(journalQuery);
+
+	// 分页累计：当新数据返回时追加到 allNotes
+	useEffect(() => {
+		if (!notesData) return;
+		const { journals, total } = notesData;
+		if (notesOffset === 0) {
+			setAllNotes(journals);
+		} else {
+			setAllNotes(prev => {
+				const existing = new Set(prev.map(n => n.id));
+				const newNotes = journals.filter(n => !existing.has(n.id));
+				return [...prev, ...newNotes];
+			});
+		}
+		const loadedCount = notesOffset === 0 ? journals.length : allNotes.length + journals.length;
+		setHasMore(loadedCount < total);
+	}, [notesData, notesOffset]);
+
+	// 筛选条件变化时重置分页
+	useEffect(() => {
+		setNotesOffset(0);
+		setAllNotes([]);
+		setHasMore(true);
 	}, [filterMode, heatmapFilterDate, debouncedSearch]);
-	const { data: notesData, isLoading: isNotesLoading } = useJournals(journalQuery);
+
+	// 滚动加载更多（IntersectionObserver）
+	const sentinelRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const el = sentinelRef.current;
+		if (!el) return;
+		const observer = new IntersectionObserver(entries => {
+			if (entries[0].isIntersecting && hasMore && !isNotesFetching) {
+				setNotesOffset(prev => prev + PAGE_SIZE);
+			}
+		}, { rootMargin: "200px" });
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, [hasMore, isNotesFetching]);
 	const addLinkedNote = useNoteChatStore((s) => s.addLinkedNote);
 	const autoFilledRef = useRef(false);
 	const inlineTagRef = useRef(onInlineTag);
@@ -615,7 +657,7 @@ export function DiaryEditor({
 		});
 	};
 
-	const notesList = useMemo(() => notesData?.journals ?? [], [notesData]);
+	const notesList = allNotes;
 	const sortedNotes = useMemo(() => {
 		let filtered = notesList;
 
@@ -955,7 +997,7 @@ export function DiaryEditor({
 						</button>
 					</div>
 				)}
-				{isNotesLoading ? (
+				{isNotesFetching && notesOffset === 0 ? (
 					// 骨架屏加载效果
 					<div className="space-y-3">
 						{Array.from({ length: 5 }).map((_, i) => (
@@ -970,7 +1012,7 @@ export function DiaryEditor({
 							</div>
 						))}
 					</div>
-				) : sortedNotes.length === 0 ? (
+				) : allNotes.length === 0 ? (
 					<div className="text-xs text-muted-foreground/50 italic text-center pt-8">
 						{locale === "zh" ? "暂无笔记" : "No notes yet"}
 					</div>
@@ -1308,6 +1350,26 @@ export function DiaryEditor({
 						</AlertDialogFooter>
 					</AlertDialogContent>
 				</AlertDialog>
+
+				{/* 加载更多指示器 */}
+				<div ref={sentinelRef}>
+					{hasMore ? (
+						<div className="flex justify-center py-4">
+							{isNotesFetching && notesOffset > 0 ? (
+								<div className="flex items-center gap-2 text-xs text-muted-foreground/50">
+									<div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+									{"加载中..."}
+								</div>
+							) : (
+								<div className="w-full h-1" />
+							)}
+						</div>
+					) : allNotes.length > 0 ? (
+						<div className="text-xs text-muted-foreground/30 text-center py-4">
+							{locale === "zh" ? "已加载全部" : "All loaded"}
+						</div>
+					) : null}
+				</div>
 			</div>
 			</div>
 		</div>

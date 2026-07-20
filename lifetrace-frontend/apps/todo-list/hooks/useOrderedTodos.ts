@@ -140,10 +140,10 @@ export function useOrderedTodos(
 			sortedItems.forEach((item) => {
 				target.push({ todo: item, depth });
 				const children = childrenMap.get(item.id);
-				// 如果有子任务且父任务已展开（collapsedTodoIds 为空或未定义时默认展开，否则检查是否不在 Set 中）
+				// 如果有子任务且父任务已展开（collapsedTodoIds 中记录的即为已展开的，默认收起）
 				if (children?.length) {
 					const isExpanded =
-						collapsedTodoIds === undefined || !collapsedTodoIds.has(item.id);
+						collapsedTodoIds !== undefined && collapsedTodoIds.has(item.id);
 					if (isExpanded) {
 						// 子任务优先按order字段排序，其次按创建时间排序
 						traverse(children, depth + 1, false, target);

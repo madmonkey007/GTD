@@ -40,7 +40,7 @@ export function getPositionByFeature(
 // Panel 配置的默认值
 export const DEFAULT_PANEL_STATE = {
 	isPanelAOpen: true,
-	isPanelBOpen: true,
+	isPanelBOpen: false,
 	isPanelCOpen: true,
 	panelAWidth: 1 / 3, // panelA 占左边 1/4，panelC 占右边 1/4，所以 panelA 占剩余空间的 1/3 (即 0.25/0.75)
 	panelCWidth: 0.25, // panelC 占右边 1/4

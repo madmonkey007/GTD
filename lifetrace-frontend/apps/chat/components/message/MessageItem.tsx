@@ -12,6 +12,7 @@ import {
 	extractToolCalls,
 	removeToolCalls,
 	removeToolEvents,
+	removeThinkingTags,
 } from "./utils/messageContentUtils";
 
 type MessageItemProps = {
@@ -37,13 +38,14 @@ export function MessageItem({
 }: MessageItemProps) {
 	const tContextMenu = useTranslations("contextMenu");
 	const [hovered, setHovered] = useState(false);
+	const outerClass = message.role === "assistant" ? "w-full" : "max-w-[80%]";
 
 	const sanitizedContent = message.content
-		? removeToolEvents(message.content)
+		? removeThinkingTags(removeToolEvents(message.content))
 		: "";
 	// 检测工具调用标记（在消息渲染前）
 	const toolCalls = sanitizedContent ? extractToolCalls(sanitizedContent) : [];
-	// 移除工具调用标记后的内容
+	// 移除工具调用和思考标记后的内容
 	const contentWithoutToolCalls = sanitizedContent
 		? removeToolCalls(sanitizedContent)
 		: "";
@@ -142,7 +144,7 @@ export function MessageItem({
 					{typingText}
 				</div>
 			) : (
-				<div className="max-w-[80%]">
+				<div className={outerClass}>
 					{/* 工具调用步骤（显示在消息内容之前） */}
 					{message.role === "assistant" && hasToolCallSteps && (
 						<ToolCallSteps steps={toolCallSteps} className="mb-2" />
@@ -190,7 +192,7 @@ export function MessageItem({
 				<div
 					className={cn(
 						"w-full",
-						message.role === "assistant" ? "max-w-[80%]" : "max-w-[80%]",
+						message.role === "assistant" ? "w-full" : "max-w-[80%]",
 					)}
 				>
 					<MessageTodoExtractionPanel

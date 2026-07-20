@@ -45,7 +45,7 @@ export const useJournalStore = create<JournalSettingsState>()(
 			workHoursStart: "10:00",
 			workHoursEnd: "02:00",
 			customTime: "04:00",
-			autoLinkEnabled: true,
+			autoLinkEnabled: false,
 			autoGenerateObjectiveEnabled: false,
 			autoGenerateAiEnabled: false,
 			setRefreshMode: (mode) => set({ refreshMode: mode }),
@@ -62,6 +62,15 @@ export const useJournalStore = create<JournalSettingsState>()(
 		{
 			name: "journal-settings",
 			storage: createJSONStorage(() => journalStorage),
+			version: 2,
+			migrate: (persisted, version) => {
+				const s = (persisted ?? {}) as Partial<JournalSettingsState>;
+				// v1 -> v2: 关闭 autoLink（纯笔记场景不需要，且每次提交触发 LLM 拖慢）
+				if (version < 2) {
+					s.autoLinkEnabled = false;
+				}
+				return s as JournalSettingsState;
+			},
 		},
 	),
 );
