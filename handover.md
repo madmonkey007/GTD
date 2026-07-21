@@ -15,16 +15,38 @@ LifeTrace（原名 FreeTodo/GTD）是一个 AI 驱动的智能生活追踪平台
 
 ### 启动命令
 
-```bash
-# 后端（在 D:\manus\GTD 目录下）
-cd lifetrace
-.venv\Scripts\activate
-uvicorn app.main:app --reload --port 8001
+> 以下命令在 Git Bash（项目默认 shell）中验证通过。两个服务都应在后台运行。
 
-# 前端（在 D:\manus\GTD 目录下）
-cd lifetrace-frontend
-pnpm exec next dev -p 3001
+```bash
+# 后端 FastAPI（在 D:\manus\GTD 目录下，端口 8001）
+PYTHONPATH=D:/manus/GTD .venv/Scripts/python.exe lifetrace/server.py --port 8001
+
+# 前端 Next.js 16（在 D:\manus\GTD\lifetrace-frontend 目录下，端口 3001）
+npm run dev          # 实际跑 scripts/dev-with-auto-port.js，自动选端口，默认 3001
+# 或：pnpm exec next dev -p 3001
 ```
+
+**健康检查**：
+
+```bash
+curl -s -o /dev/null -w "backend: %{http_code}\n"  http://127.0.0.1:8001/api/journals?limit=1   # 期望 200
+curl -s -o /dev/null -w "frontend: %{http_code}\n" http://localhost:3001/                        # 期望 200
+```
+
+**重启电脑后启动失败的坑（重要）**：
+
+前端用 Turbopack，重启系统后若返回 500 且日志含 `exit code: 0xc0000142`（STATUS_DLL_INIT_FAILED），原因是残留的 next worker 进程堆积 + 系统刚重启 DLL 未就绪。修复：
+
+```bash
+# 1. 杀残留 next 进程
+powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { \$_.CommandLine -like '*next*' -or \$_.CommandLine -like '*lifetrace-frontend*' } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force }"
+# 2. 删 Turbopack 缓存
+rm -rf lifetrace-frontend/.next
+# 3. 重新启动
+cd lifetrace-frontend && npm run dev
+```
+
+> ⚠️ 注意 Bash 工具的工作目录不一定是 `D:\`（环境标注），启动前用 `pwd` 确认，前端必须在 `lifetrace-frontend` 下运行。后端启动必须带 `PYTHONPATH=D:/manus/GTD`，否则 `import lifetrace` 失败。
 
 ---
 
@@ -253,25 +275,62 @@ DELETE /api/zero-think/{card_id}     → 删除卡片
 - 搜索栏添加 mt-2, 底部输入框 pt-3 -> pt-2
 
 
+### 8. 笔记页 Agent + Tools 体系（已完成，2026-07-20 ~ 07-21）
+
+笔记页 chat 之前传了 `mode:"agno"` 但没传 `selectedTools`，后端走 `use_direct_api=true` 的纯 LLM 通道，没有工具能力。现已按待办 chat 的模式补全 Agent + Tools。
+
+#### 8.1 架构关键点
+
+| 点位 | 文件 / 位置 | 说明 |
+|------|------------|------|
+| Agent 服务 | `lifetrace/llm/agno_agent.py` `AgnoAgentService` | SSE 流式，工具事件以 `\n[TOOL_EVENT:{json}]\n` 标记输出 |
+| 直连 vs Agent 判定 | `lifetrace/routers/chat/modes/agno.py:188` | `use_direct_api = not (selected_tools or external_tools)` —— 不传工具就走纯 LLM |
+| 工具注册 | `lifetrace/llm/agno_tools/toolkit.py` | mixin 继承链 + `all_tools` 字典 |
+| 笔记工具实现 | `lifetrace/llm/agno_tools/tools/note_tools.py` | mixin，依赖 `JournalService` |
+| 消息模板 | `lifetrace/config/prompts/agno_tools/{zh,en}/notes.yaml` | 所有 key 加 `note_` 前缀，避免和 todo.yaml/tags.yaml 覆盖 |
+| 前端工具列表 | `lifetrace-frontend/apps/diary/components/DiaryChatPanel.tsx:576` | `selectedTools` 硬编码 8 个笔记工具（含 `update_note`） |
+| 前端事件解析 | `lifetrace-frontend/lib/api.ts` `parseToolEvents()` | 解析 `[TOOL_EVENT:...]`，跨 chunk 拼接 |
+| 缓存刷新 | `DiaryChatPanel.tsx` doStream 的 `finally` + `onToolEvent` | `queryClient.invalidateQueries({queryKey: queryKeys.journals.all})` |
+
+**8 个笔记工具**：`create_note`、`update_note`、`delete_note`、`search_notes`、`list_notes_by_tags`、`list_notes_by_date`、`get_insight`、`suggest_note_tags`。TanStack Query 的笔记查询根键是 `["journals"]`（`lib/query/keys.ts`），所有增删改都 invalidate 这个根键。
+
+#### 8.2 本轮已推送的修复（已在 GitHub main）
+
+| Commit | 内容 |
+|--------|------|
+| `4c8f48b0` | fix(notes): 自动刷新列表 + create_note 标题默认时间 + search 参数修复 + 工具事件 SSE 流 |
+| `7290079d` | fix(diary): ThinkingBlock 思考内容用 ReactMarkdown 渲染（之前是纯文本） |
+
+具体修复：
+
+1. **create_note 标题语义**：用户说"创建笔记：xxx"时，xxx 是**正文（user_notes）**，标题留空。`journal_service.py` 的 `_normalize_name(name, fallback_time=data.date)` 在标题为空时返回 `data.date.strftime("%Y-%m-%d %H:%M")`（创建时间），不再返回 "Untitled"。规则写在 `notes.yaml` 的"标题与内容的区分规则"段。
+2. **search_notes**：`list_journals(start_date=None, end_date=None, search=keyword)` —— 之前日期参数传错导致搜不到。
+3. **列表自动刷新**：SSE 流结束的 `finally` 块兜底 invalidate；`onToolEvent` 在 `tool_call_end` 且工具是 create/update/delete 时也 invalidate。已在浏览器实测：网络面板可见流结束后触发 4 个 journals 查询全 200，新笔记即时出现在列表顶部。
+4. **ThinkingBlock**：思考块内容改为 `<ReactMarkdown remarkPlugins={[remarkGfm]}>`，与主 chat 面板渲染方式一致。
+
+#### 8.3 ⚠️ 模型配置红线（最高优先级，勿动）
+
+- 当前模型：`new-api/glm-4.7`（`app/main.py`、`app/opencode_client.py`、`.env` 的 `OPENAI_MODEL`）
+- 历史教训：曾误改成 `gemini-3-flash-preview`，响应极慢。**任何 AI 不得私自改模型配置**，必须先报告并获用户同意。
+
+#### 8.4 仍存在的潜在问题（未修，低优先级）
+
+`DiaryEditor.tsx:277-291` 的分页合并 `useEffect`：当 `notesOffset > 0`（用户已滚动加载更多页）时，`loadedCount = allNotes.length + journals.length` 里的 `allNotes.length` 取的是闭包旧值；invalidate 触发的 refetch 用的是带 offset 的查询，新创建的笔记在列表顶部，可能不在已加载的窗口内显示。日常使用（不滚动、offset=0）无此问题。如需修，建议在 invalidate 后强制 `setNotesOffset(0)` 重置分页。
 ## 已知问题 / 待办事项
 
-### 1. 日记视图聊天按钮（需要继续修复）
+### 1. ~~日记视图聊天按钮~~（已解决）
 
-**优先级**：高
+原问题：点"添加到对话"想切到 list 视图的 panelB 聊天，但 `setActiveView("list")` 不能触发重渲染。
 
-**问题**：`setActiveView("list")` 调用未能触发面板系统的视觉重新渲染。
+**最终落地方案**：不切视图，直接在 `DiaryPanel.tsx:633-637`（宽屏 inline）和 `:662-678`（窄屏抽屉）嵌入 `<DiaryChatPanel>`，自带笔记工具（见第 8 节）。`apps/todo-list/hooks/useTodoCardHandlers.ts` 的 `ensureChatPanelOpen` 是另一条独立链路，与此无关。
 
-**可能的解决方案**：
-1. 使用路由导航（如 `router.push`）而不是 Zustand 状态切换
-2. 在日记视图中添加加载状态触发器，强制重新渲染
-3. 在日记视图中直接嵌入聊天面板（推荐方案，避免视图切换的复杂性）
-4. 检查 `PanelRegion` 组件的 `useEffect` 依赖项，确保正确响应 `activeView` 变化
+### 2. DiaryEditor 分页合并的潜在问题（低优先级，未修）
 
-**参考实现**：`apps/todo-list/hooks/useTodoCardHandlers.ts` 中的 `ensureChatPanelOpen` 函数已正常工作，可作为参考。
+详见第 8.4 节。用户滚动加载多页后，AI 新建的笔记可能不落在已加载窗口内。日常 offset=0 场景无此问题。
 
-### 2. 其他潜在问题
+### 3. 其他待验证项
 
-- 确认所有 API 端点在前后端的品牌替换后仍正常工作
+- 确认所有 API 端点在品牌替换（FreeTodo→LifeTrace）后仍正常工作
 - 检查 Service Worker 更新后旧缓存的清理逻辑
 - 验证 SQLite 数据库的迁移脚本（如果有）
 
@@ -358,8 +417,8 @@ D:\manus\GTD\
 
 ### 高优先级
 
-1. **修复日记视图聊天按钮**：推荐在 DiaryPanel 中直接嵌入聊天面板，避免视图切换的复杂性
-2. **验证所有 API 端点**：确保品牌替换后所有接口正常工作
+1. **修复 DiaryEditor 分页合并**（见 8.4）：用户滚动加载多页后，AI 新建笔记可能不显示。建议 invalidate 后重置 `notesOffset=0`。
+2. **笔记工具端到端验证**：`update_note` / `delete_note` 经 chat 调用后，列表实时刷新已验证；建议补充 `get_insight`、`list_notes_by_tags`、`suggest_note_tags` 的实际使用回归。
 
 ### 中优先级
 
@@ -373,4 +432,4 @@ D:\manus\GTD\
 
 ---
 
-*本文档最后更新：2026年7月*
+*本文档最后更新：2026-07-21（笔记 Agent Tools 体系完成 + 服务重启验证）*
