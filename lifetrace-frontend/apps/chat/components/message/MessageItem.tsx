@@ -54,70 +54,27 @@ export function MessageItem({
 	const toolCallSteps = message.toolCallSteps || [];
 	const hasToolCallSteps = toolCallSteps.length > 0;
 
-	// 判断是否正在工具调用（有工具调用标记且移除标记后内容为空）
-	// 或者有新的 toolCallSteps 且没有内容
-	// 注意：只要有 toolCallSteps（无论是 running 还是 completed），就显示工具调用步骤
-	const isToolCallingOnly =
-		isStreaming &&
-		isLastMessage &&
-		message.role === "assistant" &&
-		((toolCalls.length > 0 && !contentWithoutToolCalls.trim()) ||
-			(hasToolCallSteps && !contentWithoutToolCalls.trim()));
-
-	// 如果正在工具调用且没有实际内容，显示工具调用步骤
-	if (isToolCallingOnly) {
-		// 优先使用新的 toolCallSteps
-		if (hasToolCallSteps) {
-			return (
-				<div className="flex flex-col items-start w-full px-4">
-					<ToolCallSteps steps={toolCallSteps} />
-				</div>
-			);
-		}
-
-		// 降级到旧的 ToolCallLoading（兼容旧的工具调用标记）
-		const lastToolCall = toolCalls[toolCalls.length - 1];
-		// 提取搜索关键词（如果参数中包含"关键词:"）
-		let searchQuery: string | undefined;
-		if (lastToolCall.params) {
-			const keywordMatch = lastToolCall.params.match(/关键词:\s*(.+)/);
-			if (keywordMatch) {
-				searchQuery = keywordMatch[1].trim();
-			}
-		}
-		return (
-			<div className="flex flex-col items-start w-full px-4">
-				<ToolCallLoading
-					toolName={lastToolCall.name}
-					searchQuery={searchQuery}
-				/>
-			</div>
-		);
-	}
-
 	// 判断是否是正在等待首次回复的空 assistant 消息
-	const isEmptyStreamingMessage =
+	const isEmptyStreaming =
 		isStreaming &&
 		isLastMessage &&
 		message.role === "assistant" &&
 		!contentWithoutToolCalls.trim();
 
 	// 跳过没有内容的非 streaming assistant 消息
-	// 注意：这里使用 contentWithoutToolCalls 来判断，排除工具调用标记
 	if (
 		!contentWithoutToolCalls.trim() &&
 		message.role === "assistant" &&
-		!isEmptyStreamingMessage
+		!isEmptyStreaming
 	) {
 		return null;
 	}
 
-	// 是否为 assistant 消息且不是空的 streaming 消息
-	// 使用 contentWithoutToolCalls 来判断，排除工具调用标记
-	const isAssistantMessageWithContent =
+	// 是否为 assistant 消息且有内容
+	const isAssistantWithContent =
 		message.role === "assistant" &&
 		contentWithoutToolCalls.trim() &&
-		!isEmptyStreamingMessage;
+		!isEmptyStreaming;
 
 	// 处理消息菜单按钮点击
 	const handleMessageMenuClick = (event: React.MouseEvent) => {
@@ -137,54 +94,54 @@ export function MessageItem({
 				message.role === "assistant" ? "items-start" : "items-end",
 			)}
 		>
-			{/* 空的 streaming 消息显示 loading 指示器 */}
-			{isEmptyStreamingMessage ? (
+			{/* 没有 toolCallSteps 且空的 streaming 消息 → 显示 loading 指示器 */}
+			{isEmptyStreaming && !hasToolCallSteps ? (
 				<div className="flex items-center gap-2 rounded-full bg-muted px-3 py-2 text-xs text-muted-foreground">
 					<Loader2 className="h-4 w-4 animate-spin text-primary/60" />
 					{typingText}
 				</div>
 			) : (
 				<div className={outerClass}>
-					{/* 工具调用步骤（显示在消息内容之前） */}
+					{/* 工具调用步骤（始终固定在气泡上方，不随流式状态切换 DOM） */}
 					{message.role === "assistant" && hasToolCallSteps && (
 						<ToolCallSteps steps={toolCallSteps} className="mb-2" />
 					)}
-					<div
-						ref={handleMessageBoxRef}
-						role="group"
-						className={cn(
-							"relative rounded-2xl px-4 py-3 text-sm",
-							message.role === "assistant"
-								? "bg-muted/25 text-foreground border border-border/30"
-								: "bg-primary/8 text-foreground border border-primary/10",
-						)}
-						onMouseEnter={() => {
-							if (isAssistantMessageWithContent) {
-								setHovered(true);
-							}
-						}}
-						onMouseLeave={() => {
-							setHovered(false);
-						}}
-					>
-						{/* <div className="mb-1 text-[11px] uppercase tracking-wide opacity-70">
-							{message.role === "assistant" ? t("assistant") : t("user")}
-						</div> */}
-						<div className="leading-relaxed relative">
-							{/* Hover 时显示的菜单按钮 - 位于右下角 */}
-							{hovered && isAssistantMessageWithContent && (
-								<button
-									type="button"
-									onClick={handleMessageMenuClick}
-									className="absolute -bottom-1 -right-1 opacity-70 hover:opacity-100 transition-opacity rounded-full p-1.5 bg-background/80 hover:bg-background shadow-sm border border-border/50"
-									aria-label={tContextMenu("extractButton")}
-								>
-									<MoreVertical className="h-3.5 w-3.5" />
-								</button>
+
+					{/* 空的 streaming + 有 toolCallSteps → 只显示工具步骤，不显示空气泡 */}
+					{isEmptyStreaming && hasToolCallSteps ? null : (
+						<div
+							ref={handleMessageBoxRef}
+							role="group"
+							className={cn(
+								"relative rounded-2xl px-4 py-3 text-sm",
+								message.role === "assistant"
+									? "bg-muted/25 text-foreground border border-border/30"
+									: "bg-primary/8 text-foreground border border-primary/10",
 							)}
-							<MessageContent message={message} />
+							onMouseEnter={() => {
+								if (isAssistantWithContent) {
+									setHovered(true);
+								}
+							}}
+							onMouseLeave={() => {
+								setHovered(false);
+							}}
+						>
+							<div className="leading-relaxed relative">
+								{hovered && isAssistantWithContent && (
+									<button
+										type="button"
+										onClick={handleMessageMenuClick}
+										className="absolute -bottom-1 -right-1 opacity-70 hover:opacity-100 transition-opacity rounded-full p-1.5 bg-background/80 hover:bg-background shadow-sm border border-border/50"
+										aria-label={tContextMenu("extractButton")}
+									>
+										<MoreVertical className="h-3.5 w-3.5" />
+									</button>
+								)}
+								<MessageContent message={message} />
+							</div>
 						</div>
-					</div>
+					)}
 				</div>
 			)}
 			{/* 提取待办面板 - 显示在消息下方 */}

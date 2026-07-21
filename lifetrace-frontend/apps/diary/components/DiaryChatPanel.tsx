@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	Check, Copy, Send, Square, Sparkles, MessageSquareText,
+	Wrench, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
@@ -10,7 +11,7 @@ import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import { sendChatMessageStream } from "@/lib/api";
 import type { ToolCallEvent } from "@/lib/api";
-import type { ChatMessage } from "@/apps/chat/types";
+import type { ChatMessage, ToolCallStep } from "@/apps/chat/types";
 import { LinkedNotes } from "@/apps/chat/components/input/LinkedNotes";
 import { useNoteChatStore } from "@/lib/store/note-chat-store";
 import { useLocaleStore } from "@/lib/store/locale";
@@ -364,6 +365,55 @@ function StreamingIndicator() {
 
 // ─── Message bubble ───
 
+
+// ─── Tool call steps display ───
+
+function ToolCallStepsDisplay({ steps }: { steps: ToolCallStep[] }) {
+	const [expanded, setExpanded] = useState<Set<string>>(new Set());
+	const toggleStep = (id: string) => setExpanded((prev) => {
+		const next = new Set(prev);
+		if (next.has(id)) next.delete(id); else next.add(id);
+		return next;
+	});
+	return (
+		<div className="mt-2 space-y-1">
+			{steps.map((step) => (
+				<div key={step.id}>
+					<button
+						type="button"
+						onClick={() => toggleStep(step.id)}
+						className="flex items-center gap-2 w-full text-left px-2 py-1 rounded-md hover:bg-[#efefee]/50 transition-colors"
+						style={{ color: "#efefee" }}
+					>
+						<Wrench className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#efefee" }} />
+						<span className="text-xs flex-1 truncate" style={{ color: "#efefee" }}>
+							{step.toolName}
+							{step.status === "running" && (
+								<span className="ml-1.5 inline-flex items-center gap-1">
+									<span className="relative flex h-1.5 w-1.5">
+										<span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "#efefee" }} />
+										<span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: "#efefee" }} />
+									</span>
+								</span>
+							)}
+						</span>
+						{expanded.has(step.id) ? (
+							<ChevronUp className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#efefee" }} />
+						) : (
+							<ChevronDown className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#efefee" }} />
+						)}
+					</button>
+					{expanded.has(step.id) && step.resultPreview && (
+						<pre className="mt-0.5 ml-8 px-2 py-1.5 rounded-md text-[11px] leading-relaxed whitespace-pre-wrap break-all overflow-x-auto max-h-48 overflow-y-auto"
+							style={{ backgroundColor: "rgba(239,239,238,0.08)", color: "#efefee" }}>
+							{step.resultPreview}
+						</pre>
+					)}
+				</div>
+			))}
+		</div>
+	);
+}
 function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: boolean }) {
 	const isUser = msg.role === "user";
 
@@ -423,6 +473,7 @@ function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: bo
 						</>
 					)}
 				</div>
+				{msg.toolCallSteps && msg.toolCallSteps.length > 0 && (<ToolCallStepsDisplay steps={msg.toolCallSteps} />)}
 				{!isUser && msg.content && <MessageActions content={msg.content} />}
 			</div>
 		</motion.div>
@@ -495,35 +546,36 @@ const THINKING_COACH_SYSTEM_PROMPT = `你是一个思维教练，不是助手。
 
 // 格式化单条笔记为上下文文本
 // 兼容后端 snake_case（user_notes）和前端 camelCase（userNotes）两种字段名
-function formatJournalForContext(j: { name?: string | null; userNotes?: string | null; user_notes?: string | null; date?: string | null; tags?: { tagName: string }[] | string[] } | null | undefined, label: string): string {
-	if (!j) return "";
-	const name = j.name || "未命名";
-	const notes = j.userNotes || j.user_notes || "无内容";
-	const date = j.date || "";
-	const tags = Array.isArray(j.tags) ? j.tags.map((t: any) => typeof t === "string" ? t : t?.tagName).filter(Boolean) : [];
-	return `[${label}]\n标题: ${name}\n日期: ${date}\n标签: ${tags.join(", ") || "无"}\n内容: ${notes}`;
-}
+// function formatJournalForContext(j: { name?: string | null; userNotes?: string | null; user_notes?: string | null; date?: string | null; tags?: { tagName: string }[] | string[] } | null | undefined, label: string): string {
+// 	if (!j) return "";
+// 	const name = j.name || "未命名";
+// 	const notes = j.userNotes || j.user_notes || "无内容";
+// 	const date = j.date || "";
+// 	const tags = Array.isArray(j.tags) ? j.tags.map((t: any) => typeof t === "string" ? t : t?.tagName).filter(Boolean) : [];
+// 	return `[${label}]\n标题: ${name}\n日期: ${date}\n标签: ${tags.join(", ") || "无"}\n内容: ${notes}`;
+	// }
 
 // 拉取洞察上下文（当前笔记 + 4相似 + 2跨域），失败返回 null
-async function fetchInsightContext(journalId: number | null | undefined): Promise<{ text: string; current: Record<string, unknown> | null; similarCount: number; crossCount: number } | null> {
-	if (!journalId) return null;
-	try {
-		const baseUrl = (typeof window !== "undefined" && (window as any).__BACKEND_URL__) || "http://localhost:8001";
-		const resp = await fetch(`${baseUrl}/api/journals/${journalId}/insight-context`, { headers: { "Accept": "application/json" } });
-		if (!resp.ok) return null;
-		const data = await resp.json();
-		const current = data.current;
-		const similar: any[] = data.similar || [];
-		const cross: any[] = data.cross_domain || [];
-		if (!current) return null;
-		const parts: string[] = [formatJournalForContext(current, "当前笔记")];
-		if (similar.length) parts.push(similar.map((n, i) => formatJournalForContext(n, `主题相关笔记 ${i + 1}`)).join("\n---\n"));
-		if (cross.length) parts.push(cross.map((n, i) => formatJournalForContext(n, `跨域笔记 ${i + 1}`)).join("\n---\n"));
-		return { text: parts.join("\n\n"), current, similarCount: similar.length, crossCount: cross.length };
-	} catch {
-		return null;
-	}
-}
+// async function fetchInsightContext(journalId: number | null | undefined): Promise<{ text: string; current: Record<string, unknown> | null; similarCount: number; crossCount: number } | null> {
+// 	if (!journalId) return null;
+// 	try {
+// 		const baseUrl = (typeof window !== "undefined" && (window as any).__BACKEND_URL__) || "http://localhost:8001";
+// 		const resp = await fetch(`${baseUrl
+// }/api/journals/${journalId}/insight-context`, { headers: { "Accept": "application/json" } });
+// 		if (!resp.ok) return null;
+// 		const data = await resp.json();
+// 		const current = data.current;
+// 		const similar: any[] = data.similar || [];
+// 		const cross: any[] = data.cross_domain || [];
+// 		if (!current) return null;
+// 		const parts: string[] = [formatJournalForContext(current, "当前笔记")];
+// 		if (similar.length) parts.push(similar.map((n, i) => formatJournalForContext(n, `主题相关笔记 ${i + 1}`)).join("\n---\n"));
+// 		if (cross.length) parts.push(cross.map((n, i) => formatJournalForContext(n, `跨域笔记 ${i + 1}`)).join("\n---\n"));
+// 		return { text: parts.join("\n\n"), current, similarCount: similar.length, crossCount: cross.length };
+// 	} catch {
+// 		return null;
+// 	}
+// }
 
 // 构建关联笔记上下文（格式与全局 ChatPanel 的 useSendMessage 保持一致）
 function buildNoteContext() {
@@ -582,9 +634,31 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 				ac.signal,
 				locale,
 				(event: ToolCallEvent) => {
-					if (event.type === "tool_call_end") {
+					if (event.type === "tool_call_start" && event.tool_name) {
+						setMessages((prev) => prev.map((m) => m.id === assistantId ? {
+							...m,
+							toolCallSteps: [...(m.toolCallSteps || []), {
+								id: "tc-" + Date.now(),
+								toolName: event.tool_name!,
+								toolArgs: event.tool_args,
+								status: "running" as const,
+								startTime: Date.now(),
+							}],
+						} : m));
+					} else if (event.type === "tool_call_end" && event.tool_name) {
+						setMessages((prev) => prev.map((m) => {
+							if (m.id !== assistantId) return m;
+							const steps = [...(m.toolCallSteps || [])];
+							for (let i = steps.length - 1; i >= 0; i--) {
+								if (steps[i].toolName === event.tool_name && steps[i].status === "running") {
+									steps[i] = { ...steps[i], status: "completed", resultPreview: event.result_preview, endTime: Date.now() };
+									break;
+								}
+							}
+							return { ...m, toolCallSteps: steps };
+						}));
 						const noteMutationTools = ["create_note", "update_note", "delete_note"];
-						if (event.tool_name && noteMutationTools.includes(event.tool_name)) {
+						if (noteMutationTools.includes(event.tool_name)) {
 							void queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
 						}
 					}

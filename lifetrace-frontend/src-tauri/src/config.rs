@@ -1,4 +1,4 @@
-//! Configuration constants for FreeTodo
+//! Configuration constants for LifeTrace
 //!
 //! Centralized configuration management for ports, timeouts, and paths.
 //!

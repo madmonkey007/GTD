@@ -1,6 +1,5 @@
 packages:
   - "."
-dangerouslyAllowAllBuilds: true
 onlyBuiltDependencies:
   - "@parcel/watcher"
   - "@swc/core"
