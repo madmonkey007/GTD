@@ -289,6 +289,34 @@ class NoteTools:
 			logger.error(f"Failed to list notes by date: {e}")
 			return self._msg("note_list_by_date_empty", start=start_date, end=end_date or start_date)
 
+	def get_note(self, note_id: int) -> str:
+		"""Get the FULL content of a note by ID (title, body, date, tags).
+		Use this to read a note before updating it or inferring tags from its content.
+
+		Args:
+			note_id: The ID of the note to read
+
+		Returns:
+			The note's title, full content, date, and current tags
+		"""
+		try:
+			note = self.journal_service.get_journal(note_id)
+			tag_str = ", ".join(t.tag_name for t in (note.tags or []))
+			return self._msg(
+				"note_get_detail",
+				id=note.id,
+				name=note.name,
+				content=note.user_notes or "",
+				date=str(note.date),
+				tags=tag_str or self._msg("note_no_tags"),
+			)
+		except Exception as e:
+			logger.error(f"Failed to get note {note_id}: {e}")
+			error_msg = str(e)
+			if "404" in error_msg or "不存在" in error_msg:
+				return self._msg("note_insight_not_found", id=note_id)
+			return self._msg("note_get_failed", error=error_msg)
+
 	def get_insight(self, note_id: int) -> str:
 		"""Get AI insights for a note by finding similar and cross-domain notes
 
@@ -360,22 +388,25 @@ class NoteTools:
 				return self._msg("note_insight_not_found", id=note_id)
 			return self._msg("note_insight_failed", error=error_msg)
 
-	def suggest_note_tags(self, note_name: str) -> str:
-		"""Suggest tags based on note name, referencing existing tags from all notes
+	def suggest_note_tags(self, note_id: int) -> str:
+		"""Suggest tags for a note based on its FULL content, referencing the existing tag library.
+		Reads the note content so suggestions match what the note actually says.
+		This only SUGGESTS — to actually apply them, call update_note(tags=...).
 
 		Args:
-			note_name: Name of the note to suggest tags for
+			note_id: The ID of the note to suggest tags for
 
 		Returns:
-			Instructions for the Agent to suggest tags directly
+			The note's title + content + the existing tag library + a suggestion guide
 		"""
 		try:
+			note = self.journal_service.get_journal(note_id)
 			all_notes = self.journal_service.list_journals(
 				limit=500, offset=0, start_date=None, end_date=None
 			)
 			existing_tags = set()
-			for note in all_notes.journals:
-				for tag in note.tags or []:
+			for n in all_notes.journals:
+				for tag in n.tags or []:
 					existing_tags.add(tag.tag_name)
 
 			existing_tags_str = (
@@ -384,11 +415,16 @@ class NoteTools:
 
 			suggestion_guide = self._msg(
 				"note_suggest_tags_guide",
-				note_name=note_name,
+				note_id=note.id,
+				note_name=note.name,
+				note_content=(note.user_notes or "")[:800],
 				existing_tags=existing_tags_str,
 			)
 			return suggestion_guide
 
 		except Exception as e:
 			logger.error(f"Failed to get tag suggestion context: {e}")
-			return self._msg("note_suggest_tags_failed", error=str(e))
+			error_msg = str(e)
+			if "404" in error_msg or "不存在" in error_msg:
+				return self._msg("note_insight_not_found", id=note_id)
+			return self._msg("note_suggest_tags_failed", error=error_msg)

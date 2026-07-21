@@ -567,6 +567,17 @@ const handleSaveCardEdit = async (
 	}
 
 
+	// 聊天工具改动了笔记：若正是当前打开的笔记，重新拉取并只同步标签（不触碰正文/标题，避免覆盖编辑中内容）
+	const handleNoteMutated = useCallback(async (noteId: number) => {
+		if (activeJournal?.id !== noteId) return;
+		const res = await refetch();
+		const j = res.data?.journals?.[0];
+		if (!j || j.id !== noteId) return;
+		const tags = (j.tags ?? []).map((t) => t.tagName);
+		setDraft((prev) => ({ ...prev, tags }));
+		setTagInput(tags.join(", "));
+	}, [activeJournal?.id, refetch]);
+
 		return ( <>
 			<div className="flex h-full flex-col overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20">
 			<div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-2 relative">
@@ -632,7 +643,7 @@ const handleSaveCardEdit = async (
 		{/* Right-side chat panel for AI analysis — inline when wide, otherwise hidden (drawer overlay) */}
 		{showRightInline && (
 			<div className="w-[380px] flex-shrink min-w-[280px] flex flex-col rounded-(--radius) bg-[oklch(var(--card))] shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_1px_3px_0_rgba(0,0,0,0.06)] overflow-hidden">
-				<DiaryChatPanel noteContent={noteContent} currentJournalId={activeJournal?.id ?? null} />
+				<DiaryChatPanel noteContent={noteContent} currentJournalId={activeJournal?.id ?? null} onNoteMutated={handleNoteMutated} />
 			</div>
 		)}
 
@@ -672,7 +683,7 @@ const handleSaveCardEdit = async (
 						transition={{ type: "spring", damping: 30, stiffness: 300 }}
 						className="absolute right-0 top-0 z-40 h-full w-[380px] shadow-xl"
 					>
-						<DiaryChatPanel noteContent={noteContent} showBackButton onClose={() => setRightDrawerOpen(false)} />
+						<DiaryChatPanel noteContent={noteContent} showBackButton onClose={() => setRightDrawerOpen(false)} onNoteMutated={handleNoteMutated} />
 					</motion.div>
 				</>
 			)}

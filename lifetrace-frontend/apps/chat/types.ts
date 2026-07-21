@@ -23,6 +23,8 @@ export type ToolCallStep = {
 	startTime: number;
 	/** 结束时间（仅在完成时有值） */
 	endTime?: number;
+	/** 工具调用在 assistant content 流中的字符偏移，用于内联渲染定位 */
+	insertAt?: number;
 };
 
 /**

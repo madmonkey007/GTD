@@ -19,6 +19,7 @@ export interface SendChatParams {
 	conversationId?: string;
 	useRag?: boolean;
 	mode?: string;
+	chatType?: string; // 会话类型（如 notes），用于历史记录归属
 	selectedTools?: string[];
 	externalTools?: string[];
 }
@@ -123,6 +124,7 @@ export async function sendChatMessageStream(
 			conversation_id: params.conversationId,
 			use_rag: params.useRag,
 			mode: params.mode,
+			chat_type: params.chatType,
 			selected_tools: params.selectedTools,
 			external_tools: params.externalTools,
 		};

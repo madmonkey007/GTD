@@ -12,8 +12,15 @@ notes_instructions: |
   2. 当用户要求"找/搜索包含某关键词的笔记"时，使用 search_notes
   3. 当用户要求"查看某个标签下的笔记"时，使用 list_notes_by_tags
   4. 当用户要求"查看某段时间的笔记"时，使用 list_notes_by_date
-  5. 当用户要求"分析/洞察某篇笔记"时，使用 get_insight（返回相似和跨域笔记）
-  6. 当用户需要给笔记打标签时，使用 suggest_note_tags 推荐已有标签
+  5. 当用户要求"查看/读取某条笔记的完整内容"，或你需要根据正文打标签/编辑时，使用 get_note（返回标题+正文+标签）
+  6. 当用户要求"分析/洞察某篇笔记"时，使用 get_insight（返回相似和跨域笔记）
+  7. 当用户需要给笔记**打标签/加标签/分类**时，必须调用 update_note 并传 tags 参数（例如 tags="工作,灵感"）才会真正写入；suggest_note_tags 只返回标签建议和已有标签列表，**不会修改任何笔记**
+
+  **标签规则（重要）：**
+  - 创建笔记时（create_note），应根据正文内容主动推断 1-3 个标签并通过 tags 参数一并写入，优先复用已有标签
+  - 给**已有笔记**加/改标签，只能用 update_note(tags=...) 真正写入；suggest_note_tags / get_note 都只读取、不写入
+  - 要根据正文打标签时：调 suggest_note_tags(note_id) 直接得到基于正文的标签推荐（它会读取完整内容）；也可用 get_note(note_id) 自己读正文推断。确认后用 update_note 写入
+  - **严禁**在只调用过 suggest_note_tags / get_note 的情况下声称"已添加/已更新标签"——那只是建议/读取。是否写入以是否调用了 update_note/create_note 为准
 
   **重要判断：**
   - "新增笔记 test" / "记录一下xxx" / "写一篇关于xxx的笔记" → 调用 create_note
@@ -72,21 +79,36 @@ note_insight_failed: "洞察分析失败: {error}"
 
 # 标签推荐
 note_suggest_tags_guide: |
-  请根据以下笔记名称，推荐 3-5 个合适的标签。
+  请根据以下笔记的**完整内容**，推荐 3-5 个合适的标签。
 
-  **笔记名称：** {note_name}
+  **笔记 #{note_id}：** {note_name}
 
-  **已有标签（供参考，可复用或创建新标签）：** {existing_tags}
+  **笔记正文：**
+  {note_content}
+
+  **已有标签库（优先复用，也可创建新标签）：** {existing_tags}
 
   **推荐要求：**
-  1. 推荐 3-5 个相关标签
-  2. 优先考虑复用已有标签
-  3. 如果已有标签不合适，可以创建新标签
-  4. 标签应该简洁、有意义、便于分类
+  1. 推荐 3-5 个贴合正文内容的标签
+  2. 优先复用已有标签库中的标签
+  3. 如已有标签不合适，可创建简洁、有意义的新标签
 
-  请直接推荐标签并展示结果，无需调用其他工具。格式：推荐标签: 标签1, 标签2, 标签3
+  ⚠️ 以上只是**建议**，当前**没有**给笔记写入任何标签。
+  要真正应用，必须再调用 update_note(note_id={note_id}, tags="标签1,标签2")。
+  请先向用户展示推荐标签，再用 update_note 写入，写入后才能告知用户"已添加标签"。
+
 
 note_suggest_tags_failed: "标签推荐失败: {error}"
+
+# 查看笔记详情
+note_get_detail: |
+  笔记 #{id} 详情：
+  标题：{name}
+  日期：{date}
+  标签：{tags}
+  正文：
+  {content}
+note_get_failed: "获取笔记详情失败: {error}"
 
 # 通用
 note_no_tags: "无标签"

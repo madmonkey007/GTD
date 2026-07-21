@@ -24,7 +24,7 @@ def ensure_stream_session(message: ChatMessage, chat_service: ChatService) -> st
 
     chat = chat_service.get_chat_by_session_id(session_id)
     if not chat:
-        chat_type = "event"
+        chat_type = message.chat_type or "event"
         title = message.message[:50] if len(message.message) > 50 else message.message  # noqa: PLR2004
         chat_service.create_chat(
             session_id=session_id,

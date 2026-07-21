@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
 	Check, Copy, Send, Square, Sparkles, MessageSquareText,
-	Wrench, ChevronDown, ChevronUp,
+	ChevronDown, ChevronUp, History, Plus,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useChatSessions, useChatHistory } from "@/lib/query/chat";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
@@ -366,53 +367,85 @@ function StreamingIndicator() {
 // ─── Message bubble ───
 
 
-// ─── Tool call steps display ───
+// ─── Tool call step (inline chip) ───
 
-function ToolCallStepsDisplay({ steps }: { steps: ToolCallStep[] }) {
-	const [expanded, setExpanded] = useState<Set<string>>(new Set());
-	const toggleStep = (id: string) => setExpanded((prev) => {
-		const next = new Set(prev);
-		if (next.has(id)) next.delete(id); else next.add(id);
-		return next;
-	});
+function ToolCallStepChip({ step }: { step: ToolCallStep }) {
+	const [expanded, setExpanded] = useState(false);
 	return (
-		<div className="mt-2 space-y-1">
-			{steps.map((step) => (
-				<div key={step.id}>
-					<button
-						type="button"
-						onClick={() => toggleStep(step.id)}
-						className="flex items-center gap-2 w-full text-left px-2 py-1 rounded-md hover:bg-[#efefee]/50 transition-colors"
-						style={{ color: "#efefee" }}
-					>
-						<Wrench className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#efefee" }} />
-						<span className="text-xs flex-1 truncate" style={{ color: "#efefee" }}>
-							{step.toolName}
-							{step.status === "running" && (
-								<span className="ml-1.5 inline-flex items-center gap-1">
-									<span className="relative flex h-1.5 w-1.5">
-										<span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "#efefee" }} />
-										<span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: "#efefee" }} />
-									</span>
-								</span>
-							)}
+		<div className="my-1.5">
+			<button
+				type="button"
+				onClick={() => setExpanded((v) => !v)}
+				className="flex items-center gap-2 w-full text-left px-2 py-1 rounded-md hover:bg-muted/50 transition-colors text-muted-foreground/70"
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 flex-shrink-0">
+					<path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+					<path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+				</svg>
+				<span className="text-xs flex-1 truncate">
+					{step.toolName}
+					{step.status === "running" && (
+						<span className="ml-1.5 inline-flex items-center gap-1">
+							<span className="relative flex h-1.5 w-1.5">
+								<span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-muted-foreground/70" />
+								<span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-muted-foreground/70" />
+							</span>
 						</span>
-						{expanded.has(step.id) ? (
-							<ChevronUp className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#efefee" }} />
-						) : (
-							<ChevronDown className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#efefee" }} />
-						)}
-					</button>
-					{expanded.has(step.id) && step.resultPreview && (
-						<pre className="mt-0.5 ml-8 px-2 py-1.5 rounded-md text-[11px] leading-relaxed whitespace-pre-wrap break-all overflow-x-auto max-h-48 overflow-y-auto"
-							style={{ backgroundColor: "rgba(239,239,238,0.08)", color: "#efefee" }}>
-							{step.resultPreview}
-						</pre>
 					)}
-				</div>
-			))}
+				</span>
+				{expanded ? (
+					<ChevronUp className="w-3.5 h-3.5 flex-shrink-0" />
+				) : (
+					<ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
+				)}
+			</button>
+			{expanded && step.resultPreview && (
+				<pre className="mt-0.5 ml-8 px-2 py-1.5 rounded-md text-[11px] leading-relaxed whitespace-pre-wrap break-all overflow-x-auto max-h-48 overflow-y-auto bg-muted/40 text-muted-foreground/70">
+					{step.resultPreview}
+				</pre>
+			)}
 		</div>
 	);
+}
+
+// 把 assistant content 按「工具调用锚点」切成多段，工具 chip 内联在触发位置；
+// 每段内部再走 [THINK] 折叠解析。无锚点的步骤（兼容旧数据）追加到末尾。
+function AssistantBody({ content, steps }: { content: string; steps?: ToolCallStep[] }) {
+	const all = steps ?? [];
+	const anchored = all
+		.filter((s) => typeof s.insertAt === "number")
+		.slice()
+		.sort((a, b) => (a.insertAt! - b.insertAt!));
+	const unanchored = all.filter((s) => typeof s.insertAt !== "number");
+
+	const pieces: ReactNode[] = [];
+	let ki = 0;
+	const pushText = (text: string) => {
+		if (!text) return;
+		if (text.includes("[THINK]")) {
+			parseThinkingContent(text).forEach((part) => {
+				if (part.type === "think") {
+					pieces.push(<ThinkingBlock key={ki++} content={part.content} />);
+				} else if (part.content) {
+					pieces.push(<MarkdownContent key={ki++} text={part.content} />);
+				}
+			});
+		} else {
+			pieces.push(<MarkdownContent key={ki++} text={text} />);
+		}
+	};
+
+	let cursor = 0;
+	for (const s of anchored) {
+		const at = Math.max(0, Math.min(s.insertAt!, content.length));
+		pushText(content.slice(cursor, at));
+		pieces.push(<ToolCallStepChip key={ki++} step={s} />);
+		cursor = at;
+	}
+	pushText(content.slice(cursor));
+	unanchored.forEach((s) => pieces.push(<ToolCallStepChip key={ki++} step={s} />));
+
+	return <>{pieces}</>;
 }
 function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: boolean }) {
 	const isUser = msg.role === "user";
@@ -453,27 +486,16 @@ function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: bo
 						) : null
 					) : (
 						<>
-							{msg.content === "" && isStreaming ? (
+							{msg.content === "" && isStreaming && !(msg.toolCallSteps && msg.toolCallSteps.length > 0) ? (
 								<StreamingIndicator />
-							) : msg.content ? (
+							) : (msg.content || (msg.toolCallSteps && msg.toolCallSteps.length > 0)) ? (
 								<div className="text-[13px] [&_details+div]:mt-3 [&_details]:mb-3">
-									{msg.content.includes("[THINK]") ? (
-										parseThinkingContent(msg.content).map((part, i) =>
-											part.type === "think" ? (
-												<ThinkingBlock key={i} content={part.content} />
-											) : part.content ? (
-												<MarkdownContent key={i} text={part.content} />
-											) : null,
-										)
-									) : (
-										<MarkdownContent text={msg.content} />
-									)}
+									<AssistantBody content={msg.content} steps={msg.toolCallSteps} />
 								</div>
 							) : null}
 						</>
 					)}
 				</div>
-				{msg.toolCallSteps && msg.toolCallSteps.length > 0 && (<ToolCallStepsDisplay steps={msg.toolCallSteps} />)}
 				{!isUser && msg.content && <MessageActions content={msg.content} />}
 			</div>
 		</motion.div>
@@ -592,9 +614,11 @@ type DiaryChatPanelProps = {
 	currentJournalId?: number | null;
 	showBackButton?: boolean;
 	onClose?: () => void;
+	/** 聊天工具改动了某条笔记（传入 noteId）；若正是当前打开的笔记，父组件可据此刷新编辑器 */
+	onNoteMutated?: (noteId: number) => void;
 };
 
-export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton = false, onClose }: DiaryChatPanelProps) {
+export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton = false, onClose, onNoteMutated }: DiaryChatPanelProps) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [inputValue, setInputValue] = useState("");
 	const [isStreaming, setIsStreaming] = useState(false);
@@ -605,6 +629,33 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 	const clearLinkedNotes = useNoteChatStore((s) => s.clearLinkedNotes);
 	const { locale } = useLocaleStore();
 	const queryClient = useQueryClient();
+
+	// 历史记录下拉
+	const [historyOpen, setHistoryOpen] = useState(false);
+	const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
+	const sessionsQuery = useChatSessions({ chatType: "notes", enabled: historyOpen });
+	const historyQuery = useChatHistory(viewingSessionId, { enabled: !!viewingSessionId });
+
+	// 加载某个历史会话：替换当前消息，切换 conversationId 以便继续对话
+	useEffect(() => {
+		if (!viewingSessionId || !historyQuery.data) return;
+		const loaded: ChatMessage[] = historyQuery.data.map((item, i) => ({
+			id: `hist-${viewingSessionId}-${i}`,
+			role: item.role,
+			content: item.content,
+		}));
+		setMessages(loaded);
+		setConversationId(viewingSessionId);
+		setViewingSessionId(null);
+		setHistoryOpen(false);
+	}, [viewingSessionId, historyQuery.data]);
+
+	// 开始新对话：清空当前会话
+	const startNewConversation = () => {
+		setMessages([]);
+		setConversationId(null);
+		setHistoryOpen(false);
+	};
 
 	useEffect(() => {
 		if (listRef.current) {
@@ -617,6 +668,8 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 		setError(null);
 		const ac = new AbortController();
 		abortRef.current = ac;
+		// 本地累计 assistant content 长度，用于给工具调用记录内联渲染锚点
+		let assistantContent = "";
 		try {
 			await sendChatMessageStream(
 				{
@@ -624,17 +677,22 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 					userInput: prompt,
 					conversationId: conversationId ?? undefined,
 					mode: "agno",
+					chatType: "notes",
 					systemPrompt: THINKING_COACH_SYSTEM_PROMPT,
-				selectedTools: ["create_note","update_note","delete_note","search_notes","list_notes_by_tags","list_notes_by_date","get_insight","suggest_note_tags"],
+				selectedTools: ["create_note","update_note","delete_note","search_notes","get_note","list_notes_by_tags","list_notes_by_date","get_insight","suggest_note_tags"],
 				},
-				(chunk) => setMessages((prev) =>
-					prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m),
-				),
+				(chunk) => {
+					assistantContent += chunk;
+					setMessages((prev) =>
+						prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m),
+					);
+				},
 				(id) => id && setConversationId(id),
 				ac.signal,
 				locale,
 				(event: ToolCallEvent) => {
 					if (event.type === "tool_call_start" && event.tool_name) {
+						const insertAt = assistantContent.length;
 						setMessages((prev) => prev.map((m) => m.id === assistantId ? {
 							...m,
 							toolCallSteps: [...(m.toolCallSteps || []), {
@@ -643,6 +701,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 								toolArgs: event.tool_args,
 								status: "running" as const,
 								startTime: Date.now(),
+								insertAt,
 							}],
 						} : m));
 					} else if (event.type === "tool_call_end" && event.tool_name) {
@@ -661,6 +720,11 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 						if (noteMutationTools.includes(event.tool_name)) {
 							void queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
 						}
+						// 笔记被工具改动：解析 noteId 通知父组件，以便刷新正在打开的编辑器
+						if (event.tool_name === "update_note" || event.tool_name === "create_note") {
+							const idMatch = /#(\d+)/.exec(event.result_preview ?? "");
+							if (idMatch) onNoteMutated?.(Number(idMatch[1]));
+						}
 					}
 				},
 			);
@@ -676,7 +740,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 			abortRef.current = null;
 			void queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
 		}
-	}, [conversationId, locale, queryClient]);
+	}, [conversationId, locale, queryClient, onNoteMutated]);
 
 	const handleTabClick = useCallback((tab: TabDef) => {
 		if (isStreaming) return;
@@ -761,15 +825,69 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 					<span className="text-sm font-semibold tracking-tight text-foreground/80">
 						思维分析
 					</span>
-					{isStreaming && (
-						<span className="ml-auto flex items-center gap-1.5 text-[10px] text-muted-foreground/50">
-							<span className="relative flex h-1.5 w-1.5">
-								<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/40" />
-								<span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary/60" />
+					{/* 右侧：生成中指示 + 历史记录 */}
+					<div className="ml-auto flex items-center gap-1.5">
+						{isStreaming && (
+							<span className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50">
+								<span className="relative flex h-1.5 w-1.5">
+									<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/40" />
+									<span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary/60" />
+								</span>
+								生成中
 							</span>
-							生成中
-						</span>
-					)}
+						)}
+						<div className="relative">
+							<button
+								type="button"
+								onClick={() => setHistoryOpen((v) => !v)}
+								title="历史记录"
+								className="p-1 text-muted-foreground/70 hover:text-foreground transition-colors rounded-md hover:bg-muted/50"
+							>
+								<History className="w-4 h-4" />
+							</button>
+							{historyOpen && (
+								<>
+									<button
+										type="button"
+										aria-label="关闭"
+										className="fixed inset-0 z-40 cursor-default"
+										onClick={() => setHistoryOpen(false)}
+									/>
+									<div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-lg border border-border/40 bg-background shadow-lg overflow-hidden">
+										<button
+											type="button"
+											onClick={startNewConversation}
+											className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-foreground hover:bg-muted/50 border-b border-border/30"
+										>
+											<Plus className="w-3.5 h-3.5" /> 新对话
+										</button>
+										<div className="max-h-72 overflow-y-auto scrollbar-thin">
+											{sessionsQuery.isLoading ? (
+												<div className="px-3 py-3 text-xs text-muted-foreground/60">加载中…</div>
+											) : (sessionsQuery.data?.length ?? 0) === 0 ? (
+												<div className="px-3 py-3 text-xs text-muted-foreground/60">暂无历史会话</div>
+											) : (
+												(sessionsQuery.data ?? []).map((s) => (
+													<button
+														key={s.sessionId}
+														type="button"
+														onClick={() => setViewingSessionId(s.sessionId)}
+														className={`flex flex-col w-full px-3 py-2 text-left hover:bg-muted/50 border-b border-border/20 last:border-0 ${s.sessionId === conversationId ? "bg-muted/40" : ""}`}
+													>
+														<span className="text-xs text-foreground truncate">{s.title || "未命名会话"}</span>
+														<span className="text-[10px] text-muted-foreground/60">
+															{s.lastActive ? new Date(s.lastActive).toLocaleString() : ""}
+															{s.messageCount ? ` · ${s.messageCount} 条` : ""}
+														</span>
+													</button>
+												))
+											)}
+										</div>
+									</div>
+								</>
+							)}
+						</div>
+					</div>
 				</div>
 			</div>
 

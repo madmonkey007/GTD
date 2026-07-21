@@ -16,6 +16,7 @@ class ChatMessage(BaseModel):
     conversation_id: str | None = None  # 会话ID
     use_rag: bool = True  # 是否使用RAG
     mode: str | None = None  # 前端聊天模式（ask/plan/edit/dify_test/agno 等）
+    chat_type: str | None = None  # 会话类型（如 notes/diary），用于区分历史记录归属；默认 event
 
     # Agno Agent 工具配置
     selected_tools: list[str] | None = None  # FreeTodo 工具列表（如 ['create_todo', 'list_todos']）
