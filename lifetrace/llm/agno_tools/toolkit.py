@@ -106,6 +106,7 @@ class FreeTodoToolkit(
             "delete_note": self.delete_note,
             "search_notes": self.search_notes,
             "get_note": self.get_note,
+            "list_note_tags": self.list_note_tags,
             "list_notes_by_tags": self.list_notes_by_tags,
             "list_notes_by_date": self.list_notes_by_date,
             "get_insight": self.get_insight,

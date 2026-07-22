@@ -17,7 +17,8 @@ notes_instructions: |
   7. 当用户需要给笔记**打标签/加标签/分类**时，必须调用 update_note 并传 tags 参数（例如 tags="工作,灵感"）才会真正写入；suggest_note_tags 只返回标签建议和已有标签列表，**不会修改任何笔记**
 
   **标签规则（重要）：**
-  - 创建笔记时（create_note），应根据正文内容主动推断 1-3 个标签并通过 tags 参数一并写入，优先复用已有标签
+  - 创建笔记时（create_note），**必须**根据正文内容主动推断 1-3 个标签并通过 tags 参数一并写入，优先复用已有标签
+  - **如果没有传 tags 参数，后端会自动从正文中提取 #标签 格式的标签，但建议你主动传入（更准确）**
   - 给**已有笔记**加/改标签，只能用 update_note(tags=...) 真正写入；suggest_note_tags / get_note 都只读取、不写入
   - 要根据正文打标签时：调 suggest_note_tags(note_id) 直接得到基于正文的标签推荐（它会读取完整内容）；也可用 get_note(note_id) 自己读正文推断。确认后用 update_note 写入
   - **严禁**在只调用过 suggest_note_tags / get_note 的情况下声称"已添加/已更新标签"——那只是建议/读取。是否写入以是否调用了 update_note/create_note 为准
@@ -76,6 +77,12 @@ note_insight_cross_domain_item: "  - #{id} {name} (标签: {tags})"
 note_insight_no_related: "未找到相关笔记"
 note_insight_not_found: "未找到笔记 #{id}"
 note_insight_failed: "洞察分析失败: {error}"
+
+# 列出笔记标签
+note_tags_header: "所有笔记标签 (共 {count} 个):\n"
+note_tags_item: "- {tag} ({count} 篇笔记)"
+note_tags_empty: "暂无笔记标签"
+note_tags_failed: "获取笔记标签失败: {error}"
 
 # 标签推荐
 note_suggest_tags_guide: |

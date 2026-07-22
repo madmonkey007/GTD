@@ -364,9 +364,6 @@ function StreamingIndicator() {
 	);
 }
 
-// ─── Message bubble ───
-
-
 // ─── Tool call step (inline chip) ───
 
 function ToolCallStepChip({ step }: { step: ToolCallStep }) {
@@ -504,6 +501,40 @@ function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: bo
 
 // ─── Main component ───
 
+// 笔记创建 system prompt - 用户自由输入时使用
+const CREATE_NOTE_SYSTEM_PROMPT = `你是一个笔记创建助手。
+
+## 核心规则
+用户输入的内容就是**要创建的笔记正文**。不要提问、不要确认、不要建议修改。
+直接调用 create_note 工具创建笔记，用户输入作为 user_notes 参数传入。
+- 标题留空（后端自动用创建时间）
+- 根据正文内容推断 1-3 个标签，通过 tags 参数传入
+- 如果用户明确指定了标签（如"标签：工作、日报"），使用用户指定的标签
+
+## 标签规则（重要）
+- 在调用 create_note 之前，**必须先调用 list_note_tags() 查看已有标签库**
+- 从已有标签中选择最贴合正文的 1-3 个标签，优先复用已有标签
+- 只有当已有标签完全不合适时，才创建新标签
+- 这样可以避免每次创建笔记都生成不同的标签导致标签爆炸
+
+## 推荐流程
+1. 先调用 list_note_tags() 获取已有标签列表
+2. 从已有标签中挑选 1-3 个最贴合正文的标签
+3. 调用 create_note(user_notes="...", tags="标签1,标签2")
+
+## 例子
+用户说"今天工作了，完成了日报"
+→ 先 list_note_tags() 查看已有标签
+→ 假设已有标签中有"工作"、"日报"
+→ create_note(user_notes="今天工作了，完成了日报", tags="工作,日报")
+
+用户说"关于婚姻的思考"
+→ 先 list_note_tags() 查看已有标签
+→ 假设已有标签中有"婚姻"、"思考"、"人生"
+→ create_note(user_notes="关于婚姻的思考", tags="婚姻,思考")
+
+不要做分析、不要给建议、不要提问，直接创建笔记。`;
+
 // 笔记页思维教练 system prompt（用户不可见，仅注入后端）
 const THINKING_COACH_SYSTEM_PROMPT = `你是一个思维教练，不是助手。
 你的任务是帮用户发现他自己没有意识到的思维模式和逻辑盲点。
@@ -566,40 +597,7 @@ const THINKING_COACH_SYSTEM_PROMPT = `你是一个思维教练，不是助手。
 跨域笔记不一定有关联，如果连不上就忽略
 如果连得上，优先用它做模式映射`;
 
-// 格式化单条笔记为上下文文本
-// 兼容后端 snake_case（user_notes）和前端 camelCase（userNotes）两种字段名
-// function formatJournalForContext(j: { name?: string | null; userNotes?: string | null; user_notes?: string | null; date?: string | null; tags?: { tagName: string }[] | string[] } | null | undefined, label: string): string {
-// 	if (!j) return "";
-// 	const name = j.name || "未命名";
-// 	const notes = j.userNotes || j.user_notes || "无内容";
-// 	const date = j.date || "";
-// 	const tags = Array.isArray(j.tags) ? j.tags.map((t: any) => typeof t === "string" ? t : t?.tagName).filter(Boolean) : [];
-// 	return `[${label}]\n标题: ${name}\n日期: ${date}\n标签: ${tags.join(", ") || "无"}\n内容: ${notes}`;
-	// }
-
-// 拉取洞察上下文（当前笔记 + 4相似 + 2跨域），失败返回 null
-// async function fetchInsightContext(journalId: number | null | undefined): Promise<{ text: string; current: Record<string, unknown> | null; similarCount: number; crossCount: number } | null> {
-// 	if (!journalId) return null;
-// 	try {
-// 		const baseUrl = (typeof window !== "undefined" && (window as any).__BACKEND_URL__) || "http://localhost:8001";
-// 		const resp = await fetch(`${baseUrl
-// }/api/journals/${journalId}/insight-context`, { headers: { "Accept": "application/json" } });
-// 		if (!resp.ok) return null;
-// 		const data = await resp.json();
-// 		const current = data.current;
-// 		const similar: any[] = data.similar || [];
-// 		const cross: any[] = data.cross_domain || [];
-// 		if (!current) return null;
-// 		const parts: string[] = [formatJournalForContext(current, "当前笔记")];
-// 		if (similar.length) parts.push(similar.map((n, i) => formatJournalForContext(n, `主题相关笔记 ${i + 1}`)).join("\n---\n"));
-// 		if (cross.length) parts.push(cross.map((n, i) => formatJournalForContext(n, `跨域笔记 ${i + 1}`)).join("\n---\n"));
-// 		return { text: parts.join("\n\n"), current, similarCount: similar.length, crossCount: cross.length };
-// 	} catch {
-// 		return null;
-// 	}
-// }
-
-// 构建关联笔记上下文（格式与全局 ChatPanel 的 useSendMessage 保持一致）
+// 构建关联笔记上下文（供 handleTabClick / handleSendInput 使用）
 function buildNoteContext() {
 	const notes = useNoteChatStore.getState().linkedNotes;
 	return notes.length > 0
@@ -626,6 +624,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 	const [error, setError] = useState<string | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
 	const listRef = useRef<HTMLDivElement>(null);
+	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const clearLinkedNotes = useNoteChatStore((s) => s.clearLinkedNotes);
 	const { locale } = useLocaleStore();
 	const queryClient = useQueryClient();
@@ -663,7 +662,15 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 		}
 	}, [messages]);
 
-	const doStream = useCallback(async (prompt: string, assistantId: string) => {
+	// Auto-resize textarea on input change
+	useEffect(() => {
+		const el = inputRef.current;
+		if (!el) return;
+		el.style.height = "0";
+		el.style.height = `${Math.min(el.scrollHeight, 150)}px`;
+	}, [inputValue]);
+
+	const doStream = useCallback(async (prompt: string, assistantId: string, systemPrompt?: string) => {
 		setIsStreaming(true);
 		setError(null);
 		const ac = new AbortController();
@@ -678,8 +685,8 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 					conversationId: conversationId ?? undefined,
 					mode: "agno",
 					chatType: "notes",
-					systemPrompt: THINKING_COACH_SYSTEM_PROMPT,
-				selectedTools: ["create_note","update_note","delete_note","search_notes","get_note","list_notes_by_tags","list_notes_by_date","get_insight","suggest_note_tags"],
+					systemPrompt: systemPrompt ?? THINKING_COACH_SYSTEM_PROMPT,
+				selectedTools: ["create_note","update_note","delete_note","search_notes","get_note","list_note_tags","list_notes_by_tags","list_notes_by_date","get_insight","suggest_note_tags"],
 				},
 				(chunk) => {
 					assistantContent += chunk;
@@ -784,11 +791,11 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 			{ id: aid, role: "assistant", content: "" },
 		]);
 		const prompt = noteCtx ? `${noteCtx}\n\n${text}` : text;
-		doStream(prompt, aid);
+		doStream(prompt, aid, CREATE_NOTE_SYSTEM_PROMPT);
 		clearLinkedNotes();
 	}, [inputValue, isStreaming, doStream, clearLinkedNotes]);
 
-	const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+	const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 		if (e.key === "Enter" && !e.shiftKey) {
 			e.preventDefault();
 			handleSendInput();
@@ -930,13 +937,15 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 				<div className="px-3 pb-3 pt-3">
 					<LinkedNotes locale="zh" />
 					<div className="flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3.5 py-2.5 transition-all duration-200 focus-within:border-primary/30 focus-within:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)]">
-						<input
+						<textarea
+							ref={inputRef}
 							value={inputValue}
 							onChange={(e) => setInputValue(e.target.value)}
 							onKeyDown={handleKeyDown}
 							placeholder="输入自定义问题..."
 							disabled={isStreaming}
-							className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus-visible:outline-none disabled:opacity-40"
+							rows={1}
+							className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus-visible:outline-none disabled:opacity-40 resize-none overflow-y-auto"
 						/>
 						{isStreaming ? (
 							<button type="button" onClick={handleStop} title="停止"

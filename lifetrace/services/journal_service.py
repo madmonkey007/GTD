@@ -26,7 +26,7 @@ from lifetrace.schemas.journal import (
     JournalResponse,
     JournalUpdate,
 )
-from lifetrace.storage.journal_manager import JournalCreatePayload, JournalUpdatePayload
+from lifetrace.storage.journal_manager import JournalCreatePayload, JournalUpdatePayload, _UNSET
 from lifetrace.storage.models import Activity, Todo
 from lifetrace.storage.sql_utils import col
 from lifetrace.util.logging_config import get_logger
@@ -60,6 +60,40 @@ class JournalService:
         if fallback_time:
             return fallback_time.strftime("%Y-%m-%d %H:%M")
         return "Untitled"
+
+    @staticmethod
+    def _auto_extract_tags(content: str | None) -> list[str]:
+        """从正文中提取 #标签 格式的标签。"""
+        if not content:
+            return []
+        matches = re.findall(r'#([^\s#]+)(?:\s|$)', content)
+        seen: set[str] = set()
+        result: list[str] = []
+        for tag in matches:
+            tag = tag.strip()
+            if tag and tag not in seen:
+                seen.add(tag)
+                result.append(tag)
+        return result
+
+    @staticmethod
+    def _ensure_tags_in_content(content: str | None, tags: list[str] | None) -> str:
+        """确保 tags 中的每个标签都以 #标签 形式存在于正文中。
+
+        已通过 #tag 语法存在于正文中的标签不重复追加。
+        正文为空且 tags 有值时直接返回 #标签行。
+        前端的 extractTagsFromUserNotes 提取 #tag，
+        编辑保存时也只从正文 #tag 提取，所以标签必须在正文中才可见可编辑。
+        """
+        if not tags:
+            return content or ""
+        existing = set(JournalService._auto_extract_tags(content))
+        needed = [t for t in tags if t not in existing]
+        if not needed:
+            return content or ""
+        tag_line = " ".join(f"#{t}" for t in needed)
+        base = (content or "").strip()
+        return base + "\n\n" + tag_line if base else tag_line
 
     def _index_journal(
         self,
@@ -353,10 +387,18 @@ class JournalService:
 
     def create_journal(self, data: JournalCreate) -> JournalResponse:
         """创建日记"""
+        # 自动提取标签：从正文中提取 #标签 语法
+        tags = data.tags
+        if not tags and data.user_notes:
+            auto_tags = self._auto_extract_tags(data.user_notes)
+            if auto_tags:
+                tags = auto_tags
+        # 确保标签以 #标签 形式存在于正文中（编辑时才可见可改）
+        user_notes = self._ensure_tags_in_content(data.user_notes, tags)
         payload = JournalCreatePayload(
             uid=data.uid,
             name=self._normalize_name(data.name, fallback_time=data.date),
-            user_notes=data.user_notes,
+            user_notes=user_notes,
             date=data.date,
             content_format=data.content_format or "markdown",
             content_objective=data.content_objective,
@@ -364,7 +406,7 @@ class JournalService:
             mood=data.mood,
             energy=data.energy,
             day_bucket_start=data.day_bucket_start,
-            tags=data.tags,
+            tags=tags,
             related_todo_ids=data.related_todo_ids,
             related_activity_ids=data.related_activity_ids,
             related_note_ids=data.related_note_ids,
@@ -391,6 +433,18 @@ class JournalService:
             raise HTTPException(status_code=404, detail="日记不存在")
 
         payload = self._build_update_payload(data)
+
+        # 如果更新中包含 tags，确保 tags 以 #标签 形式写入正文
+        if payload.tags is not None and payload.tags is not _UNSET:
+            # 如果没传 user_notes，读取当前内容
+            current_notes = payload.user_notes
+            if current_notes is _UNSET:
+                existing_journal = self.repository.get_by_id(journal_id)
+                current_notes = (existing_journal or {}).get("user_notes", "")
+            embedded = self._ensure_tags_in_content(current_notes, payload.tags)
+            if embedded != current_notes:
+                # JournalUpdatePayload is frozen dataclass, use object.__setattr__
+                object.__setattr__(payload, "user_notes", embedded)
 
         if not self.repository.update(journal_id, payload):
             raise HTTPException(status_code=500, detail="更新日记失败")

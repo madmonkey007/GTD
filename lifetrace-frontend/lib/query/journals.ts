@@ -32,43 +32,38 @@ interface UseJournalsParams {
 	search?: string;
 }
 
-const normalizeTags = (
-	raw: Record<string, unknown>[],
-): { id: number; tagName: string }[] =>
-	raw
-		.filter((tag) => typeof tag === "object" && tag !== null)
-		.map((tag) => ({
-			id: (tag.id as number) ?? 0,
-			// 后端返回 snake_case 的 tag_name，兼容 camelCase 的 tagName
-			tagName:
-				(tag.tagName as string) ??
-				(tag.tag_name as string) ??
-				"",
-		}))
-		.filter((tag) => tag.tagName !== "");
+function extractTagsFromContent(userNotes: string): string[] {
+	const matches = userNotes.match(/#([^\s#]+)(\s|$)/g);
+	if (!matches) return [];
+	return [...new Set(matches.map((m) => m.slice(1).trimEnd()))];
+}
 
-const normalizeJournal = (raw: Record<string, unknown>) => ({
-	id: raw.id as number,
-	uid: (raw.uid as string) ?? null,
-	name: (raw.name as string) ?? "",
-	userNotes: (raw.userNotes as string) ?? "",
-	date: raw.date as string,
-	contentFormat: (raw.contentFormat as string) ?? "markdown",
-	contentObjective: (raw.contentObjective as string) ?? null,
-	contentAi: (raw.contentAi as string) ?? null,
-	mood: (raw.mood as string) ?? null,
-	energy: (raw.energy as number) ?? null,
-	dayBucketStart: (raw.dayBucketStart as string) ?? null,
-	createdAt: raw.createdAt as string,
-	updatedAt: raw.updatedAt as string,
-	deletedAt: (raw.deletedAt as string) ?? null,
-	tags: normalizeTags(
-		((raw.tags as Record<string, unknown>[]) ?? []).filter(Boolean),
-	),
-	relatedTodoIds: (raw.relatedTodoIds as number[]) ?? (raw.related_todo_ids as number[]) ?? [],
-	relatedActivityIds: (raw.relatedActivityIds as number[]) ?? (raw.related_activity_ids as number[]) ?? [],
-	relatedNoteIds: (raw.relatedNoteIds as number[]) ?? (raw.related_note_ids as number[]) ?? [],
-});
+const normalizeJournal = (raw: Record<string, unknown>) => {
+	const userNotes = (raw.userNotes as string) ?? "";
+	// 标签始终从正文 #tag 提取，不显示 DB 中旧的独立标签（用户已确认不需要独立标签体系）
+	const contentTags = extractTagsFromContent(userNotes);
+
+	return {
+		id: raw.id as number,
+		uid: (raw.uid as string) ?? null,
+		name: (raw.name as string) ?? "",
+		userNotes,
+		date: raw.date as string,
+		contentFormat: (raw.contentFormat as string) ?? "markdown",
+		contentObjective: (raw.contentObjective as string) ?? null,
+		contentAi: (raw.contentAi as string) ?? null,
+		mood: (raw.mood as string) ?? null,
+		energy: (raw.energy as number) ?? null,
+		dayBucketStart: (raw.dayBucketStart as string) ?? null,
+		createdAt: raw.createdAt as string,
+		updatedAt: raw.updatedAt as string,
+		deletedAt: (raw.deletedAt as string) ?? null,
+		tags: contentTags.map((t) => ({ id: 0, tagName: t })),
+		relatedTodoIds: (raw.relatedTodoIds as number[]) ?? (raw.related_todo_ids as number[]) ?? [],
+		relatedActivityIds: (raw.relatedActivityIds as number[]) ?? (raw.related_activity_ids as number[]) ?? [],
+		relatedNoteIds: (raw.relatedNoteIds as number[]) ?? (raw.related_note_ids as number[]) ?? [],
+	};
+};
 
 const normalizeAutoLinkResponse = (raw: Record<string, unknown>) => ({
 	relatedTodoIds: (raw.relatedTodoIds as number[]) ?? [],

@@ -306,7 +306,6 @@ const handleSaveCardEdit = async (
 	data: { name?: string | null; user_notes?: string | null },
 ) => {
 	const tags = data.user_notes ? extractTagsFromUserNotes(data.user_notes) : [];
-	console.log('[saveCardEdit] notes:', JSON.stringify(data.user_notes?.slice(0,100)), 'tags:', JSON.stringify(tags));
 	await updateJournal(journalId, {
 		name: data.name ?? null,
 		user_notes: data.user_notes ?? null,
@@ -569,7 +568,12 @@ const handleSaveCardEdit = async (
 
 	// 聊天工具改动了笔记：若正是当前打开的笔记，重新拉取并只同步标签（不触碰正文/标题，避免覆盖编辑中内容）
 	const handleNoteMutated = useCallback(async (noteId: number) => {
-		if (activeJournal?.id !== noteId) return;
+		// AI 创建/修改了笔记，但该笔记不是当前编辑中的笔记
+		// → 阻止 sync 将新笔记内容加载到编辑器 draft 中
+		if (activeJournal?.id !== noteId) {
+			clearAfterSubmit.current = true;
+			return;
+		}
 		const res = await refetch();
 		const j = res.data?.journals?.[0];
 		if (!j || j.id !== noteId) return;

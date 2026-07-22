@@ -272,27 +272,26 @@ export function DiaryEditor({
 	};
 
 	const cancelEditing = () => {
-		setEditingCardId(null);
-		setEditName("");
-		setEditContent("");
-	};
+			setEditingCardId(null);
+			setEditName("");
+			setEditContent("");
+		};
 
-
-	const handleSaveEdit = async () => {
-		if (editingCardId === null) return;
-		setIsSaving(true);
-		try {
-			await onSaveCardEdit(editingCardId, {
-				name: editName || null,
-				user_notes: editContent || null,
-			});
-			cancelEditing();
-		} catch (err) {
-			console.error("[saveCardEdit] API error:", err);
-		} finally {
-			setIsSaving(false);
-		}
-	};
+		const handleSaveEdit = async () => {
+			if (editingCardId === null) return;
+			setIsSaving(true);
+			try {
+				await onSaveCardEdit(editingCardId, {
+					name: editName || null,
+					user_notes: editContent || null,
+				});
+				cancelEditing();
+			} catch (err) {
+				console.error("[saveCardEdit] API error:", err);
+			} finally {
+				setIsSaving(false);
+			}
+		};
 
 
 	const toggleCard = (id: number) => {
@@ -547,7 +546,19 @@ export function DiaryEditor({
 									</>
 								}
 							/>
-							{(function() { const editTags = extractTagsFromContent(editContent); if (editTags.length === 0) return null; return (<div className="flex flex-wrap gap-1 px-0.5 pb-1">{editTags.map(function(tag) { return <span key={tag} className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">#{tag}</span>; })}</div>); })()}
+							{(() => {
+								const et = extractTagsFromContent(editContent);
+								if (et.length === 0) return null;
+								return (
+									<div className="flex flex-wrap gap-1 px-0.5 pb-1">
+										{et.map((t) => (
+											<span key={t} className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary/70">
+												#{t}
+											</span>
+										))}
+									</div>
+								);
+							})()}
 						</div>
 ) : (
 		// --- Display mode ---
@@ -640,6 +651,7 @@ export function DiaryEditor({
 												)}
 											</button>
 										)}
+
 										<div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground/50 hidden">
 											<Clock className="w-3 h-3 text-muted-foreground/40" />
 											{formatTime(note.createdAt)}

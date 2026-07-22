@@ -76,6 +76,12 @@ note_insight_no_related: "No related notes found"
 note_insight_not_found: "Note #{id} not found"
 note_insight_failed: "Insight analysis failed: {error}"
 
+# List note tags
+note_tags_header: "All note tags ({count} total):\n"
+note_tags_item: "- {tag} ({count} notes)"
+note_tags_empty: "No note tags yet"
+note_tags_failed: "Failed to list note tags: {error}"
+
 # Tag suggestions
 note_suggest_tags_guide: |
   Please suggest 3-5 suitable tags based on the note's FULL content below.

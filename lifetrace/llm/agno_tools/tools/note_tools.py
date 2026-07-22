@@ -26,6 +26,42 @@ class NoteTools:
 	def _msg(self, key: str, **kwargs) -> str:
 		return get_message(self.lang, key, **kwargs)
 
+	def list_note_tags(self, limit: int = 500) -> str:
+		"""List all unique tags currently used across existing notes.
+		Use this BEFORE creating a note to see existing tags, so you can reuse them
+		instead of always creating new tags.
+
+		Args:
+			limit: Maximum number of notes to scan (default: 500)
+
+		Returns:
+			Formatted list of existing note tags, sorted by frequency
+		"""
+		try:
+			all_notes = self.journal_service.list_journals(
+				limit=limit, offset=0, start_date=None, end_date=None
+			)
+
+			tag_counts: dict[str, int] = {}
+			for note in all_notes.journals:
+				for tag in note.tags or []:
+					tag_counts[tag.tag_name] = tag_counts.get(tag.tag_name, 0) + 1
+
+			if not tag_counts:
+				return self._msg("note_tags_empty")
+
+			sorted_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
+
+			result = self._msg("note_tags_header", count=len(sorted_tags))
+			for tag, count in sorted_tags:
+				result += self._msg("note_tags_item", tag=tag, count=count) + "\n"
+
+			return result.strip()
+
+		except Exception as e:
+			logger.error(f"Failed to list note tags: {e}")
+			return self._msg("note_tags_failed", error=str(e))
+
 	def create_note(
 		self,
 		name: str = "",
