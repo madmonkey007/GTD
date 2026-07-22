@@ -237,8 +237,21 @@ export function DiaryEditor({
 		setHasMore(loadedCount < total);
 	}, [notesData, notesOffset]);
 
-	// 筛选条件变化时重置分页
+	// 筛选条件变化时重置分页并清空已累积的旧页。
+	// 用 ref 比较真实变化，避免挂载时（含开发环境 StrictMode 对 effect 的二次触发）误清空 allNotes：
+	// 挂载时上面的合并 effect 已从缓存填充 allNotes，此处再清空会因 notesData 引用稳定、
+	// 合并 effect 不再触发而无法回填，导致切走再切回笔记面板时列表变空。
+	const prevFiltersRef = useRef({ filterMode, heatmapFilterDate, debouncedSearch });
 	useEffect(() => {
+		const prev = prevFiltersRef.current;
+		if (
+			prev.filterMode === filterMode &&
+			prev.heatmapFilterDate === heatmapFilterDate &&
+			prev.debouncedSearch === debouncedSearch
+		) {
+			return;
+		}
+		prevFiltersRef.current = { filterMode, heatmapFilterDate, debouncedSearch };
 		setNotesOffset(0);
 		setAllNotes([]);
 		setHasMore(true);
