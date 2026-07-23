@@ -670,7 +670,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 		el.style.height = `${Math.min(el.scrollHeight, 150)}px`;
 	}, [inputValue]);
 
-	const doStream = useCallback(async (prompt: string, assistantId: string, systemPrompt?: string) => {
+	const doStream = useCallback(async (prompt: string, assistantId: string, systemPrompt?: string, suppressText?: boolean) => {
 		setIsStreaming(true);
 		setError(null);
 		const ac = new AbortController();
@@ -690,9 +690,11 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 				},
 				(chunk) => {
 					assistantContent += chunk;
-					setMessages((prev) =>
-						prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m),
-					);
+					if (!suppressText) {
+						setMessages((prev) =>
+							prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m),
+						);
+					}
 				},
 				(id) => id && setConversationId(id),
 				ac.signal,
@@ -746,6 +748,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 			setIsStreaming(false);
 			abortRef.current = null;
 			void queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
+
 		}
 	}, [conversationId, locale, queryClient, onNoteMutated]);
 
@@ -791,7 +794,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 			{ id: aid, role: "assistant", content: "" },
 		]);
 		const prompt = noteCtx ? `${noteCtx}\n\n${text}` : text;
-		doStream(prompt, aid, CREATE_NOTE_SYSTEM_PROMPT);
+		doStream(prompt, aid, CREATE_NOTE_SYSTEM_PROMPT, true);
 		clearLinkedNotes();
 	}, [inputValue, isStreaming, doStream, clearLinkedNotes]);
 

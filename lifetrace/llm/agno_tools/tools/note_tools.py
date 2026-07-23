@@ -90,13 +90,20 @@ class NoteTools:
 			note_date = datetime.now()
 			if date:
 				try:
-					note_date = datetime.fromisoformat(date)
+					parsed = datetime.fromisoformat(date)
+					# 如果只传了纯日期（如 "2026-07-23"），用当前时间填充时间部分
+					# 这样按 date DESC 排序时仍能保持正确顺序
+					if parsed.hour == 0 and parsed.minute == 0 and parsed.second == 0 and parsed.microsecond == 0:
+						note_date = note_date.replace(
+							year=parsed.year, month=parsed.month, day=parsed.day
+						)
+					else:
+						note_date = parsed
 				except ValueError:
 					pass
 
-				# Default title: use current time if name is empty
-				if not name or not name.strip():
-					name = note_date.strftime("%Y-%m-%d %H:%M")
+			if not name or not name.strip():
+				name = note_date.strftime("%Y-%m-%d %H:%M")
 
 			result = self.journal_service.create_journal(
 				JournalCreate(

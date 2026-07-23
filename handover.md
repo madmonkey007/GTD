@@ -432,4 +432,226 @@ D:\manus\GTD\
 
 ---
 
-*本文档最后更新：2026-07-21（笔记 Agent Tools 体系完成 + 服务重启验证）*
+### 9. 笔记编辑器 Tiptap 富文本升级 + ToolCallSteps 颜色/位置修复（2026-07-21）
+
+#### 9.1 所有代码已提交并推送到 GitHub
+
+**状态**: 从大量未提交的工作到所有修改已提交并推送到 `origin/main`（提交 `e1b40f2f`）。本地与远程 SHA 一致。
+
+**未跟踪文件**（不应提交）: `notes_after_2026-07-17.zip`
+
+#### 9.2 笔记编辑器升级为 Tiptap 富文本
+
+**问题**: 笔记编辑器（新建 `contentEditable` div + 编辑态 textarea）用裸 contentEditable，导致格式按钮报 IndexSizeError、Ctrl+B 加粗保存后丢失、粘贴网页带脏样式、`==` 高亮无效往返。
+
+**DiaryTiptapEditor.tsx**（新建，292 行）:
+- 基于 `@tiptap/react`（StarterKit + Highlight + Mention + Placeholder）
+- turndown + markdown-it 双向转换，存储保持 markdown 字符串契约
+- `value` ↔ `onChange` 受控模式，`lastValueRef` 防循环
+- 内置工具栏：bold / underline / highlight / ul / ol / tag（Mention suggestion）
+- 粘贴净化：`transformPastedHTML` 只放行白名单标签，剥 style/class/font/color
+- `toolbarEnd` 插槽：新建态发送按钮 / 编辑态取消保存按钮
+
+**DiaryEditor.tsx**（778 → 80 行，-90% 代码量）:
+- 新建编辑区、编辑态全部替换为 `DiaryTiptapEditor` 组件
+- 删除旧逻辑：`insertFormat`、`insertEditFormat`、`insertEditTag`、`getEditorText`、`setEditorContent` 等
+- 保留：标题自动填充、卡片渲染、DropdownMenu、批注/对比弹窗、搜索栏
+
+**依赖新增**:
+- `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-placeholder`, `@tiptap/extension-highlight`, `@tiptap/extension-mention`
+- `markdown-it`, `turndown`
+
+**注意**: Tailwind JIT 只扫描 JSX 字面 `className` 字符串，不扫描对象字典值。条件样式必须用 JSX 内联三元表达式。
+
+#### 9.3 ToolCallSteps 颜色修复
+
+**问题**: 工具调用图标/文字颜色太淡（`#7E7D79`），前几轮修复改了类名但没生效。
+
+**根因**: Tailwind JIT 只扫描 JSX 中的字面 `className` 字符串，颜色类名写在 JS 对象字典里，Tailwind 从未生成对应的 CSS。
+
+**修复**: `ToolCallSteps.tsx` 完全重写，类名改为 JSX 内联三元表达式：
+```tsx
+className={cn("...", status === "running" ? "text-primary" : status === "completed" ? "text-emerald-600 dark:text-emerald-400" : "text-red-500")}
+```
+
+#### 9.4 ToolCallSteps 渲染位置修复
+
+**问题**: 流式输出时工具调用先显示在正确位置，`[THINK]` 内容到达后"挤到下面"。
+
+**根因**: `MessageItem.tsx` 有 `isToolCallingOnly` 条件分支，`[THINK]` 到达后切换 DOM 树导致重挂载。
+
+**修复**: 移除 `isToolCallingOnly` 分支，ToolCallSteps 始终固定在同一 DOM 位置（气泡上方），不随流式状态切换。
+
+#### 9.5 DiaryChatPanel 工具调用展示（部分完成，有遗留问题）
+
+**新增 `ToolCallStepsDisplay`**:
+- 可折叠展示工具步骤（Wrench 图标 + 工具名 + 展开预览）
+- 流式时 pulse 动画
+
+**遗留问题**:
+- `color: "#efefee"` 硬编码（与主聊天面板相同的颜色问题，需修复）
+- `resultPreview` 未调用 `removeThinkingTags`（`[THINK]` 会出现在预览中） 
+
+#### 9.6 笔记 ZIP 导出
+
+29 条笔记（2026-07-18 及之后）导出为 ZIP，脚本 `C:\Users\EDY\.claude\projects\D--\export_notes.py`，输出 `D:\manus\GTD\lifetrace-frontend\notes_after_2026-07-17.zip`。
+
+#### 9.7 远程部署后 [THINK] 标签显示为原文
+
+**原因排查**（代码已有 `parseThinkingContent` / `ThinkingBlock`）:
+1. PWA Service Worker Cache First 策略 → 注销 SW + 硬刷新
+2. `git pull` 后未 `pnpm build` 或重启 dev server
+3. SW `CACHE_NAME` 未更新 → 改 `"lifetrace-v2"` 触发清理
+
+---
+
+## 本 session 文件变更（2026-07-21）
+
+```
+新文件:
+apps/diary/DiaryTiptapEditor.tsx       — Tiptap 富文本编辑器组件
+
+修改文件:
+apps/diary/DiaryEditor.tsx              — Tiptap 重构（-90% 代码量）
+apps/diary/components/DiaryChatPanel.tsx — 新增 ToolCallStepsDisplay
+apps/chat/components/message/ToolCallSteps.tsx — 完全重写（内联 Tailwind 类名）
+apps/chat/components/message/MessageItem.tsx   — 重写渲染逻辑
+package.json / pnpm-lock.yaml / pnpm-workspace.yaml — 新增 Tiptap 依赖
+```
+
+## 下次 session 建议
+
+### 高优先级
+1. **修复 DiaryChatPanel 工具调用颜色** — `#efefee` → Tailwind 类名（与主聊天面板一致）
+2. **在 resultPreview 加 `removeThinkingTags`** — 防止 `[THINK]` 出现在预览中
+3. **验证远程部署** — 如 `[THINK]` 原文显示，注销 SW + 硬刷新
+
+### 中优先级
+4. **npx tsc --noEmit** — Tiptap 重构后重新验证类型检查
+5. **PWA 图标替换** — 将 `free-todo-logos/favicon/` 部署到 `public/`
+
+---
+
+*本文档最后更新：2026-07-21（Tiptap 重构 + ToolCallSteps 修复 + 笔记导出）*
+
+---
+
+### 10. 笔记 Chat 标签体系 + 静默创建 + 排序修复（2026-07-23）
+
+本轮围绕「笔记通过 Chat 创建」的体验问题，完成四项修复，均已推送 GitHub main。
+
+#### 10.1 标签爆炸治理：新增 `list_note_tags` 工具
+
+**问题**：AI 通过 `create_note` 每次都随机生成新标签，导致标签库爆炸。
+
+**方案**：让 AI 创建笔记前先查看已有标签，优先复用。
+
+| 改动文件 | 内容 |
+|---------|------|
+| `lifetrace/llm/agno_tools/tools/note_tools.py` | 新增 `list_note_tags(limit=500)` 方法，列出所有笔记标签及使用次数（按频率降序） |
+| `lifetrace/llm/agno_tools/toolkit.py` | `all_tools` 字典注册 `"list_note_tags": self.list_note_tags` |
+| `lifetrace/config/prompts/agno_tools/zh/notes.yaml` | 新增 `note_tags_header`/`note_tags_item`/`note_tags_empty`/`note_tags_failed` 四个 i18n key |
+| `lifetrace/config/prompts/agno_tools/en/notes.yaml` | 同上英文版 |
+| `lifetrace-frontend/apps/diary/components/DiaryChatPanel.tsx` | `selectedTools` 数组加入 `"list_note_tags"`（共 10 个工具）；`CREATE_NOTE_SYSTEM_PROMPT` 加「标签规则」段，强制要求 create_note 前先调 `list_note_tags()` |
+
+**注意**：`routers/chat/misc.py` 的 `GET /api/chat/agno/tools` 元数据端点是**硬编码**列表，未同步加入 `list_note_tags`。该端点只用于 UI 元数据展示，不影响实际工具执行（执行走 toolkit 的 `selectedTools` 动态注册），低优先级。
+
+#### 10.2 Chat 创建笔记时静默 AI 回复（suppressText）
+
+**问题**：用户在笔记 Chat 输入一句话，AI 自动创建笔记后还会附加一段回复文字（如"已成功创建笔记 #123"），用户只想要笔记本身，不想要回复。
+
+**方案**：`DiaryChatPanel.tsx` 的 `doStream` 新增 `suppressText?: boolean` 参数。`handleSendInput`（自由输入创建笔记）传 `true`，`handleTabClick`（思维分析 tab）不传（正常显示回复）。
+
+**关键实现**：流式 `onChunk` 回调里，`suppressText` 为 true 时**只累加 `assistantContent`（用于工具调用锚点定位），不 `setMessages` 追加文本到显示内容**。这样：
+- 当前会话：只显示工具调用芯片，不弹回复文字
+- 后端：正常保存完整 content（agno.py 的 `storage_chunks` 不受影响）
+
+```tsx
+(chunk) => {
+    assistantContent += chunk;
+    if (!suppressText) {
+        setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m));
+    }
+}
+```
+
+#### 10.3 修复 suppressText 导致刷新后消息丢失（关键）
+
+**问题**：10.2 初版在 `finally` 块里直接清空 `content: ''`，导致刷新页面后历史消息只剩工具调用、文字和思考全没了。
+
+**根因**：
+1. `finally` 清空的是前端 React state 的 `content`，但后端 DB 已经存了完整内容 —— 清空对后端无意义
+2. `toolCallSteps` 只存在于前端内存，**不持久化到 DB**
+3. 刷新后从 history API 加载，只返回 `{role, content}`，`toolCallSteps` 丢失
+4. 若 `content` 也被清空 → 消息区域几乎空白
+
+**最终方案**（即 10.2 描述的）：不在 `finally` 清空，而是在流式过程中就不追加文本。后端 DB 始终保存完整 content，刷新后 history 能正常显示当时的回复。**移除了 `finally` 中的 suppressText 清空逻辑**。
+
+**数据流备忘**：
+- 后端保存（`routers/chat/modes/agno.py:253-267`）：`storage_content = "".join(storage_chunks)`（已剥离 `[THINK]` 和工具事件），存为 assistant message 的 content
+- 前端历史加载（`DiaryChatPanel.tsx` 的 `useChatHistory` effect）：`historyQuery.data.map(item => ({ role, content }))` —— 只恢复 content，无 toolCallSteps
+
+#### 10.4 修复新笔记排在列表第二位（日期排序）
+
+**问题**：通过 Chat 创建的最新笔记排在列表第二位，不在第一位。
+
+**根因**：后端 `journal_manager.py:316` 排序为 `ORDER BY date DESC, created_at DESC`。AI 调用 `create_note` 时传的 `date` 是纯日期（如 `"2026-07-23"`），`datetime.fromisoformat("2026-07-23")` 解析成**午夜零点** `2026-07-23T00:00:00`。同一天内，`14:36 > 00:00`，所以纯日期的新笔记排在了带时间的旧笔记后面。
+
+数据库实测（修复前）：
+```
+#230: date=2026-07-23T14:36  ← 手动创建，带时间，排第一
+#229: date=2026-07-23T14:31
+#227: date=2026-07-23T14:08
+#232: date=2026-07-23T00:00  ← AI 创建，纯日期，排到第四！
+#231: date=2026-07-23T00:00
+```
+
+**修复**（`note_tools.py` 的 `create_note`）：传入纯日期（时分秒微秒全为 0）时，用**当前时间**替换日期部分，保留当天日期 + 当前时分秒：
+
+```python
+parsed = datetime.fromisoformat(date)
+if parsed.hour == 0 and parsed.minute == 0 and parsed.second == 0 and parsed.microsecond == 0:
+    note_date = datetime.now().replace(year=parsed.year, month=parsed.month, day=parsed.day)
+else:
+    note_date = parsed
+```
+
+#### 10.5 后端启动方式备忘（Windows）
+
+本次踩坑：`venv/bin/activate` 是 Linux 路径，Windows 下不存在。正确启动方式：
+
+```bash
+# 后端（在 D:\manus\GTD\lifetrace 下）
+uv run python scripts/start_backend.py    # 端口 8001
+
+# 端口占用排查
+netstat -ano | grep 8001                  # 找 PID
+taskkill //PID <pid> //F                   # Windows 风格 kill（注意双斜杠）
+
+# 前端（在 D:\manus\GTD\lifetrace-frontend 下）
+pnpm dev                                   # 端口 3001
+```
+
+注意：`start_backend.py` 在 `scripts/` 下，不在根目录；直接 `python server.py` 会因 `import lifetrace` 失败（缺 PYTHONPATH）。用 `uv run` 会自动处理路径。
+
+---
+
+## 本 session 文件变更（2026-07-23）
+
+```
+修改文件:
+lifetrace/llm/agno_tools/tools/note_tools.py              — 新增 list_note_tags；create_note 纯日期补当前时间
+lifetrace/llm/agno_tools/toolkit.py                        — 注册 list_note_tags
+lifetrace/config/prompts/agno_tools/zh/notes.yaml          — list_note_tags i18n
+lifetrace/config/prompts/agno_tools/en/notes.yaml          — list_note_tags i18n
+lifetrace-frontend/apps/diary/components/DiaryChatPanel.tsx — selectedTools 加 list_note_tags；suppressText 机制；CREATE_NOTE_SYSTEM_PROMPT 标签规则
+```
+
+## 下次 session 建议
+
+### 高优先级
+1. **`misc.py` 工具元数据同步**：`GET /api/chat/agno/tools` 硬编码列表补上 `list_note_tags`（及未来新增工具），避免 UI 元数据滞后。
+2. **实测验证 10.4 排序修复**：用 Chat 创建笔记，确认排在列表第一位。
+
+### 中优先级
+3. **toolCallSteps 持久化**（可选）：若希望刷新后仍能看到工具调用芯片，需把 `metadata.tool_events`（后端已存）在前端历史加载时还原为 `toolCallSteps`。当前方案是刷新后只显示文字回复，不含工具芯片 —— 已是可接受的折中。

@@ -223,6 +223,67 @@ async def get_available_agno_tools():
                 "description": "建议标签",
                 "description_en": "Suggest tags for a todo",
             },
+            # Note management (from NoteTools) —— 与 toolkit.py all_tools 保持同步
+            {
+                "name": "create_note",
+                "category": "note",
+                "description": "创建笔记（建议先调 list_note_tags 复用已有标签）",
+                "description_en": "Create a new note (call list_note_tags first to reuse existing tags)",
+            },
+            {
+                "name": "update_note",
+                "category": "note",
+                "description": "更新笔记，仅更新传入字段",
+                "description_en": "Update an existing note, only provided fields",
+            },
+            {
+                "name": "delete_note",
+                "category": "note",
+                "description": "按 ID 删除笔记",
+                "description_en": "Delete a note by ID",
+            },
+            {
+                "name": "search_notes",
+                "category": "note",
+                "description": "按关键词搜索笔记标题和正文",
+                "description_en": "Search notes by keyword in title and content",
+            },
+            {
+                "name": "get_note",
+                "category": "note",
+                "description": "按 ID 获取笔记完整内容",
+                "description_en": "Get the full content of a note by ID",
+            },
+            {
+                "name": "list_note_tags",
+                "category": "note",
+                "description": "列出所有笔记已有标签（按频率降序），创建笔记前调用以复用标签",
+                "description_en": "List all existing note tags sorted by frequency; call before create_note to reuse tags",
+            },
+            {
+                "name": "list_notes_by_tags",
+                "category": "note",
+                "description": "按标签筛选笔记",
+                "description_en": "List notes filtered by tags",
+            },
+            {
+                "name": "list_notes_by_date",
+                "category": "note",
+                "description": "按日期范围列出笔记",
+                "description_en": "List notes within a date range",
+            },
+            {
+                "name": "get_insight",
+                "category": "note",
+                "description": "获取笔记的相似与跨域洞察",
+                "description_en": "Get similar and cross-domain insights for a note",
+            },
+            {
+                "name": "suggest_note_tags",
+                "category": "note",
+                "description": "基于笔记内容建议标签（仅建议，需 update_note 应用）",
+                "description_en": "Suggest tags based on note content (suggestion only; apply via update_note)",
+            },
         ]
 
         # 外部工具列表
