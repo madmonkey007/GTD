@@ -395,11 +395,25 @@ class JournalService:
                 tags = auto_tags
         # 确保标签以 #标签 形式存在于正文中（编辑时才可见可改）
         user_notes = self._ensure_tags_in_content(data.user_notes, tags)
+        # 日期补全时间：前端 date-only 输入会被解析为午夜 00:00:00，
+        # 这里用当前时间填充（保留年月日），使新笔记按 date DESC 排序时
+        # 能排在当天已有笔记之上（与 chat create_note 工具行为一致）。
+        note_date = data.date
+        if (
+            note_date.hour == 0
+            and note_date.minute == 0
+            and note_date.second == 0
+            and note_date.microsecond == 0
+        ):
+            now = datetime.now()
+            note_date = now.replace(
+                year=note_date.year, month=note_date.month, day=note_date.day
+            )
         payload = JournalCreatePayload(
             uid=data.uid,
-            name=self._normalize_name(data.name, fallback_time=data.date),
+            name=self._normalize_name(data.name, fallback_time=note_date),
             user_notes=user_notes,
-            date=data.date,
+            date=note_date,
             content_format=data.content_format or "markdown",
             content_objective=data.content_objective,
             content_ai=data.content_ai,
