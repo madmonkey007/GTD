@@ -128,3 +128,4 @@ yarn.lock
 
 # GitHub Actions workflows (need workflow scope token to push)
 .github/workflows/
+handover.md
