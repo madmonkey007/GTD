@@ -29,6 +29,8 @@ logger = get_logger()
 
 # 思考标记正则：用于从存储内容中移除 [THINK]...[/THINK]
 _THINK_PATTERN = re.compile(r"\[THINK\].*?\[/THINK\]")
+# 捕获思考标记内的内容（DOTALL 跨行），用于持久化到 metadata，供历史记录还原思考过程
+_THINK_CAPTURE = re.compile(r"\[THINK\](.*?)\[/THINK\]", re.DOTALL)
 
 
 def _strip_thinking_tags(text: str) -> str:
@@ -183,6 +185,7 @@ def create_agno_streaming_response(
     def agno_token_generator():
         storage_chunks: list[str] = []
         tool_events: list[dict[str, Any]] = []
+        thinking_chunks: list[str] = []
         pending_tool_chunk = ""
         try:
             use_direct_api = not (message.selected_tools or external_tools)
@@ -220,6 +223,7 @@ def create_agno_streaming_response(
                     delta = chunk.choices[0].delta
                     reasoning = getattr(delta, "reasoning_content", None)
                     if reasoning:
+                        thinking_chunks.append(reasoning)
                         if not in_thinking:
                             yield "[THINK]"
                             in_thinking = True
@@ -244,6 +248,9 @@ def create_agno_streaming_response(
                     cleaned, pending_tool_chunk, parsed_events = _strip_tool_events(
                         chunk, pending_tool_chunk
                     )
+                    # 在剥离 [THINK] 标记前捕获思考内容
+                    for match in _THINK_CAPTURE.finditer(cleaned):
+                        thinking_chunks.append(match.group(1))
                     cleaned = _strip_thinking_tags(cleaned)
                     if cleaned:
                         storage_chunks.append(cleaned)
@@ -251,9 +258,14 @@ def create_agno_streaming_response(
                         tool_events.extend(parsed_events)
 
             storage_content = "".join(storage_chunks).strip()
+            full_metadata: dict[str, object] = {}
+            if tool_events:
+                full_metadata["tool_events"] = tool_events
+            if thinking_chunks:
+                full_metadata["thinking_content"] = "".join(thinking_chunks)
             metadata = (
-                json.dumps({"tool_events": tool_events}, ensure_ascii=False)
-                if tool_events
+                json.dumps(full_metadata, ensure_ascii=False)
+                if full_metadata
                 else None
             )
 

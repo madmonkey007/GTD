@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	Check, Copy, Send, Square, Sparkles, MessageSquareText,
 	ChevronDown, ChevronUp, History, Plus,
@@ -204,40 +204,7 @@ function createId() {
 	return `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-// Parse [THINK]...[/THINK] markers from content
-// Handles both complete and unclosed (during streaming) markers
-function parseThinkingContent(content: string): Array<{ type: "text" | "think"; content: string }> {
-	const parts: Array<{ type: "text" | "think"; content: string }> = [];
-	const regex = /\[THINK\]([\s\S]*?)\[\/THINK\]/g;
-	let lastIndex = 0;
-	let match: RegExpExecArray | null;
-
-	while ((match = regex.exec(content)) !== null) {
-		// Text before the thinking block
-		if (match.index > lastIndex) {
-			parts.push({ type: "text", content: content.slice(lastIndex, match.index) });
-		}
-		// The thinking block
-		parts.push({ type: "think", content: match[1] });
-		lastIndex = regex.lastIndex;
-	}
-
-	// Handle remaining content — check for unclosed [THINK] (during streaming)
-	const remaining = content.slice(lastIndex);
-	if (remaining) {
-		const unclosedMatch = remaining.match(/\[THINK\]([\s\S]*)/);
-		if (unclosedMatch) {
-			if (unclosedMatch.index! > 0) {
-				parts.push({ type: "text", content: remaining.slice(0, unclosedMatch.index) });
-			}
-			parts.push({ type: "think", content: unclosedMatch[1] });
-		} else {
-			parts.push({ type: "text", content: remaining });
-		}
-	}
-
-	return parts;
-}
+// extractThinkingBlocks is defined below
 
 // ─── Empty state ───
 
@@ -297,12 +264,21 @@ function MarkdownContent({ text }: { text: string }) {
 	);
 }
 
-// ─── Thinking block ───
+// ─── Auto-collapse thinking block ───
 
-function ThinkingBlock({ content }: { content: string }) {
+function AutoCollapseThinkingBlock({ content }: { content: string }) {
+	const [open, setOpen] = useState(true);
+
+	useEffect(() => {
+		setOpen(true);
+		const timer = setTimeout(() => setOpen(false), 3000);
+		return () => clearTimeout(timer);
+	}, [content]);
+
 	return (
-		<details className="group mt-1.5" open>
+		<details className="group mt-1.5" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
 			<summary className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors select-none list-none [&::-webkit-details-marker]:hidden [&::marker]:hidden">
+				<span>思考过程</span>
 				<svg
 					className="w-3 h-3 transition-transform group-open:rotate-90"
 					viewBox="0 0 24 24"
@@ -314,7 +290,6 @@ function ThinkingBlock({ content }: { content: string }) {
 				>
 					<path d="m9 18 6-6-6-6" />
 				</svg>
-				<span>思考过程</span>
 			</summary>
 			<div className="mt-1.5 pl-4 text-xs leading-relaxed text-muted-foreground/70 italic border-l-2 border-muted-foreground/20 prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-p:leading-relaxed">
 				<ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
@@ -323,17 +298,164 @@ function ThinkingBlock({ content }: { content: string }) {
 	);
 }
 
+// ─── Execution process (thinking + tool calls merged chronologically) ───
+
+type MergedStep =
+	| { type: "thinking"; content: string; index: number; insertAt: number }
+	| { type: "tool"; step: ToolCallStep; index: number; insertAt: number };
+
+function ExecutionProcess({
+	mergedItems,
+	isStreaming,
+}: {
+	mergedItems: MergedStep[];
+	isStreaming: boolean;
+}) {
+	const [open, setOpen] = useState(false);
+	const [elapsed, setElapsed] = useState(0);
+	const startTimeRef = useRef<number | null>(null);
+
+	// Timer: count up every second while streaming
+	useEffect(() => {
+		if (isStreaming) {
+			if (!startTimeRef.current) {
+				startTimeRef.current = Date.now();
+			}
+			const interval = setInterval(() => {
+				setElapsed(Math.floor((Date.now() - startTimeRef.current!) / 1000));
+			}, 1000);
+			return () => {
+				clearInterval(interval);
+				if (startTimeRef.current) {
+					setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
+				}
+			};
+		}
+	}, [isStreaming]);
+
+	// Auto-open briefly when streaming ends, then close
+	useEffect(() => {
+		if (!isStreaming && startTimeRef.current !== null) {
+			setOpen(true);
+			const timer = setTimeout(() => setOpen(false), 3000);
+			return () => clearTimeout(timer);
+		}
+	}, [isStreaming]);
+
+	if (mergedItems.length === 0 && !isStreaming) return null;
+
+	const formatTime = (seconds: number) => {
+		const h = Math.floor(seconds / 3600);
+		const m = Math.floor((seconds % 3600) / 60);
+		const s = seconds % 60;
+		if (h > 0) return `${h}h${m}m${s}s`;
+		if (m > 0) return `${m}m${s}s`;
+		return `${s}s`;
+	};
+
+	return (
+		<>
+			<style>{`
+				@keyframes shimmerText {
+					0% { background-position: -200% center; }
+					100% { background-position: 200% center; }
+				}
+			`}</style>
+			<details className="mb-3" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+				<summary className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors select-none list-none [&::-webkit-details-marker]:hidden [&::marker]:hidden">
+					<span className="flex items-center gap-1.5">
+						{isStreaming ? (
+							<span
+								className="relative inline-block font-medium"
+								style={{
+									background: "linear-gradient(90deg, currentColor 0%, currentColor 30%, rgba(255,255,255,0.8) 50%, currentColor 70%, currentColor 100%)",
+									backgroundSize: "200% 100%",
+									WebkitBackgroundClip: "text",
+									WebkitTextFillColor: "transparent",
+									backgroundClip: "text",
+									animation: "shimmerText 3s linear infinite",
+								}}
+							>
+								思考中
+							</span>
+						) : (
+							<span>已处理</span>
+						)}
+						<span className="tabular-nums">{formatTime(elapsed)}</span>
+					</span>
+					<svg
+						className="w-3 h-3 transition-transform duration-200"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)" }}
+					>
+						<path d="m9 18 6-6-6-6" />
+					</svg>
+				</summary>
+				<div className="mt-2 pl-3 space-y-1">
+					{mergedItems.map((item, i) =>
+						item.type === "thinking" ? (
+							<AutoCollapseThinkingBlock key={`think-${i}`} content={item.content} />
+						) : (
+							<ToolCallStepChip key={item.step.id} step={item.step} />
+						),
+					)}
+				</div>
+			</details>
+		</>
+	);
+}
+
+// ─── Final response (cleaned text only) ───
+
+function FinalResponse({ content }: { content: string }) {
+	const cleaned = content
+		.replace(/\[THINK\][\s\S]*?\[\/THINK\]/g, "")
+		.replace(/\[THINK\][\s\S]*/g, "")
+		.trim();
+	if (!cleaned) return null;
+	return <MarkdownContent text={cleaned} />;
+}
+
+// Helper: extract thinking blocks from content (handles unclosed tags during streaming)
+function extractThinkingBlocks(content: string): string[] {
+	const blocks: string[] = [];
+	const regex = /\[THINK\]([\s\S]*?)\[\/THINK\]/g;
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+	while ((match = regex.exec(content)) !== null) {
+		blocks.push(match[1]);
+		lastIndex = regex.lastIndex;
+	}
+	const remaining = content.slice(lastIndex);
+	if (remaining) {
+		const unclosed = remaining.match(/\[THINK\]([\s\S]*)/);
+		if (unclosed) {
+			blocks.push(unclosed[1]);
+		}
+	}
+	return blocks;
+}
+
 // ─── Message actions ───
 
 function MessageActions({ content }: { content: string }) {
 	const [copied, setCopied] = useState(false);
+	const copyContent = content
+		.replace(/\[THINK\][\s\S]*?\[\/THINK\]/g, "")
+		.replace(/\[THINK\][\s\S]*/g, "")
+		.trim() || content;
 
 	const handleCopy = useCallback(() => {
-		navigator.clipboard.writeText(content).then(() => {
+		navigator.clipboard.writeText(copyContent).then(() => {
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
 		}).catch(() => {});
-	}, [content]);
+	}, [copyContent]);
 
 	return (
 		<motion.div
@@ -376,10 +498,9 @@ function ToolCallStepChip({ step }: { step: ToolCallStep }) {
 				className="flex items-center gap-2 w-full text-left px-2 py-1 rounded-md hover:bg-muted/50 transition-colors text-muted-foreground/70"
 			>
 				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 flex-shrink-0">
-					<path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-					<path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+					<path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75a4.5 4.5 0 0 1-4.884 4.484c-1.076-.091-2.264.071-2.95.904l-7.152 8.684a2.548 2.548 0 1 1-3.586-3.586l8.684-7.152c.833-.686.995-1.874.904-2.95a4.5 4.5 0 0 1 6.336-4.486l-3.276 3.276a3.004 3.004 0 0 0 2.25 2.25l3.276-3.276c.256.565.398 1.192.398 1.852Z" />
 				</svg>
-				<span className="text-xs flex-1 truncate">
+				<span className="text-xs truncate">
 					{step.toolName}
 					{step.status === "running" && (
 						<span className="ml-1.5 inline-flex items-center gap-1">
@@ -405,44 +526,33 @@ function ToolCallStepChip({ step }: { step: ToolCallStep }) {
 	);
 }
 
-// 把 assistant content 按「工具调用锚点」切成多段，工具 chip 内联在触发位置；
-// 每段内部再走 [THINK] 折叠解析。无锚点的步骤（兼容旧数据）追加到末尾。
-function AssistantBody({ content, steps }: { content: string; steps?: ToolCallStep[] }) {
-	const all = steps ?? [];
-	const anchored = all
-		.filter((s) => typeof s.insertAt === "number")
-		.slice()
-		.sort((a, b) => (a.insertAt! - b.insertAt!));
-	const unanchored = all.filter((s) => typeof s.insertAt !== "number");
-
-	const pieces: ReactNode[] = [];
-	let ki = 0;
-	const pushText = (text: string) => {
-		if (!text) return;
-		if (text.includes("[THINK]")) {
-			parseThinkingContent(text).forEach((part) => {
-				if (part.type === "think") {
-					pieces.push(<ThinkingBlock key={ki++} content={part.content} />);
-				} else if (part.content) {
-					pieces.push(<MarkdownContent key={ki++} text={part.content} />);
-				}
-			});
-		} else {
-			pieces.push(<MarkdownContent key={ki++} text={text} />);
-		}
-	};
-
-	let cursor = 0;
-	for (const s of anchored) {
-		const at = Math.max(0, Math.min(s.insertAt!, content.length));
-		pushText(content.slice(cursor, at));
-		pieces.push(<ToolCallStepChip key={ki++} step={s} />);
-		cursor = at;
-	}
-	pushText(content.slice(cursor));
-	unanchored.forEach((s) => pieces.push(<ToolCallStepChip key={ki++} step={s} />));
-
-	return <>{pieces}</>;
+// 把 assistant 内容拆分为「执行过程」和「最终回复」两个容器。
+// 执行过程包含思考过程 + 工具调用，按时间顺序合并展示。
+// 最终回复只展示纯文本（不含 [THINK] 标记）。
+function AssistantBody({ content, steps, isStreaming }: { content: string; steps?: ToolCallStep[]; isStreaming: boolean }) {
+	const thinkingBlocks = extractThinkingBlocks(content);
+	// 按时间顺序合并 thinking 和 tool steps
+	const mergedItems: MergedStep[] = [];
+	// 计算每个 thinking block 在 content 中的位置
+	let searchFrom = 0;
+	thinkingBlocks.forEach((block, i) => {
+		const pos = content.indexOf(`[THINK]`, searchFrom);
+		mergedItems.push({ type: "thinking", content: block, index: i, insertAt: pos >= 0 ? pos : Infinity });
+		searchFrom = pos + block.length + 14; // [THINK][/THINK] = 14 chars
+	});
+	(steps || []).forEach((step, i) => {
+		mergedItems.push({ type: "tool", step, index: i, insertAt: step.insertAt ?? Infinity });
+	});
+	mergedItems.sort((a, b) => a.insertAt - b.insertAt || a.index - b.index);
+	return (
+		<>
+			<ExecutionProcess
+				mergedItems={mergedItems}
+				isStreaming={isStreaming}
+			/>
+			<FinalResponse content={content} />
+		</>
+	);
 }
 function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: boolean }) {
 	const isUser = msg.role === "user";
@@ -487,7 +597,7 @@ function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: bo
 								<StreamingIndicator />
 							) : (msg.content || (msg.toolCallSteps && msg.toolCallSteps.length > 0)) ? (
 								<div className="text-[13px] [&_details+div]:mt-3 [&_details]:mb-3">
-									<AssistantBody content={msg.content} steps={msg.toolCallSteps} />
+									<AssistantBody content={msg.content} steps={msg.toolCallSteps} isStreaming={isStreaming} />
 								</div>
 							) : null}
 						</>
@@ -638,11 +748,59 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 	// 加载某个历史会话：替换当前消息，切换 conversationId 以便继续对话
 	useEffect(() => {
 		if (!viewingSessionId || !historyQuery.data) return;
-		const loaded: ChatMessage[] = historyQuery.data.map((item, i) => ({
-			id: `hist-${viewingSessionId}-${i}`,
-			role: item.role,
-			content: item.content,
-		}));
+		const loaded: ChatMessage[] = historyQuery.data.map((item, i) => {
+			const msg: ChatMessage = {
+				id: `hist-${viewingSessionId}-${i}`,
+				role: item.role,
+				content: item.content,
+			};
+
+			// 对 assistant 消息解析 extraData，还原工具调用步骤和思考过程
+			if (item.role === "assistant" && item.extraData) {
+				try {
+					const data = JSON.parse(item.extraData);
+
+					// 1) 还原思考过程：在正文前插入 [THINK] 标签
+					if (data.thinking_content) {
+						msg.content = `[THINK]${data.thinking_content}[/THINK]` + msg.content;
+					}
+
+					// 2) 还原工具调用步骤
+					if (Array.isArray(data.tool_events)) {
+						const steps: ToolCallStep[] = [];
+						const pending: Array<{ toolName: string; idx: number }> = [];
+						let stepIdx = 0;
+						for (const ev of data.tool_events) {
+							if (ev.type === "tool_call_start" && ev.tool_name) {
+								steps.push({
+									id: `hist-tc-${stepIdx}`,
+									toolName: ev.tool_name,
+									toolArgs: ev.tool_args,
+									status: "completed",
+									startTime: Date.now(),
+									endTime: Date.now(),
+								});
+								pending.push({ toolName: ev.tool_name, idx: stepIdx });
+								stepIdx++;
+							} else if (ev.type === "tool_call_end" && ev.tool_name) {
+								for (let j = pending.length - 1; j >= 0; j--) {
+									if (pending[j].toolName === ev.tool_name) {
+										steps[pending[j].idx] = { ...steps[pending[j].idx], resultPreview: ev.result_preview };
+										pending.splice(j, 1);
+										break;
+									}
+								}
+							}
+						}
+						msg.toolCallSteps = steps;
+					}
+				} catch {
+					// extraData 解析失败，回退到原始内容
+				}
+			}
+
+			return msg;
+		});
 		setMessages(loaded);
 		setConversationId(viewingSessionId);
 		setViewingSessionId(null);
@@ -794,7 +952,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 			{ id: aid, role: "assistant", content: "" },
 		]);
 		const prompt = noteCtx ? `${noteCtx}\n\n${text}` : text;
-		doStream(prompt, aid, CREATE_NOTE_SYSTEM_PROMPT, true);
+		doStream(prompt, aid, CREATE_NOTE_SYSTEM_PROMPT);
 		clearLinkedNotes();
 	}, [inputValue, isStreaming, doStream, clearLinkedNotes]);
 
