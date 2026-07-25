@@ -91,13 +91,19 @@ class TodoTools:
             )
 
             if todo_id:
-                return self._msg("create_success", id=todo_id, name=name)
+                msg = self._msg("create_success", id=todo_id, name=name)
+                self._record_write("todo", "create", True, id=todo_id, name=name, message=msg)
+                return msg
             else:
-                return self._msg("create_failed", error="Unknown error")
+                err = self._msg("create_failed", error="Unknown error")
+                self._record_write("todo", "create", False, message=err)
+                return err
 
         except Exception as e:
             logger.error(f"Failed to create todo: {e}")
-            return self._msg("create_failed", error=str(e))
+            err = self._msg("create_failed", error=str(e))
+            self._record_write("todo", "create", False, message=err)
+            return err
 
     def complete_todo(self, todo_id: int) -> str:
         """Mark a todo as completed
@@ -111,17 +117,25 @@ class TodoTools:
         try:
             todo = self.todo_repo.get_by_id(todo_id)
             if not todo:
-                return self._msg("complete_not_found", id=todo_id)
+                err = self._msg("complete_not_found", id=todo_id)
+                self._record_write("todo", "complete", False, id=todo_id, message=err)
+                return err
 
             success = self.todo_repo.update(todo_id, status="completed")
             if success:
-                return self._msg("complete_success", id=todo_id)
+                msg = self._msg("complete_success", id=todo_id)
+                self._record_write("todo", "complete", True, id=todo_id, name=todo.get("name") if isinstance(todo, dict) else None, message=msg)
+                return msg
             else:
-                return self._msg("complete_failed", error="Update failed")
+                err = self._msg("complete_failed", error="Update failed")
+                self._record_write("todo", "complete", False, id=todo_id, message=err)
+                return err
 
         except Exception as e:
             logger.error(f"Failed to complete todo: {e}")
-            return self._msg("complete_failed", error=str(e))
+            err = self._msg("complete_failed", error=str(e))
+            self._record_write("todo", "complete", False, id=todo_id, message=err)
+            return err
 
     def update_todo(  # noqa: PLR0913, C901
         self,
@@ -184,17 +198,25 @@ class TodoTools:
                 update_kwargs["priority"] = priority
 
             if not update_kwargs:
-                return self._msg("update_success", id=todo_id)
+                msg = self._msg("update_success", id=todo_id)
+                self._record_write("todo", "update", True, id=todo_id, message=msg)
+                return msg
 
             success = self.todo_repo.update(todo_id, **update_kwargs)
             if success:
-                return self._msg("update_success", id=todo_id)
+                msg = self._msg("update_success", id=todo_id)
+                self._record_write("todo", "update", True, id=todo_id, message=msg)
+                return msg
             else:
-                return self._msg("update_failed", error="Update failed")
+                err = self._msg("update_failed", error="Update failed")
+                self._record_write("todo", "update", False, id=todo_id, message=err)
+                return err
 
         except Exception as e:
             logger.error(f"Failed to update todo: {e}")
-            return self._msg("update_failed", error=str(e))
+            err = self._msg("update_failed", error=str(e))
+            self._record_write("todo", "update", False, id=todo_id, message=err)
+            return err
 
     def list_todos(self, status: str = "active", limit: int = 10) -> str:
         """List todos with optional status filter
@@ -307,14 +329,22 @@ class TodoTools:
         try:
             todo = self.todo_repo.get_by_id(todo_id)
             if not todo:
-                return self._msg("delete_not_found", id=todo_id)
+                err = self._msg("delete_not_found", id=todo_id)
+                self._record_write("todo", "delete", False, id=todo_id, message=err)
+                return err
 
             success = self.todo_repo.delete(todo_id)
             if success:
-                return self._msg("delete_success", id=todo_id)
+                msg = self._msg("delete_success", id=todo_id)
+                self._record_write("todo", "delete", True, id=todo_id, message=msg)
+                return msg
             else:
-                return self._msg("delete_failed", error="Delete failed")
+                err = self._msg("delete_failed", error="Delete failed")
+                self._record_write("todo", "delete", False, id=todo_id, message=err)
+                return err
 
         except Exception as e:
             logger.error(f"Failed to delete todo: {e}")
-            return self._msg("delete_failed", error=str(e))
+            err = self._msg("delete_failed", error=str(e))
+            self._record_write("todo", "delete", False, id=todo_id, message=err)
+            return err

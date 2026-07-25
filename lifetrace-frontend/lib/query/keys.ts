@@ -102,6 +102,19 @@ export const queryKeys = {
 		all: ["automationTasks"] as const,
 		list: () => ["automationTasks", "list"] as const,
 	},
+
+	/**
+	 * Habit 相关查询键
+	 */
+	habits: {
+		/** 所有 habit 相关查询的根键 */
+		all: ["habits"] as const,
+		/** habit 列表查询 */
+		list: (params?: { limit?: number; offset?: number; search?: string }) =>
+			["habits", "list", params] as const,
+		/** 所有打卡记录（聚合统计用） */
+		records: ["habits", "records"] as const,
+	},
 } as const;
 
 /**

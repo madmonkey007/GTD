@@ -19,7 +19,7 @@ import {
 	buildHierarchicalTodoContext,
 	buildTodoContextBlock,
 } from "@/apps/chat/utils/todoContext";
-import type { ToolCallEvent } from "@/lib/api";
+import type { FinalPayload, ToolCallEvent } from "@/lib/api";
 import { sendChatMessageStream } from "@/lib/api";
 import { queryKeys } from "@/lib/query/keys";
 import { useChatStore } from "@/lib/store/chat-store";
@@ -278,6 +278,13 @@ export const useSendMessage = ({
 								void queryClient.invalidateQueries({ queryKey: queryKeys.todos.all });
 							}
 						}
+					},
+					// onFinal 回调
+					(payload: FinalPayload) => {
+						if (abortController.signal.aborted) return;
+						setMessages((prev) => prev.map((msg) =>
+							msg.id === assistantMessageId ? { ...msg, finalReply: payload } : msg,
+						));
 					},
 				);
 

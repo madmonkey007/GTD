@@ -9,6 +9,8 @@ from fastapi.responses import StreamingResponse
 from openai import OpenAI
 
 from lifetrace.llm.agno_agent import (
+    FINAL_PREFIX,
+    FINAL_SUFFIX,
     TOOL_EVENT_PREFIX,
     TOOL_EVENT_SUFFIX,
     AgnoAgentService,
@@ -31,6 +33,22 @@ logger = get_logger()
 _THINK_PATTERN = re.compile(r"\[THINK\].*?\[/THINK\]")
 # 捕获思考标记内的内容（DOTALL 跨行），用于持久化到 metadata，供历史记录还原思考过程
 _THINK_CAPTURE = re.compile(r"\[THINK\](.*?)\[/THINK\]", re.DOTALL)
+# 最终回复标记：[FINAL:{json}]（出现在末尾），存储时剥离并把其 text 作为消息正文
+_FINAL_PATTERN = re.compile(r"\[FINAL:(\{.*\})\]\s*$", re.DOTALL)
+
+
+def _strip_final(text: str) -> tuple[str, str | None]:
+    """剥离 [FINAL:{json}] 标记，返回 (剩余文本, final_text 或 None)。"""
+    m = _FINAL_PATTERN.search(text)
+    if not m:
+        return text, None
+    try:
+        payload = json.loads(m.group(1))
+    except json.JSONDecodeError:
+        logger.warning("[stream][agno] [FINAL] JSON 解析失败")
+        return text, None
+    cleaned = (text[: m.start()] + text[m.end() :]).strip()
+    return cleaned, payload.get("text")
 
 
 def _strip_thinking_tags(text: str) -> str:
@@ -187,6 +205,7 @@ def create_agno_streaming_response(
         tool_events: list[dict[str, Any]] = []
         thinking_chunks: list[str] = []
         pending_tool_chunk = ""
+        final_text: str | None = None
         try:
             use_direct_api = not (message.selected_tools or external_tools)
             if use_direct_api:
@@ -252,17 +271,26 @@ def create_agno_streaming_response(
                     for match in _THINK_CAPTURE.finditer(cleaned):
                         thinking_chunks.append(match.group(1))
                     cleaned = _strip_thinking_tags(cleaned)
+                    # 剥离 [FINAL] 标记，捕获权威最终回复文本
+                    cleaned, ftext = _strip_final(cleaned)
+                    if ftext is not None:
+                        final_text = ftext
                     if cleaned:
                         storage_chunks.append(cleaned)
                     if parsed_events:
                         tool_events.extend(parsed_events)
 
             storage_content = "".join(storage_chunks).strip()
+            # 若后端注入了权威最终回复（写操作回执 / 终态正文），以其作为存储正文
+            if final_text is not None:
+                storage_content = final_text
             full_metadata: dict[str, object] = {}
             if tool_events:
                 full_metadata["tool_events"] = tool_events
             if thinking_chunks:
                 full_metadata["thinking_content"] = "".join(thinking_chunks)
+            if final_text is not None:
+                full_metadata["final_reply"] = final_text
             metadata = (
                 json.dumps(full_metadata, ensure_ascii=False)
                 if full_metadata

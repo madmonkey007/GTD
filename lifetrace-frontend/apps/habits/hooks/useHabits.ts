@@ -1,21 +1,19 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+	type Habit,
+	type HabitInput,
+	type HabitRecord,
+	migrateLocalHabitsIfNeeded,
+	useHabitMutations,
+	useHabitRecordsQuery,
+	useHabitsQuery,
+} from "@/lib/query/habits";
+import { queryKeys } from "@/lib/query/keys";
 
-const HABITS_STORAGE_KEY = "habits";
-const RECORDS_STORAGE_KEY = "habit-records";
-
-export interface Habit {
-	id: string;
-	name: string;
-	icon: string;
-	frequency: "daily" | "weekly" | "monthly";
-	goal: "complete" | "participate";
-	startDate: string;
-	persistenceDays: number;
-	group: "morning" | "afternoon" | "evening" | "allDay";
-	createdAt: string;
-}
+export type { Habit, HabitRecord, HabitInput };
 
 const DEFAULT_ICON = "✅";
 
@@ -28,35 +26,6 @@ const DEFAULT_HABIT_ICONS = [
 	"🎮", "📷", "🌍", "🧭", "🔥",
 ];
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null;
-}
-
-function migrateHabit(habit: unknown): Habit {
-	const id = isRecord(habit) && typeof habit.id === "string" ? habit.id : generateId();
-	const name = isRecord(habit) && typeof habit.name === "string" ? habit.name : "";
-	return {
-		id,
-		name,
-		icon: isRecord(habit) && typeof habit.icon === "string" ? habit.icon : DEFAULT_ICON,
-		frequency: isRecord(habit) && typeof habit.frequency === "string" ? (habit.frequency as Habit["frequency"]) : "daily",
-		goal: isRecord(habit) && typeof habit.goal === "string" ? (habit.goal as Habit["goal"]) : "complete",
-		startDate: isRecord(habit) && typeof habit.startDate === "string" ? habit.startDate : new Date().toISOString().slice(0, 10),
-		persistenceDays: isRecord(habit) && typeof habit.persistenceDays === "number" ? habit.persistenceDays : 0,
-		group: isRecord(habit) && typeof habit.group === "string" ? (habit.group as Habit["group"]) : "allDay",
-		createdAt: isRecord(habit) && typeof habit.createdAt === "string" ? habit.createdAt : new Date().toISOString(),
-	};
-}
-
-export interface HabitRecord {
-	habitId: string;
-	date: string; // YYYY-MM-DD
-}
-
-function generateId(): string {
-	return "hbt_" + Math.random().toString(36).slice(2, 9);
-}
-
 function toDateKey(date: Date): string {
 	const y = date.getFullYear();
 	const m = `${date.getMonth() + 1}`.padStart(2, "0");
@@ -68,147 +37,88 @@ function getTodayKey(): string {
 	return toDateKey(new Date());
 }
 
-// --- Habits store ---
-function getHabits(): Habit[] {
-	try {
-		const raw = localStorage.getItem(HABITS_STORAGE_KEY);
-		if (raw) {
-			const parsed = JSON.parse(raw);
-			if (Array.isArray(parsed)) {
-				return parsed.map(migrateHabit);
-			}
-		}
-	} catch {
-		// ignore
-	}
-	return [];
-}
-
-function setHabits(habits: Habit[]): void {
-	localStorage.setItem(HABITS_STORAGE_KEY, JSON.stringify(habits));
-}
-
-// --- Records store ---
-function getRecords(): HabitRecord[] {
-	try {
-		const raw = localStorage.getItem(RECORDS_STORAGE_KEY);
-		if (raw) return JSON.parse(raw) as HabitRecord[];
-	} catch {
-		// ignore
-	}
-	return [];
-}
-
-function setRecords(records: HabitRecord[]): void {
-	localStorage.setItem(RECORDS_STORAGE_KEY, JSON.stringify(records));
-}
-
-// --- Snapshot caching for useSyncExternalStore ---
-let cachedHabits: Habit[] = [];
-let cachedRecords: HabitRecord[] = [];
-
-function rebuildHabitsSnapshot(): void {
-	cachedHabits = getHabits();
-}
-
-function rebuildRecordsSnapshot(): void {
-	cachedRecords = getRecords();
-}
-
-function getHabitsSnapshot(): Habit[] {
-	return cachedHabits;
-}
-
-function getRecordsSnapshot(): HabitRecord[] {
-	return cachedRecords;
-}
-
-rebuildHabitsSnapshot();
-rebuildRecordsSnapshot();
-
-const listeners = new Set<() => void>();
-
-function subscribe(callback: () => void): () => void {
-	listeners.add(callback);
-	return () => listeners.delete(callback);
-}
-
-function notify(): void {
-	rebuildHabitsSnapshot();
-	rebuildRecordsSnapshot();
-	for (const cb of listeners) cb();
-}
-
+/**
+ * 习惯 hook —— 现已由服务器（/api/habits）支撑，对外接口保持不变。
+ * 内部把服务器 int id 映射为 string（见 lib/query/habits.ts），旧调用方无需改动。
+ * 首次挂载时若本地有旧 localStorage 数据，会一次性迁移到服务器。
+ */
 export function useHabits() {
-	const habits = useSyncExternalStore(subscribe, getHabitsSnapshot);
-	const records = useSyncExternalStore(subscribe, getRecordsSnapshot);
+	const queryClient = useQueryClient();
+	const habitsQuery = useHabitsQuery();
+	const recordsQuery = useHabitRecordsQuery();
+	const mutations = useHabitMutations();
 
-	const addHabit = useCallback((name: string, extra?: {
-		icon?: string;
-		frequency?: Habit["frequency"];
-		goal?: Habit["goal"];
-		startDate?: string;
-		persistenceDays?: number;
-		group?: Habit["group"];
-	}) => {
-		const habit: Habit = {
-			id: generateId(),
-			name,
-			icon: extra?.icon ?? DEFAULT_ICON,
-			frequency: extra?.frequency ?? "daily",
-			goal: extra?.goal ?? "complete",
-			startDate: extra?.startDate ?? new Date().toISOString().slice(0, 10),
-			persistenceDays: extra?.persistenceDays ?? 0,
-			group: extra?.group ?? "allDay",
-			createdAt: new Date().toISOString(),
+	// 一次性迁移本地旧数据，完成后刷新查询
+	useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			const did = await migrateLocalHabitsIfNeeded();
+			if (did && !cancelled) {
+				queryClient.invalidateQueries({ queryKey: queryKeys.habits.all });
+			}
+		})();
+		return () => {
+			cancelled = true;
 		};
-		const list = getHabits();
-		list.unshift(habit);
-		setHabits(list);
-		notify();
-	}, []);
+	}, [queryClient]);
 
-	const removeHabit = useCallback((id: string) => {
-		const list = getHabits();
-		setHabits(list.filter(h => h.id !== id));
-		// NOT removing records here — they stay until trash is emptied
-		notify();
-	}, []);
+	const habits = habitsQuery.data ?? [];
+	const records = recordsQuery.data ?? [];
 
-	const renameHabit = useCallback((id: string, name: string) => {
-		const list = getHabits().map((h) => (h.id === id ? { ...h, name } : h));
-		setHabits(list);
-		notify();
-	}, []);
+	const addHabit = useCallback(
+		(name: string, extra?: {
+			icon?: string;
+			frequency?: Habit["frequency"];
+			goal?: Habit["goal"];
+			startDate?: string;
+			persistenceDays?: number;
+			group?: Habit["group"];
+		}) => {
+			void mutations.createHabit({
+				name,
+				icon: extra?.icon,
+				frequency: extra?.frequency,
+				goal: extra?.goal,
+				startDate: extra?.startDate ?? getTodayKey(),
+				persistenceDays: extra?.persistenceDays,
+				group: extra?.group,
+			});
+		},
+		[mutations],
+	);
 
-	// --- Check-in / Check-out ---
-	const toggleRecord = useCallback((habitId: string, date?: string) => {
-		const dateKey = date ?? getTodayKey();
-		const recs = getRecords();
-		const existing = recs.find(
-			(r) => r.habitId === habitId && r.date === dateKey,
-		);
-		if (existing) {
-			setRecords(recs.filter((r) => r !== existing));
-		} else {
-			setRecords([...recs, { habitId, date: dateKey }]);
-		}
-		notify();
-	}, []);
+	const removeHabit = useCallback(
+		(id: string) => {
+			void mutations.deleteHabit(id);
+		},
+		[mutations],
+	);
+
+	const renameHabit = useCallback(
+		(id: string, name: string) => {
+			void mutations.updateHabit(id, { name });
+		},
+		[mutations],
+	);
+
+	const toggleRecord = useCallback(
+		(habitId: string, date?: string) => {
+			void mutations.toggleHabitRecord(habitId, date);
+		},
+		[mutations],
+	);
 
 	const isChecked = useCallback(
 		(habitId: string, date?: string): boolean => {
 			const dateKey = date ?? getTodayKey();
-			return cachedRecords.some(
-				(r) => r.habitId === habitId && r.date === dateKey,
-			);
+			return records.some((r) => r.habitId === habitId && r.date === dateKey);
 		},
-		[],
+		[records],
 	);
 
 	return {
-		habits: habits as Habit[],
-		records: records as HabitRecord[],
+		habits,
+		records,
 		addHabit,
 		removeHabit,
 		renameHabit,

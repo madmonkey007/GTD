@@ -324,6 +324,42 @@ class JournalNoteRelation(SQLModel, table=True):
         )
 
 
+class Habit(TimestampMixin, table=True):
+    """习惯模型"""
+
+    __tablename__: ClassVar[str] = "habits"
+
+    id: int | None = Field(default=None, primary_key=True)
+    uid: str = Field(
+        default_factory=lambda: str(uuid4()), max_length=64, index=True
+    )  # 唯一标识
+    name: str = Field(max_length=200)  # 习惯名称
+    icon: str = Field(default="✅", max_length=32)  # 图标（emoji）
+    frequency: str = Field(default="daily", max_length=20)  # daily/weekly/monthly
+    goal: str = Field(default="complete", max_length=20)  # complete/participate
+    start_date: datetime | None = None  # 开始日期
+    persistence_days: int = Field(default=0)  # 目标坚持天数
+    group: str = Field(default="allDay", max_length=20)  # morning/afternoon/evening/allDay
+
+    def __repr__(self):
+        return f"<Habit(id={self.id}, name={self.name}, frequency={self.frequency})>"
+
+
+class HabitRecord(SQLModel, table=True):
+    """习惯打卡记录"""
+
+    __tablename__: ClassVar[str] = "habit_records"
+
+    id: int | None = Field(default=None, primary_key=True)
+    habit_id: int = Field(index=True)  # 关联的习惯ID
+    record_date: datetime = Field(index=True)  # 打卡日期（归一到当天 00:00）
+    created_at: datetime = Field(default_factory=get_utc_time)
+    deleted_at: datetime | None = None
+
+    def __repr__(self):
+        return f"<HabitRecord(id={self.id}, habit_id={self.habit_id}, date={self.record_date})>"
+
+
 class Chat(TimestampMixin, table=True):
     """聊天会话模型"""
 

@@ -43,9 +43,26 @@ export interface ToolCallEvent {
 	result_preview?: string;
 }
 
+/**
+ * 最终回复载荷（来自后端注入的 [FINAL:{json}]）
+ * - source: "tool_result"（写操作回执）/ "model_content"（终态正文）/ "error"（空回复兜底）
+ * - text: 权威最终回复文本
+ */
+export interface FinalPayload {
+	source: "tool_result" | "model_content" | "error";
+	text: string;
+}
+
 // 工具调用事件标记（与后端保持一致）
 const TOOL_EVENT_PREFIX = "\n[TOOL_EVENT:";
 const TOOL_EVENT_SUFFIX = "]\n";
+
+// 最终回复标记（与后端 lifetrace/llm/agno_agent.py 保持一致）
+const FINAL_PREFIX = "\n[FINAL:";
+const FINAL_SUFFIX = "]\n";
+
+// 所有需要被剥离的内联标记前缀（用于跨 chunk 的不完整前缀兜底）
+const STRIP_PREFIXES = [TOOL_EVENT_PREFIX, FINAL_PREFIX];
 
 /**
  * 解析流式响应中的工具调用事件
@@ -88,6 +105,53 @@ function parseToolEvents(chunk: string): [ToolCallEvent[], string] {
 }
 
 /**
+ * 解析流式响应中的最终回复标记 [FINAL:{json}]
+ * 返回 [剩余纯内容, final 载荷（仅当存在完整标记时）]
+ */
+function parseFinal(content: string): [string, FinalPayload | null] {
+	const idx = content.indexOf(FINAL_PREFIX);
+	if (idx === -1) return [content, null];
+	const endIdx = content.indexOf(FINAL_SUFFIX, idx + FINAL_PREFIX.length);
+	if (endIdx === -1) {
+		// 标记不完整，截断等待下次（调用方会处理 pending）
+		return [content.slice(0, idx), null];
+	}
+	const jsonStr = content.slice(idx + FINAL_PREFIX.length, endIdx);
+	let payload: FinalPayload | null = null;
+	try {
+		const parsed = JSON.parse(jsonStr);
+		if (parsed && typeof parsed.text === "string") {
+			payload = {
+				source: (parsed.source as FinalPayload["source"]) ?? "model_content",
+				text: parsed.text,
+			};
+		}
+	} catch (e) {
+		console.error("[parseFinal] Failed to parse:", jsonStr, e);
+	}
+	const cleaned = (content.slice(0, idx) + content.slice(endIdx + FINAL_SUFFIX.length));
+	return [cleaned, payload];
+}
+
+/**
+ * 检测 content 尾部是否是某个待剥离标记（TOOL_EVENT / FINAL）的不完整前缀，
+ * 返回需要暂存为 pending 的尾部串（无则为空串）。
+ */
+function matchPartialStripPrefix(content: string): string {
+	const maxLen = Math.min(
+		Math.max(TOOL_EVENT_PREFIX.length, FINAL_PREFIX.length) - 1,
+		content.length,
+	);
+	for (let length = maxLen; length > 0; length--) {
+		const tail = content.slice(-length);
+		if (STRIP_PREFIXES.some((p) => p.startsWith(tail))) {
+			return tail;
+		}
+	}
+	return "";
+}
+
+/**
  * 发送聊天消息并以流式方式接收回复
  * @param params - 聊天参数
  * @param onChunk - 内容块回调
@@ -103,6 +167,7 @@ export async function sendChatMessageStream(
 	signal?: AbortSignal,
 	locale?: string,
 	onToolEvent?: (event: ToolCallEvent) => void,
+	onFinal?: (payload: FinalPayload) => void,
 ): Promise<void> {
 	// 流式请求直接调用后端 API，绕过 Next.js 代理
 	const baseUrl = getStreamApiBaseUrl();
@@ -190,30 +255,53 @@ export async function sendChatMessageStream(
 					// 将待处理的部分与新数据合并
 					const fullChunk = pendingChunk + rawChunk;
 
-					// 解析工具调用事件
-					const [events, content] = parseToolEvents(fullChunk);
-
-					// 触发工具调用事件回调
+					// 1) 解析工具调用事件（完整标记）
+					const [events, afterTool] = parseToolEvents(fullChunk);
 					if (onToolEvent) {
 						for (const event of events) {
 							onToolEvent(event);
 						}
 					}
 
-					// 检查是否有不完整的事件标记
-					const incompleteEventIdx = content.indexOf(TOOL_EVENT_PREFIX);
-					if (incompleteEventIdx !== -1) {
-						// 有不完整的事件标记，保存到下次处理
-						pendingChunk = content.substring(incompleteEventIdx);
-						const completeContent = content.substring(0, incompleteEventIdx);
+					// 2) 解析最终回复标记（完整标记）
+					const [afterFinal, finalPayload] = parseFinal(afterTool);
+					if (finalPayload && onFinal) {
+						onFinal(finalPayload);
+					}
+
+					// 3) 处理尾部不完整的标记前缀（TOOL_EVENT / FINAL），暂存到 pending
+					const incompleteTool = afterFinal.indexOf(TOOL_EVENT_PREFIX);
+					const incompleteFinal = afterFinal.indexOf(FINAL_PREFIX);
+					let pendingStart = -1;
+					if (incompleteTool !== -1 && incompleteFinal !== -1) {
+						pendingStart = Math.min(incompleteTool, incompleteFinal);
+					} else if (incompleteTool !== -1) {
+						pendingStart = incompleteTool;
+					} else if (incompleteFinal !== -1) {
+						pendingStart = incompleteFinal;
+					}
+
+					if (pendingStart !== -1) {
+						// 存在未闭合的标记，暂存尾部
+						pendingChunk = afterFinal.slice(pendingStart);
+						const completeContent = afterFinal.slice(0, pendingStart);
 						if (completeContent) {
 							onChunk(completeContent);
 						}
 					} else {
-						// 没有不完整的事件标记
-						pendingChunk = "";
-						if (content) {
-							onChunk(content);
+						// 检查尾部是否是某个标记的不完整前缀（跨 chunk 边界）
+						const partial = matchPartialStripPrefix(afterFinal);
+						if (partial) {
+							pendingChunk = partial;
+							const completeContent = afterFinal.slice(0, afterFinal.length - partial.length);
+							if (completeContent) {
+								onChunk(completeContent);
+							}
+						} else {
+							pendingChunk = "";
+							if (afterFinal) {
+								onChunk(afterFinal);
+							}
 						}
 					}
 				}

@@ -284,6 +284,49 @@ async def get_available_agno_tools():
                 "description": "基于笔记内容建议标签（仅建议，需 update_note 应用）",
                 "description_en": "Suggest tags based on note content (suggestion only; apply via update_note)",
             },
+            # ---- 习惯管理 ----
+            {
+                "name": "create_habit",
+                "category": "habit",
+                "description": "创建新习惯（名称、频率 daily/weekly/monthly、图标、时段）",
+                "description_en": "Create a new habit (name, frequency daily/weekly/monthly, icon, time group)",
+            },
+            {
+                "name": "update_habit",
+                "category": "habit",
+                "description": "更新已有习惯（仅传入要改的字段）",
+                "description_en": "Update an existing habit (only provided fields)",
+            },
+            {
+                "name": "delete_habit",
+                "category": "habit",
+                "description": "按 id 删除习惯",
+                "description_en": "Delete a habit by id",
+            },
+            {
+                "name": "list_habits",
+                "category": "habit",
+                "description": "列出已有习惯（最新优先）",
+                "description_en": "List existing habits (newest first)",
+            },
+            {
+                "name": "search_habits",
+                "category": "habit",
+                "description": "按名称关键词搜索习惯",
+                "description_en": "Search habits by name keyword",
+            },
+            {
+                "name": "toggle_habit_record",
+                "category": "habit",
+                "description": "习惯打卡/签到（幂等切换：已打卡则取消），date 默认今天",
+                "description_en": "Check in a habit (idempotent toggle); date defaults to today",
+            },
+            {
+                "name": "list_habit_records",
+                "category": "habit",
+                "description": "查看某习惯的打卡记录",
+                "description_en": "List check-in records for a habit",
+            },
         ]
 
         # 外部工具列表

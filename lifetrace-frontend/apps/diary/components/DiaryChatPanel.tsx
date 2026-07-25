@@ -302,14 +302,17 @@ function AutoCollapseThinkingBlock({ content }: { content: string }) {
 
 type MergedStep =
 	| { type: "thinking"; content: string; index: number; insertAt: number }
-	| { type: "tool"; step: ToolCallStep; index: number; insertAt: number };
+	| { type: "tool"; step: ToolCallStep; index: number; insertAt: number }
+	| { type: "text"; content: string; index: number; insertAt: number };
 
 function ExecutionProcess({
 	mergedItems,
 	isStreaming,
+	firstThinkingEnded,
 }: {
 	mergedItems: MergedStep[];
 	isStreaming: boolean;
+	firstThinkingEnded: boolean;
 }) {
 	const [open, setOpen] = useState(false);
 	const [elapsed, setElapsed] = useState(0);
@@ -364,7 +367,7 @@ function ExecutionProcess({
 			<details className="mb-3" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
 				<summary className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors select-none list-none [&::-webkit-details-marker]:hidden [&::marker]:hidden">
 					<span className="flex items-center gap-1.5">
-						{isStreaming ? (
+						{isStreaming && !firstThinkingEnded ? (
 							<span
 								className="relative inline-block font-medium"
 								style={{
@@ -396,51 +399,40 @@ function ExecutionProcess({
 						<path d="m9 18 6-6-6-6" />
 					</svg>
 				</summary>
-				<div className="mt-2 pl-3 space-y-1">
-					{mergedItems.map((item, i) =>
-						item.type === "thinking" ? (
-							<AutoCollapseThinkingBlock key={`think-${i}`} content={item.content} />
-						) : (
-							<ToolCallStepChip key={item.step.id} step={item.step} />
-						),
-					)}
+				<div className="mt-2 space-y-1">
+					{mergedItems.map((item, i) => {
+						if (item.type === "thinking") {
+							return <AutoCollapseThinkingBlock key={`think-${i}`} content={item.content} />;
+						}
+						if (item.type === "text") {
+							return (
+								<div
+									key={`text-${i}`}
+									className="py-0.5 text-xs leading-relaxed text-muted-foreground/80 whitespace-pre-wrap break-words"
+								>
+									{item.content}
+								</div>
+							);
+						}
+						return <ToolCallStepChip key={item.step.id} step={item.step} />;
+					})}
 				</div>
 			</details>
 		</>
 	);
 }
 
-// ─── Final response (cleaned text only) ───
+// ─── Final response (authoritative final reply only) ───
 
-function FinalResponse({ content }: { content: string }) {
-	const cleaned = content
-		.replace(/\[THINK\][\s\S]*?\[\/THINK\]/g, "")
-		.replace(/\[THINK\][\s\S]*/g, "")
-		.trim();
-	if (!cleaned) return null;
-	return <MarkdownContent text={cleaned} />;
+function FinalResponse({ text, isStreaming }: { text: string; isStreaming: boolean }) {
+	// 流式中且尚无最终回复时不渲染（避免把中间正文误当最终回复）
+	if (!text.trim()) return null;
+	const showStreaming = isStreaming && !text.trim();
+	if (showStreaming) return null;
+	return <MarkdownContent text={text} />;
 }
 
 // Helper: extract thinking blocks from content (handles unclosed tags during streaming)
-function extractThinkingBlocks(content: string): string[] {
-	const blocks: string[] = [];
-	const regex = /\[THINK\]([\s\S]*?)\[\/THINK\]/g;
-	let lastIndex = 0;
-	let match: RegExpExecArray | null;
-	while ((match = regex.exec(content)) !== null) {
-		blocks.push(match[1]);
-		lastIndex = regex.lastIndex;
-	}
-	const remaining = content.slice(lastIndex);
-	if (remaining) {
-		const unclosed = remaining.match(/\[THINK\]([\s\S]*)/);
-		if (unclosed) {
-			blocks.push(unclosed[1]);
-		}
-	}
-	return blocks;
-}
-
 // ─── Message actions ───
 
 function MessageActions({ content }: { content: string }) {
@@ -527,30 +519,62 @@ function ToolCallStepChip({ step }: { step: ToolCallStep }) {
 }
 
 // 把 assistant 内容拆分为「执行过程」和「最终回复」两个容器。
-// 执行过程包含思考过程 + 工具调用，按时间顺序合并展示。
-// 最终回复只展示纯文本（不含 [THINK] 标记）。
-function AssistantBody({ content, steps, isStreaming }: { content: string; steps?: ToolCallStep[]; isStreaming: boolean }) {
-	const thinkingBlocks = extractThinkingBlocks(content);
-	// 按时间顺序合并 thinking 和 tool steps
-	const mergedItems: MergedStep[] = [];
-	// 计算每个 thinking block 在 content 中的位置
-	let searchFrom = 0;
-	thinkingBlocks.forEach((block, i) => {
-		const pos = content.indexOf(`[THINK]`, searchFrom);
-		mergedItems.push({ type: "thinking", content: block, index: i, insertAt: pos >= 0 ? pos : Infinity });
-		searchFrom = pos + block.length + 14; // [THINK][/THINK] = 14 chars
+// 执行过程 = 思考块 + 工具调用 + 工具之间的中间正文（content 中的非思考文本）。
+// 最终回复 = 后端注入的 [FINAL]（msg.finalReply）；无则回退到 content 的纯文本（无工具对话场景）。
+function AssistantBody({ content, steps, finalReply, isStreaming }: { content: string; steps?: ToolCallStep[]; finalReply?: { source: string; text: string }; isStreaming: boolean }) {
+	// 第一个思考是否已结束：存在已闭合的 [THINK]...[/THINK]、已出现工具调用，或已收到最终回复。
+	const closedThinkingCount = (content.match(/\[THINK\][\s\S]*?\[\/THINK\]/g) || []).length;
+	const firstThinkingEnded = closedThinkingCount > 0 || !!(steps && steps.length > 0) || !!finalReply;
+
+	const stripThink = (s: string) =>
+		s.replace(/\[THINK\][\s\S]*?\[\/THINK\]/g, "").replace(/\[THINK\][\s\S]*/g, "").trim();
+
+	// 用锚点（思考块 / 工具点）把 content 切成有序片段，构造执行过程时间线。
+	type Item = { kind: "think" | "tool" | "text"; start: number; thinkContent?: string; step?: ToolCallStep; text?: string };
+	const items: Item[] = [];
+
+	const thinkRe = /\[THINK\]([\s\S]*?)(\[\/THINK\]|$)/g;
+	let tm: RegExpExecArray | null;
+	let thinkEnd = 0;
+	while ((tm = thinkRe.exec(content)) !== null) {
+		// 思考块之前的正文 → 中间正文
+		if (tm.index > thinkEnd) {
+			const seg = stripThink(content.slice(thinkEnd, tm.index));
+			if (seg) items.push({ kind: "text", start: thinkEnd, text: seg });
+		}
+		items.push({ kind: "think", start: tm.index, thinkContent: tm[1] });
+		thinkEnd = tm.index + tm[0].length;
+		if (tm[2] !== "[/THINK]") break; // 未闭合的流式尾巴
+	}
+	// 末尾正文（最后一次工具调用之后的中间正文；最终回复本身由 [FINAL] 承载，不在 content 里）
+	const tailText = stripThink(content.slice(thinkEnd));
+	if (tailText) items.push({ kind: "text", start: thinkEnd, text: tailText });
+
+	// 工具调用按 insertAt 插入时间线
+	(steps || []).forEach((step) => {
+		if (typeof step.insertAt === "number") {
+			items.push({ kind: "tool", start: step.insertAt, step });
+		}
 	});
-	(steps || []).forEach((step, i) => {
-		mergedItems.push({ type: "tool", step, index: i, insertAt: step.insertAt ?? Infinity });
+	items.sort((a, b) => a.start - b.start);
+
+	const mergedItems: MergedStep[] = items.map((it, i) => {
+		if (it.kind === "think") return { type: "thinking", content: it.thinkContent ?? "", index: i, insertAt: it.start };
+		if (it.kind === "tool" && it.step) return { type: "tool", step: it.step, index: i, insertAt: it.start };
+		return { type: "text", content: it.text ?? "", index: i, insertAt: it.start };
 	});
-	mergedItems.sort((a, b) => a.insertAt - b.insertAt || a.index - b.index);
+
+	// 最终回复文本：优先用后端注入的 [FINAL]；无则回退到 content 纯文本（无工具对话）
+	const finalText = finalReply?.text ?? (isStreaming ? "" : stripThink(content));
+
 	return (
 		<>
 			<ExecutionProcess
 				mergedItems={mergedItems}
 				isStreaming={isStreaming}
+				firstThinkingEnded={firstThinkingEnded}
 			/>
-			<FinalResponse content={content} />
+			<FinalResponse text={finalText} isStreaming={isStreaming} />
 		</>
 	);
 }
@@ -597,13 +621,13 @@ function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: bo
 								<StreamingIndicator />
 							) : (msg.content || (msg.toolCallSteps && msg.toolCallSteps.length > 0)) ? (
 								<div className="text-[13px] [&_details+div]:mt-3 [&_details]:mb-3">
-									<AssistantBody content={msg.content} steps={msg.toolCallSteps} isStreaming={isStreaming} />
+									<AssistantBody content={msg.content} steps={msg.toolCallSteps} finalReply={msg.finalReply} isStreaming={isStreaming} />
 								</div>
 							) : null}
 						</>
 					)}
 				</div>
-				{!isUser && msg.content && <MessageActions content={msg.content} />}
+				{!isUser && (msg.content || msg.finalReply) && <MessageActions content={msg.finalReply?.text ?? msg.content} />}
 			</div>
 		</motion.div>
 	);
@@ -794,6 +818,14 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 						}
 						msg.toolCallSteps = steps;
 					}
+
+					// [FINAL] 模式：存储的正文 = 最终回复；content 只保留思考块（用于执行过程）
+					msg.finalReply = { source: "stored", text: item.content };
+					if (!data.thinking_content) {
+						msg.content = "";
+					} else {
+						msg.content = `[THINK]${data.thinking_content}[/THINK]`;
+					}
 				} catch {
 					// extraData 解析失败，回退到原始内容
 				}
@@ -893,6 +925,10 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 							if (idMatch) onNoteMutated?.(Number(idMatch[1]));
 						}
 					}
+				},
+				// onFinal：后端注入的权威最终回复（写操作回执 / 终态正文）
+				(payload) => {
+					setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, finalReply: payload } : m));
 				},
 			);
 		} catch (err) {

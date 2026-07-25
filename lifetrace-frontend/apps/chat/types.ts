@@ -36,6 +36,8 @@ export type ChatMessage = {
 	content: string;
 	/** 工具调用步骤（仅 assistant 消息可能有） */
 	toolCallSteps?: ToolCallStep[];
+	/** 权威最终回复（来自后端 [FINAL]；仅 assistant 工具流可能有）；history 重载时为 "stored" */
+	finalReply?: { source: "tool_result" | "model_content" | "error" | "stored"; text: string };
 	/** 用户消息附带的笔记卡片（仅 user 消息可能有） */
 	attachedNotes?: { id: number; name: string; preview: string; date: string }[];
 };

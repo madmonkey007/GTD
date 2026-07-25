@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, BookOpen, BrainCircuit, CalendarDays, Heart, LayoutGrid, ListTodo, Timer, Settings } from "lucide-react";
+import { Award, BookOpen, BrainCircuit, CalendarDays, Command, Heart, LayoutGrid, ListTodo, Timer, Settings } from "lucide-react";
 import Image from "next/image";
 import { useOpenSettings } from "@/lib/hooks/useOpenSettings";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -11,6 +11,7 @@ import { AchievementsPanel } from "@/apps/achievements/AchievementsPanel";
 import { ZeroThinkPanel } from "@/apps/zero-think";
 import { PomodoroView } from "@/apps/pomodoro/PomodoroView";
 import { QuadrantsView } from "@/apps/quadrants/QuadrantsView";
+import { QuickCommandPanel } from "@/apps/quick-command/QuickCommandPanel";
 import { useWindowAdaptivePanels } from "@/lib/hooks/useWindowAdaptivePanels";
 import { useUiStore } from "@/lib/store/ui-store";
 import type { SidebarView } from "@/lib/store/ui-store/types";
@@ -53,6 +54,7 @@ const SIDEBAR_NAV_ITEMS: {
 	{ id: "diary", label: "笔记", icon: BookOpen },
 	{ id: "achievements", label: "成就", icon: Award },
 	{ id: "zeroThink", label: "零秒思考", icon: BrainCircuit },
+	{ id: "quickCommand", label: "智能指令", icon: Command },
 ];
 
 function SidebarNav() {
@@ -465,6 +467,7 @@ export function PanelRegion({
 							{activeView === "diary" && <DiaryPanel />}
 							{activeView === "achievements" && <AchievementsPanel />}
 							{activeView === "zeroThink" && <ZeroThinkPanel setActiveView={(view: string) => setActiveView(view as SidebarView)} />}
+							{activeView === "quickCommand" && <QuickCommandPanel />}
 						</div>
 					)}
 				</div>

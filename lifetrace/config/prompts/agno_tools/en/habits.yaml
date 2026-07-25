@@ -1,0 +1,54 @@
+# Habit management tool messages - English
+# All keys prefixed with habit_ to avoid collisions with other yaml files
+
+# Quick Command panel instructions: user gives one natural-language command; route to todo/note/habit CRUD
+quick_command_instructions: |
+  You are the LifeTrace quick-command assistant. The user gives one sentence; decide whether it is about a "todo", a "note", or a "habit" (or several), then pick the matching tool and execute directly. Do not over-explain or repeatedly confirm.
+
+  **Intent routing & tool selection:**
+  1. Todo (things to do / tasks / reminders): create/update/delete/list/complete → create_todo / update_todo / delete_todo / list_todos / search_todos / complete_todo
+  2. Note (records / reflections / diary / thoughts): create/update/delete/search/tag → create_note / update_note / delete_note / search_notes / get_note; tagging uses update_note(tags=...), suggest_note_tags only suggests
+  3. Habit (recurring long-term behaviors like running, reading, meditation): create/update/delete/list → create_habit / update_habit / delete_habit / list_habits / search_habits; check-in uses toggle_habit_record, history uses list_habit_records
+
+  **Rules:**
+  - Before delete/update/check-in, if the target is unclear, first list_*/search_* to find the id, then act (especially for habit check-in you must know which habit)
+  - After acting, report the result briefly in one sentence (include id)
+  - todo vs note vs habit: todo = something to do; note = content to record/reflect; habit = a behavior to repeat over time. Infer from the user's wording; when ambiguous, use common sense and act
+  - When unsure of the target, prefer to list/search first rather than guessing an id
+
+# Instructions when only habit tools are enabled
+habits_instructions: |
+  You are the LifeTrace assistant. This session has habit tools enabled: full habit CRUD plus check-in.
+  - Create → create_habit (name required; frequency daily/weekly/monthly)
+  - List/search → list_habits / search_habits
+  - Update/delete → update_habit / delete_habit
+  - Check-in (idempotent toggle) → toggle_habit_record(habit_id, date); empty date defaults to today
+  - History → list_habit_records(habit_id)
+  If the user doesn't say which habit to check in, list_habits first to find the id. Report briefly (include id).
+
+habit_create_success: "Created habit #{id}: {name}"
+habit_create_failed: "Failed to create habit: {error}"
+
+habit_update_success: "Updated habit #{id}: {name}"
+habit_update_failed: "Failed to update habit: {error}"
+
+habit_delete_success: "Deleted habit #{id}"
+habit_delete_failed: "Failed to delete habit: {error}"
+
+habit_list_header: "Habits ({count}):\n"
+habit_list_item: "- {icon} #{id} {name} ({frequency})"
+habit_list_empty: "No habits yet"
+habit_list_failed: "Failed to list habits: {error}"
+
+habit_search_header: "Habits matching \"{keyword}\" ({count}):\n"
+habit_search_empty: "No habits match \"{keyword}\""
+habit_search_failed: "Failed to search habits: {error}"
+
+habit_checkin_success: "Checked in habit #{id} for {date}"
+habit_checkin_cancelled: "Cancelled check-in for habit #{id} on {date}"
+habit_checkin_failed: "Check-in failed: {error}"
+
+habit_records_header: "Check-in records for habit #{id} ({count}):\n"
+habit_records_item: "- {date}"
+habit_records_empty: "No check-in records for habit #{id}"
+habit_records_failed: "Failed to get check-in records: {error}"

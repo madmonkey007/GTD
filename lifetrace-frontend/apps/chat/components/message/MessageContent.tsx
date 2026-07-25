@@ -17,9 +17,12 @@ type MessageContentProps = {
 };
 
 export function MessageContent({ message }: MessageContentProps) {
+	// 优先使用最终回复文本（来自后端 [FINAL]），回退到原始 content
+	const rawText = message.finalReply?.text ?? message.content ?? "";
+
 	// 移除工具调用标记后的内容
-	const contentWithoutToolCalls = message.content
-		? removeThinkingTags(removeToolCalls(removeToolEvents(message.content)))
+	const contentWithoutToolCalls = rawText
+		? removeThinkingTags(removeToolCalls(removeToolEvents(rawText)))
 		: "";
 
 	// 无论是否启用联网搜索，只要消息内容包含 Sources 标记就解析

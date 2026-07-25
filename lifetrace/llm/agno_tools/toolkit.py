@@ -13,6 +13,7 @@ from lifetrace.llm.agno_tools.base import AgnoToolsMessageLoader
 from lifetrace.llm.agno_tools.tools import (
     BreakdownTools,
     ConflictTools,
+    HabitTools,
     NoteTools,
     StatsTools,
     TagTools,
@@ -32,6 +33,7 @@ class FreeTodoToolkit(
     StatsTools,
     TagTools,
     NoteTools,
+    HabitTools,
     Toolkit,
 ):
     """FreeTodo Toolkit - Todo management tools for Agno Agent
@@ -58,6 +60,11 @@ class FreeTodoToolkit(
         """
         self.lang = lang
 
+        # 结构化写操作结果侧通道：写工具（增删改/完成/打卡）执行后追加一条结构化结果，
+        # 供 stream adapter 在 run 结束时生成确定性「回执」作为最终回复（见 agno_agent._emit_final）。
+        # 每次 AgnoAgentService 实例化都会新建一个 toolkit，故该列表天然按请求隔离。
+        self.recent_write_results: list[dict] = []
+
         # Initialize message loader (preload messages)
         AgnoToolsMessageLoader(lang)
 
@@ -76,6 +83,14 @@ class FreeTodoToolkit(
         journal_repo_class = journal_repo_module.SqlJournalRepository
         self.journal_service = journal_service_module.JournalService(
             journal_repo_class(db_base), db_base
+        )
+
+        # Lazy import for HabitService
+        habit_service_module = importlib.import_module("lifetrace.services.habit_service")
+        habit_repo_module = importlib.import_module("lifetrace.repositories.sql_habit_repository")
+        habit_repo_class = habit_repo_module.SqlHabitRepository
+        self.habit_service = habit_service_module.HabitService(
+            habit_repo_class(db_base), db_base
         )
 
         # All available tools
@@ -111,6 +126,14 @@ class FreeTodoToolkit(
             "list_notes_by_date": self.list_notes_by_date,
             "get_insight": self.get_insight,
             "suggest_note_tags": self.suggest_note_tags,
+            # Habit management (from HabitTools)
+            "create_habit": self.create_habit,
+            "update_habit": self.update_habit,
+            "delete_habit": self.delete_habit,
+            "list_habits": self.list_habits,
+            "search_habits": self.search_habits,
+            "toggle_habit_record": self.toggle_habit_record,
+            "list_habit_records": self.list_habit_records,
         }
 
         # Filter tools based on selected_tools
@@ -126,3 +149,37 @@ class FreeTodoToolkit(
             logger.info(f"FreeTodoToolkit initialized with lang={lang}, no tools enabled (default)")
 
         super().__init__(name="freetodo_toolkit", tools=tools, **kwargs)
+
+    def _record_write(
+        self,
+        entity: str,
+        action: str,
+        ok: bool,
+        *,
+        id: int | None = None,
+        name: str | None = None,
+        message: str = "",
+        extra: dict | None = None,
+    ) -> None:
+        """记录一次写操作的结构化结果，供后端生成最终回复回执。
+
+        Args:
+            entity: 实体类型（todo / note / habit）
+            action: 动作（create / update / delete / complete / checkin / cancel_checkin）
+            ok: 是否成功
+            id: 实体 id（成功时）
+            name: 实体名称（成功时）
+            message: 面向用户的本地化文案（直接作为回执文本，复用工具已有 i18n 文案）
+            extra: 额外字段（如打卡日期、是否新打卡）
+        """
+        entry: dict = {
+            "ok": ok,
+            "entity": entity,
+            "action": action,
+            "id": id,
+            "name": name,
+            "message": message,
+        }
+        if extra:
+            entry.update(extra)
+        self.recent_write_results.append(entry)

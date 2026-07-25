@@ -47,6 +47,12 @@ DEFAULT_LANG = "en"
 TOOL_EVENT_PREFIX = "\n[TOOL_EVENT:"
 TOOL_EVENT_SUFFIX = "]\n"
 
+# 最终回复标记：由后端在 run 结束时注入**唯一**一次，承载权威的「最终回复」。
+# source: "tool_result"（写操作回执）/ "model_content"（无写操作的终态正文）/ "error"（空回复兜底）。
+# 前端只把 [FINAL] 渲染为最终回复，执行过程（思考/工具/中间正文）与此分离，杜绝从前端猜测。
+FINAL_PREFIX = "\n[FINAL:"
+FINAL_SUFFIX = "]\n"
+
 # 工具结果预览最大长度
 RESULT_PREVIEW_MAX_LENGTH = 500
 
@@ -196,6 +202,27 @@ NOTE_TOOL_NAMES = {
 	"suggest_note_tags",
 }
 
+# 习惯工具名集合
+HABIT_TOOL_NAMES = {
+	"create_habit",
+	"update_habit",
+	"delete_habit",
+	"list_habits",
+	"search_habits",
+	"toggle_habit_record",
+	"list_habit_records",
+}
+
+# 待办工具名集合（用于识别「智能指令」面板的三类齐全场景）
+TODO_TOOL_NAMES = {
+	"create_todo",
+	"update_todo",
+	"delete_todo",
+	"list_todos",
+	"search_todos",
+	"complete_todo",
+}
+
 
 def _build_instructions(
 	lang: str,
@@ -217,9 +244,22 @@ def _build_instructions(
 		instructions 列表或 None
 	"""
 	if has_tools:
-		# 启用了笔记工具时，使用笔记能力说明（避免 AI 自认"只能管待办"而拒绝创建笔记）
+		# 按启用工具类别选择 instructions：
+		# - 智能指令面板（待办+笔记+习惯三类齐全）→ 路由指令
+		# - 仅习惯工具 → 习惯指令
+		# - 含笔记工具 → 笔记指令
+		# - 其它 → 通用指令
 		has_note_tools = bool(selected_tools and set(selected_tools) & NOTE_TOOL_NAMES)
-		key = "notes_instructions" if has_note_tools else "instructions"
+		has_habit_tools = bool(selected_tools and set(selected_tools) & HABIT_TOOL_NAMES)
+		has_todo_tools = bool(selected_tools and set(selected_tools) & TODO_TOOL_NAMES)
+		if has_todo_tools and has_note_tools and has_habit_tools:
+			key = "quick_command_instructions"
+		elif has_habit_tools:
+			key = "habits_instructions"
+		elif has_note_tools:
+			key = "notes_instructions"
+		else:
+			key = "instructions"
 		instructions = get_message(lang, key)
 		if instructions and instructions != f"[{key}]":
 			return [instructions]
@@ -272,6 +312,8 @@ class AgnoAgentService:
             self.lang = lang or DEFAULT_LANG
             # 思考过程合并状态：跨 chunk 跟踪，避免每个 reasoning token 都包一层 [THINK]
             self._in_thinking = False
+            # FreeTodoToolkit 实例（若有），用于在 run 结束时读取 recent_write_results 生成回执
+            self.toolkit = None
             tools_to_use = self._initialize_tools(
                 selected_tools, external_tools, external_tools_config
             )
@@ -329,6 +371,7 @@ class AgnoAgentService:
         # Initialize FreeTodoToolkit if any tools are selected
         if selected_tools and len(selected_tools) > 0:
             toolkit = FreeTodoToolkit(lang=self.lang, selected_tools=selected_tools)
+            self.toolkit = toolkit
             tools_to_use.append(toolkit)
             logger.info(f"已启用 FreeTodo 工具: {selected_tools}")
 
@@ -471,6 +514,49 @@ class AgnoAgentService:
 
         return result
 
+    def _render_receipt(self, write_results: list[dict]) -> str:
+        """把结构化写操作结果渲染成回执文本（复用各工具已本地化的 message 文案）。"""
+        lines: list[str] = []
+        for r in write_results:
+            msg = r.get("message")
+            if msg:
+                lines.append(str(msg).strip())
+        return "\n".join(lines).strip()
+
+    def _build_final_payload(
+        self, content_buffer: list[str]
+    ) -> dict:
+        """run 结束时决定最终回复的来源与文本。
+
+        - 有写操作结果 → 回执（source=tool_result），模型终态正文被丢弃（用回执替代模型复述）。
+        - 否则 → 模型终态正文（source=model_content）；为空则受控兜底（source=error）。
+        reasoning 永不进入最终回复。
+        """
+        write_results = (
+            list(getattr(self.toolkit, "recent_write_results", []))
+            if self.toolkit is not None
+            else []
+        )
+        terminal = "".join(content_buffer).strip()
+
+        if write_results:
+            receipt = self._render_receipt(write_results)
+            text = receipt if receipt else (terminal or "")
+            source = "tool_result"
+        else:
+            text = terminal
+            source = "model_content"
+
+        if not text:
+            text = (
+                "（未生成回复，请重试。）"
+                if self.lang == "zh"
+                else "(No reply generated. Please retry.)"
+            )
+            source = "error"
+
+        return {"type": "final", "source": source, "text": text}
+
     def stream_response(
         self,
         message: str,
@@ -479,46 +565,107 @@ class AgnoAgentService:
         session_id: str | None = None,
     ) -> Generator[str]:
         """
-        流式生成 Agent 回复
+        流式生成 Agent 回复。
 
-        Args:
-            message: 用户消息
-            conversation_history: 对话历史，格式为 [{"role": "user|assistant", "content": "..."}]
-            include_tool_events: 是否包含工具调用事件（默认 True）
-            session_id: 会话 ID，用于 trace 文件按会话聚合和 Phoenix session 追踪
-
-        Yields:
-            回复内容片段（字符串），如果 include_tool_events=True，
-            工具调用事件会以特殊格式输出：[TOOL_EVENT:{"type":"...","data":{...}}]
+        协议（内联文本，前端解析）：
+        - [THINK]...[/THINK]：推理过程（执行过程）。
+        - [TOOL_EVENT:{...}]：工具调用开始/结束事件（执行过程）。
+        - 模型正文：在**两次工具调用之间**的部分作为「中间正文」立即 yield（执行过程）；
+          最后一次工具调用之后的终态正文先缓冲，run 结束时作为 [FINAL] 的 model_content。
+        - [FINAL:{...}]：run 结束时注入**唯一**一次，承载权威最终回复（写操作=回执，否则=终态正文）。
         """
         # 设置本地 ContextVar（用于 file_exporter 按会话聚合）
         current_session_id.set(session_id)
 
+        # 终态正文缓冲：仅在「最后一次工具调用之后」累积的内容，作为最终回复候选。
+        content_buffer: list[str] = []
+        self._in_thinking = False
+
         try:
             input_data = self._build_input_data(message, conversation_history)
-            # 直接将 session_id 传递给 agent.run()
-            # Agno Instrumentor 会从参数中读取 session_id 并设置为 span 属性
             stream = self.agent.run(
                 input_data,
                 stream=True,
                 stream_events=include_tool_events,
-                session_id=session_id,  # 传递给 Agno，用于 Phoenix session 追踪
+                session_id=session_id,
             )
 
             for chunk in stream:
-                output = self._process_stream_chunk(chunk, include_tool_events)
-                if output:
-                    yield output
+                ev = chunk.event
+                if ev == RunEvent.run_content:
+                    reasoning = getattr(chunk, "reasoning_content", None)
+                    has_content = bool(chunk.content)
+                    parts: list[str] = []
+                    if reasoning:
+                        if not self._in_thinking:
+                            parts.append("[THINK]")
+                            self._in_thinking = True
+                        parts.append(reasoning)
+                        if has_content:
+                            parts.append("[/THINK]")
+                            self._in_thinking = False
+                            content_buffer.append(chunk.content)
+                    else:
+                        if self._in_thinking:
+                            parts.append("[/THINK]")
+                            self._in_thinking = False
+                        if has_content:
+                            content_buffer.append(chunk.content)
+                    if parts:
+                        yield "".join(parts)
+                elif ev == RunEvent.tool_call_started:
+                    # 新工具开始 → 之前缓冲的正文属于「中间正文」，落盘到执行过程
+                    if content_buffer:
+                        yield "".join(content_buffer)
+                        content_buffer = []
+                    out = (
+                        self._handle_tool_call_started(chunk)
+                        if include_tool_events
+                        else None
+                    )
+                    if out:
+                        yield out
+                elif ev == RunEvent.tool_call_completed:
+                    out = (
+                        self._handle_tool_call_completed(chunk)
+                        if include_tool_events
+                        else None
+                    )
+                    if out:
+                        yield out
+                elif ev == RunEvent.tool_call_error:
+                    out = (
+                        self._handle_tool_call_error(chunk)
+                        if include_tool_events
+                        else None
+                    )
+                    if out:
+                        yield out
+                elif ev == RunEvent.run_started:
+                    if include_tool_events:
+                        yield self._format_tool_event({"type": "run_started"})
+                elif ev == RunEvent.run_completed:
+                    # 最终回复在循环结束后统一注入
+                    pass
+                else:
+                    out = self._process_stream_chunk(chunk, include_tool_events)
+                    if out:
+                        yield out
+
+            # ---- run 结束：注入唯一 [FINAL] ----
+            if self._in_thinking:
+                yield "[/THINK]"
+                self._in_thinking = False
+            payload = self._build_final_payload(content_buffer)
+            yield f"{FINAL_PREFIX}{json.dumps(payload, ensure_ascii=False)}{FINAL_SUFFIX}"
 
         except Exception as e:
             logger.error(f"Agno Agent 流式生成失败: {e}")
             yield f"Agno Agent 处理失败: {e!s}"
         finally:
-            # 流结束时若仍在思考块内，补上闭合标签
             if self._in_thinking:
                 yield "[/THINK]"
                 self._in_thinking = False
-            # 清理 ContextVar
             current_session_id.set(None)
 
     def is_available(self) -> bool:

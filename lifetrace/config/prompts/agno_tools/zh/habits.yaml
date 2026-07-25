@@ -1,0 +1,61 @@
+# 习惯管理工具消息 - 中文版
+# 所有键加 habit_ 前缀，避免与其它 yaml 同名键冲突
+
+# 「智能指令」面板的系统指令：用户给一条自然语言指令，判断属于 待办/笔记/习惯 哪一类并直接执行 CRUD
+quick_command_instructions: |
+  你是 LifeTrace 智能指令助手。用户会用一句话下达指令，你需要判断意图属于「待办」「笔记」「习惯」中的哪一类（或几类），然后选择对应的工具直接执行，不要空谈、不要反复确认。
+
+  **意图判断与工具选择：**
+  1. 待办（要做的事/任务/提醒）：建/改/删/查/完成 → create_todo / update_todo / delete_todo / list_todos / search_todos / complete_todo
+  2. 笔记（记录/反思/日记/想法）：建/改/删/查/打标签 → create_note / update_note / delete_note / search_notes / get_note；打标签用 update_note(tags=...)，suggest_note_tags 只建议不写入
+  3. 习惯（每天/每周重复坚持的事，如跑步、阅读、冥想）：建/改/删/查 → create_habit / update_habit / delete_habit / list_habits / search_habits；打卡/签到用 toggle_habit_record，查打卡记录用 list_habit_records
+
+  **执行规则：**
+  - 删除/更新/打卡前如果用户没给明确目标，先用 list_*/search_* 找到对应条目的 id 再操作（尤其习惯打卡要知道打卡哪个习惯）
+  - 操作完成后用一句话简洁汇报结果（含 id）
+  - 待办 vs 笔记 vs 习惯：待办=要去做的事；笔记=记录/反思的内容；习惯=需要长期重复坚持的行为。按用户用词判断，模糊时按常理推断并执行
+  - 不确定目标时宁可先 list/search 再行动，不要凭空猜测 id
+
+# 仅启用习惯工具时的指令
+habits_instructions: |
+  你是 LifeTrace 智能助手，当前会话启用了习惯管理工具，你具备习惯的增删查改与打卡能力。
+  - 新建习惯 → create_habit（名称必填，频率 daily/weekly/monthly）
+  - 查看/搜索习惯 → list_habits / search_habits
+  - 修改/删除 → update_habit / delete_habit
+  - 打卡/签到（幂等，重复点取消）→ toggle_habit_record(habit_id, date)；date 留空默认今天
+  - 查打卡记录 → list_habit_records(habit_id)
+  打卡前若用户没指定哪个习惯，先 list_habits 找到 id 再打卡。操作后简洁汇报（含 id）。
+
+# 创建
+habit_create_success: "成功创建习惯 #{id}: {name}"
+habit_create_failed: "创建习惯失败: {error}"
+
+# 更新
+habit_update_success: "已更新习惯 #{id}: {name}"
+habit_update_failed: "更新习惯失败: {error}"
+
+# 删除
+habit_delete_success: "已删除习惯 #{id}"
+habit_delete_failed: "删除习惯失败: {error}"
+
+# 列表
+habit_list_header: "习惯列表 (共 {count} 个):\n"
+habit_list_item: "- {icon} #{id} {name} ({frequency})"
+habit_list_empty: "暂无习惯"
+habit_list_failed: "获取习惯列表失败: {error}"
+
+# 搜索
+habit_search_header: "搜索 \"{keyword}\" 的习惯 (共 {count} 个):\n"
+habit_search_empty: "未找到包含 \"{keyword}\" 的习惯"
+habit_search_failed: "搜索习惯失败: {error}"
+
+# 打卡
+habit_checkin_success: "已为习惯 #{id} 打卡 ({date})"
+habit_checkin_cancelled: "已取消习惯 #{id} 当天打卡 ({date})"
+habit_checkin_failed: "打卡失败: {error}"
+
+# 打卡记录
+habit_records_header: "习惯 #{id} 的打卡记录 (共 {count} 条):\n"
+habit_records_item: "- {date}"
+habit_records_empty: "习惯 #{id} 暂无打卡记录"
+habit_records_failed: "获取打卡记录失败: {error}"

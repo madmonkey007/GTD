@@ -40,8 +40,10 @@ export function MessageItem({
 	const [hovered, setHovered] = useState(false);
 	const outerClass = message.role === "assistant" ? "w-full" : "max-w-[80%]";
 
-	const sanitizedContent = message.content
-		? removeThinkingTags(removeToolEvents(message.content))
+	const effectiveReplyText = message.finalReply?.text ?? message.content ?? "";
+
+	const sanitizedContent = effectiveReplyText
+		? removeThinkingTags(removeToolEvents(effectiveReplyText))
 		: "";
 	// 检测工具调用标记（在消息渲染前）
 	const toolCalls = sanitizedContent ? extractToolCalls(sanitizedContent) : [];

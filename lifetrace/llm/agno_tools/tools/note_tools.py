@@ -113,11 +113,17 @@ class NoteTools:
 					date=note_date,
 				)
 			)
-			return self._msg("note_create_success", id=result.id, name=name)
+			msg = self._msg("note_create_success", id=result.id, name=name)
+			self._record_write(
+				"note", "create", True, id=result.id, name=name, message=msg
+			)
+			return msg
 
 		except Exception as e:
 			logger.error(f"Failed to create note: {e}")
-			return self._msg("note_create_failed", error=str(e))
+			err = self._msg("note_create_failed", error=str(e))
+			self._record_write("note", "create", False, message=err)
+			return err
 
 	def delete_note(self, note_id: int) -> str:
 		"""Delete a note by ID
@@ -130,14 +136,19 @@ class NoteTools:
 		"""
 		try:
 			self.journal_service.delete_journal(note_id)
-			return self._msg("note_delete_success", id=note_id)
+			msg = self._msg("note_delete_success", id=note_id)
+			self._record_write("note", "delete", True, id=note_id, message=msg)
+			return msg
 
 		except Exception as e:
 			logger.error(f"Failed to delete note {note_id}: {e}")
 			error_msg = str(e)
 			if "404" in error_msg or "不存在" in error_msg:
-				return self._msg("note_delete_not_found", id=note_id)
-			return self._msg("note_delete_failed", error=error_msg)
+				err = self._msg("note_delete_not_found", id=note_id)
+			else:
+				err = self._msg("note_delete_failed", error=error_msg)
+			self._record_write("note", "delete", False, id=note_id, message=err)
+			return err
 
 	def update_note(
 		self,
@@ -169,19 +180,26 @@ class NoteTools:
 				update_data["tags"] = [t.strip() for t in tags.split(",") if t.strip()]
 
 			if not update_data:
-				return self._msg("note_update_success", id=note_id)
+				msg = self._msg("note_update_success", id=note_id)
+				self._record_write("note", "update", True, id=note_id, message=msg)
+				return msg
 
 			self.journal_service.update_journal(
 				note_id, JournalUpdate(**update_data)
 			)
-			return self._msg("note_update_success", id=note_id)
+			msg = self._msg("note_update_success", id=note_id)
+			self._record_write("note", "update", True, id=note_id, message=msg)
+			return msg
 
 		except Exception as e:
 			logger.error(f"Failed to update note {note_id}: {e}")
 			error_msg = str(e)
 			if "404" in error_msg or "不存在" in error_msg:
-				return self._msg("note_update_not_found", id=note_id)
-			return self._msg("note_update_failed", error=error_msg)
+				err = self._msg("note_update_not_found", id=note_id)
+			else:
+				err = self._msg("note_update_failed", error=error_msg)
+			self._record_write("note", "update", False, id=note_id, message=err)
+			return err
 
 	def search_notes(self, keyword: str, limit: int = 10) -> str:
 		"""Search notes by keyword in title and content
