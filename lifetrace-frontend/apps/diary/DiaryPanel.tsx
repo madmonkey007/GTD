@@ -112,7 +112,7 @@ export function DiaryPanel() {
 	const showRightInline = containerWidth >= 900 || containerWidth === 0;
 	const [showTrash, setShowTrash] = useState(false);
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
-	const { stats, filterMode, setFilterMode } = useDiaryStats();
+	const { stats, filterMode, setFilterMode, refetchStats } = useDiaryStats();
 		const { addToTrash, trashEntries, clearTrash, restoreFromTrash } = useJournalTrash();
 	const { pinnedIds, toggle: togglePin } = usePinStore();
 	const dayRange = useMemo(() => getDayRange(selectedDate), [selectedDate]);
@@ -192,6 +192,61 @@ export function DiaryPanel() {
 		isCreating,
 		isUpdating,
 		} = useJournalMutations();
+	const noteLinkList = useMemo(() => {
+		if (!allNotesData?.journals) return [];
+		return allNotesData.journals.map((n: any) => ({
+			id: n.id,
+			name: n.name ?? '',
+			preview: (n.userNotes ?? '').replace(/[\r\n]/g, ' ').slice(0, 80),
+		}));
+	}, [allNotesData]);
+	const linkedNoteTitles = useMemo(() => {
+			const ids = draft.relatedNoteIds ?? [];
+			if (ids.length === 0) return [];
+			return ids.map((id: number) => {
+				const found = allNotesData?.journals?.find((j: any) => j.id === id);
+				return found ? { id: found.id, name: found.name ?? '' } : null;
+			}).filter((x): x is { id: number; name: string } => x !== null);
+		}, [draft.relatedNoteIds, allNotesData]);
+		const handleLinkNote = useCallback(async (targetId: number) => {
+		const currentId = draft.id;
+		if (currentId) {
+			try {
+				const current = allNotesData?.journals?.find((j: any) => j.id === currentId);
+				const existing = current?.relatedNoteIds ?? [];
+				if (Array.isArray(existing) && existing.includes(targetId)) return;
+				const newIds = Array.isArray(existing) ? [...existing, targetId] : [targetId];
+				await updateJournal(currentId, { related_note_ids: newIds } as any);
+				// Also update local draft so chips appear immediately
+				setDraft((prev) => ({ ...prev, relatedNoteIds: newIds }));
+				refetchAllNotes();
+			} catch (e) {
+				console.error('Failed to link note:', e);
+			}
+		} else {
+			setDraft((prev) => {
+				const existing = prev.relatedNoteIds ?? [];
+				if (existing.includes(targetId)) return prev;
+				return { ...prev, relatedNoteIds: [...existing, targetId] };
+			});
+		}
+	}, [draft.id, allNotesData, updateJournal, refetchAllNotes, setDraft]);
+
+		const handleRemoveLink = useCallback((targetId: number) => {
+		const currentId = draft.id;
+		if (currentId) {
+			const current = allNotesData?.journals?.find((j: any) => j.id === currentId);
+			const existing = current?.relatedNoteIds ?? [];
+			const newIds = existing.filter((id: number) => id !== targetId);
+			void updateJournal(currentId, { related_note_ids: newIds } as any);
+		} else {
+			setDraft((prev) => ({
+				...prev,
+				relatedNoteIds: (prev.relatedNoteIds ?? []).filter((id: number) => id !== targetId),
+			}));
+		}
+	}, [draft.id, allNotesData, updateJournal, setDraft]);
+
 	const syncDraftFromJournal = useCallback(
 		(journal: JournalView) => {
 			const journalDate = parseJournalDate(journal.date);
@@ -276,6 +331,7 @@ const handleDeleteJournal = async (note: TrashEntry) => {
 		});
 		await deleteJournal(note.id);
 		clearAfterSubmit.current = true;
+		refetchStats();
 	} catch (_error) {
 		// error handled by mutation
 	}
@@ -303,13 +359,14 @@ const handleRestore = async (entry: TrashEntry) => {
 };
 const handleSaveCardEdit = async (
 	journalId: number,
-	data: { name?: string | null; user_notes?: string | null },
+	data: { name?: string | null; user_notes?: string | null; related_note_ids?: number[] | null },
 ) => {
 	const tags = data.user_notes ? extractTagsFromUserNotes(data.user_notes) : [];
 	await updateJournal(journalId, {
 		name: data.name ?? null,
 		user_notes: data.user_notes ?? null,
 		tags: tags.length > 0 ? tags : null,
+		related_note_ids: data.related_note_ids ?? null,
 	});
 };
 
@@ -523,7 +580,10 @@ const handleSaveCardEdit = async (
 	const handleSubmitNotes = async () => {
 		if (!draft.userNotes.trim()) return;
 		await handleSave();
-		setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "" }));
+		// Refresh notes data after save
+		refetchAllNotes();
+		refetchStats();
+		setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "", relatedNoteIds: [] }));
 		clearAfterSubmit.current = true;
 	};
 
@@ -584,7 +644,7 @@ const handleSaveCardEdit = async (
 
 		return ( <>
 			<div className="flex h-full flex-col overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20">
-			<div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-2 relative">
+			<div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-2 relative h-screen">
 
 					
 				{/* Left sidebar — inline when wide, otherwise hidden (drawer overlay) */}
@@ -621,6 +681,10 @@ const handleSaveCardEdit = async (
 							onAnnotate={(note) => setAnnotateTarget(note)}
 							onCompareNotes={(source, current) => setCompareTarget({ source, current })}
 							relatedNotesData={allNotesData?.journals ?? []}
+							noteLinkList={noteLinkList}
+							onLinkNote={handleLinkNote}
+							linkedNoteTitles={linkedNoteTitles}
+							onRemoveLink={handleRemoveLink}
 							onTitleChange={(value) =>
 								setDraft((prev) => ({ ...prev, name: value }))
 							}

@@ -7,11 +7,17 @@ import Mention from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import MarkdownIt from "markdown-it";
-import { Bold, Highlighter, Underline, ListOrdered, List, Hash } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { Bold, Highlighter, Underline, ListOrdered, List, Hash, AtSign, Search as SearchIcon  } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TurndownService from "turndown";
 
 type Variant = "create" | "edit";
+
+export interface NoteLinkItem {
+	id: number;
+	name: string;
+	preview: string;
+}
 
 interface DiaryTiptapEditorProps {
 	value: string;
@@ -23,6 +29,14 @@ interface DiaryTiptapEditorProps {
 	variant?: Variant;
 	/** 工具栏右侧插槽（新建态的发送按钮、编辑态的取消/保存按钮） */
 	toolbarEnd?: React.ReactNode;
+	/** 用于 @ 关联的笔记列表 */
+	noteLinkList?: NoteLinkItem[];
+	/** 点击关联笔记时的回调 */
+	onLinkNote?: (noteId: number) => void;
+	/** 已关联的笔记列表（用于在编辑器中显示 chip） */
+	linkedNoteTitles?: { id: number; name: string }[];
+	/** 移除关联笔记的回调 */
+	onRemoveLink?: (noteId: number) => void;
 }
 
 interface FormatAction {
@@ -161,8 +175,12 @@ export function DiaryTiptapEditor({
 	onInlineTag,
 	placeholder,
 	variant = "create",
-	toolbarEnd,
-}: DiaryTiptapEditorProps) {
+		toolbarEnd,
+		noteLinkList,
+		onLinkNote,
+		linkedNoteTitles,
+		onRemoveLink,
+	}: DiaryTiptapEditorProps) {
 	const recentTagsRef = useRef<string[]>(recentTags);
 	recentTagsRef.current = recentTags;
 	const lastValueRef = useRef(value);
@@ -173,6 +191,38 @@ export function DiaryTiptapEditor({
 	onChangeRef.current = onChange;
 	const onBlurRef = useRef(onBlur);
 	onBlurRef.current = onBlur;
+	const [linkPopupOpen, setLinkPopupOpen] = useState(false);
+	const [linkSearch, setLinkSearch] = useState('');
+	const linkPopupRef = useRef<HTMLDivElement>(null);
+
+	const wordCount = value.replace(/\s/g, '').length;
+
+	// Close @ popup on click outside
+	useEffect(() => {
+		if (!linkPopupOpen) return;
+		const handler = (e: MouseEvent) => {
+			if (linkPopupRef.current && !linkPopupRef.current.contains(e.target as Node)) {
+				setLinkPopupOpen(false);
+			}
+		};
+		setTimeout(() => document.addEventListener('mousedown', handler), 0);
+		return () => document.removeEventListener('mousedown', handler);
+	}, [linkPopupOpen]);
+
+	// Refs for @ keydown (avoids hook deps changing on every render)
+	const noteLinkListRef = useRef(noteLinkList);
+	noteLinkListRef.current = noteLinkList;
+	const onLinkNoteRef = useRef(onLinkNote);
+	onLinkNoteRef.current = onLinkNote;
+	// Open @ link popup when user types @ in the editor
+	const handleEditorKeyDown = useCallback((_view: any, event: KeyboardEvent) => {
+		if (event.key === '@' && noteLinkListRef.current && onLinkNoteRef.current) {
+			setLinkPopupOpen(true);
+			setLinkSearch('');
+			return true; // prevent @ from being inserted into editor content
+		}
+		return false;
+	}, []);
 
 	const md = useMemo(() => new MarkdownIt({ html: true, breaks: true, linkify: true }), []);
 	const turndown = useMemo(() => {
@@ -213,6 +263,7 @@ export function DiaryTiptapEditor({
 					: "w-full text-sm leading-relaxed text-foreground focus:outline-none min-h-[120px] max-h-[50vh] overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-li:my-0",
 			},
 			transformPastedHTML: sanitizePastedHtml,
+			handleKeyDown: handleEditorKeyDown,
 		},
 		onUpdate: ({ editor }: { editor: Editor }) => {
 			const markdown = turndown.turndown(editor.getHTML());
@@ -265,6 +316,32 @@ export function DiaryTiptapEditor({
 	return (
 		<div className={`relative transition-all duration-200 ${borderClass} focus-within:border-primary/40 focus-within:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)]`}>
 			<EditorContent editor={editor} />
+			{/* 已关联笔记 chips */}
+			{linkedNoteTitles && linkedNoteTitles.length > 0 && (
+				<div className="flex flex-wrap gap-1 px-3 pt-1 pb-0">
+					{linkedNoteTitles.map((ln: { id: number; name: string }) => (
+						<span
+							key={ln.id}
+							className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+						>
+							<AtSign className="w-2.5 h-2.5" />
+							<span className="max-w-[120px] truncate">{ln.name || "无标题"}</span>
+							{onRemoveLink && (
+								<button
+									type="button"
+									onClick={(e) => { e.stopPropagation(); onRemoveLink(ln.id); }}
+									className="ml-0.5 rounded-full hover:bg-primary/20 p-0.5 transition-colors"
+								>
+									<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+										<line x1="18" y1="6" x2="6" y2="18"></line>
+										<line x1="6" y1="6" x2="18" y2="18"></line>
+									</svg>
+								</button>
+							)}
+						</span>
+					))}
+				</div>
+			)}
 			<style>{`
 				.DiaryTiptapEditor-toolbar .is-active { color: var(--primary); background: rgba(var(--primary), 0.1); }
 				.ProseMirror.is-editor-empty:first-child::before { content: attr(data-placeholder); color: rgb(var(--muted-foreground) / 0.7); float: left; pointer-events: none; height: 0; }
@@ -284,8 +361,70 @@ export function DiaryTiptapEditor({
 							<Icon className="w-4 h-4" />
 						</button>
 					))}
+					{/* @ 关联笔记 */}
+					{noteLinkList && onLinkNote && (
+						<div className="relative" style={{ display: 'inline-flex' }}>
+							<button
+								type="button"
+								onClick={() => setLinkPopupOpen(!linkPopupOpen)}
+								title="关联笔记"
+								className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+							>
+								<AtSign className="w-4 h-4" />
+							</button>
+							{linkPopupOpen && (
+								<div
+									ref={linkPopupRef}
+									className="absolute top-full left-0 mt-1 z-[100] w-80 h-72 rounded-lg border border-border/60 bg-popover shadow-lg flex flex-col"
+								>
+									<div className="relative p-2">
+										<SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/40" />
+										<input
+											type="text"
+											value={linkSearch}
+											onChange={(e) => setLinkSearch(e.target.value)}
+											placeholder="搜索笔记..."
+											className="w-full h-8 rounded-md border border-border/30 bg-background/50 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/30"
+										/>
+									</div>
+									<div className="flex-1 overflow-y-auto">
+										{noteLinkList
+											.map((n: NoteLinkItem) => {
+												if (!linkSearch) return { item: n, score: 0 };
+												const q = linkSearch.toLowerCase();
+												let score = 0;
+												if (n.name.toLowerCase().includes(q)) score += 10;
+												if (n.preview.toLowerCase().includes(q)) score += 1;
+												return { item: n, score };
+											})
+											.filter(x => !linkSearch || x.score > 0)
+											.sort((a, b) => b.score - a.score)
+											.slice(0, 10)
+											.map(({ item: n }) => (
+												<button
+													key={n.id}
+													type="button"
+													onClick={() => { onLinkNote(n.id); setLinkPopupOpen(false); setLinkSearch(''); }}
+													className="w-full flex flex-col items-start gap-0.5 px-3 py-2.5 text-left hover:bg-muted/40 transition-colors border-b border-border/20 last:border-0"
+												>
+													<span className="text-[10px] text-muted-foreground/40 truncate w-full">{n.name || '无标题'}</span>
+													<span className="text-xs text-foreground/80 leading-relaxed line-clamp-3 w-full">{n.preview}</span>
+												</button>
+											))}
+										{noteLinkList.length === 0 && (
+											<div className="px-3 py-4 text-xs text-muted-foreground/50 text-center">暂无笔记</div>
+										)}
+									</div>
+								</div>
+							)}
+						</div>
+					)}
 				</div>
-				{toolbarEnd}
+				<div className="flex items-center gap-1">
+					{/* 字数统计 */}
+					<span className="text-[10px] text-muted-foreground/40 select-none tabular-nums mr-1">{wordCount}</span>
+					{toolbarEnd}
+				</div>
 			</div>
 		</div>
 	);

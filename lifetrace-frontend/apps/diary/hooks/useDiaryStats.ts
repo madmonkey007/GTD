@@ -42,8 +42,8 @@ export function useDiaryStats() {
 		);
 	}, []);
 
-	const { data, isLoading, error } = useJournals({
-		limit: 200,
+	const { data, isLoading, error, refetch } = useJournals({
+		limit: 1000,
 		startDate: startDate.toISOString(),
 		endDate: endDate.toISOString(),
 	});
@@ -100,5 +100,6 @@ export function useDiaryStats() {
 		error,
 		filterMode,
 		setFilterMode,
+		refetchStats: refetch,
 	};
 }
