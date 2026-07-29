@@ -306,21 +306,28 @@ class JournalActivityRelation(SQLModel, table=True):
         )
 
 
-class JournalNoteRelation(SQLModel, table=True):
-    """日记与日记的关联关系（批注）"""
 
-    __tablename__: ClassVar[str] = "journal_note_relations"
+class NoteLink(SQLModel, table=True):
+    """笔记间的链接（NoteLink）
+
+    有向、类型化：source_note 通过指定 relation_type 指向 target_note。
+    统一承载原批注（journal_note_relations）和笔记链接功能。
+    """
+
+    __tablename__: ClassVar[str] = "note_links"
 
     id: int | None = Field(default=None, primary_key=True)
-    journal_id: int  # 当前日记ID
-    note_id: int  # 被关联的日记ID
+    source_note_id: int = Field(index=True)  # 源笔记ID（链接发出方）
+    target_note_id: int = Field(index=True)  # 目标笔记ID（链接指向方）
+    relation_type: str = Field(max_length=20)  # SUPPORTS / EXTENDS / CONTRADICTS / RELATES
+    user_note: str | None = Field(default=None, sa_column=Column(Text))  # 用户对该链接的说明
     created_at: datetime = Field(default_factory=get_utc_time)
     deleted_at: datetime | None = None
 
     def __repr__(self):
         return (
-            f"<JournalNoteRelation(id={self.id}, journal_id={self.journal_id}, "
-            f"note_id={self.note_id})>"
+            f"<NoteLink(id={self.id}, source={self.source_note_id}, "
+            f"target={self.target_note_id}, type={self.relation_type})>"
         )
 
 

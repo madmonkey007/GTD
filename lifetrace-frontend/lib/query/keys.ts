@@ -115,6 +115,19 @@ export const queryKeys = {
 		/** 所有打卡记录（聚合统计用） */
 		records: ["habits", "records"] as const,
 	},
+
+	/**
+	 * NoteLink（思想链接）相关查询键
+	 */
+	noteLinks: {
+		/** 所有 noteLink 相关查询的根键 */
+		all: ["noteLinks"] as const,
+		/** 某笔记的双向链接列表 */
+		links: (noteId: number) => ["noteLinks", "links", noteId] as const,
+		/** 某笔记的相似度候选 */
+		candidates: (noteId: number) =>
+			["noteLinks", "candidates", noteId] as const,
+	},
 } as const;
 
 /**

@@ -30,7 +30,6 @@ class JournalCreate(BaseModel):
     tags: list[str] = Field(default_factory=list, description="关联的标签列表")
     related_todo_ids: list[int] = Field(default_factory=list, description="关联待办ID列表")
     related_activity_ids: list[int] = Field(default_factory=list, description="关联活动ID列表")
-    related_note_ids: list[int] = Field(default_factory=list, description="关联日记ID列表（批注）")
 
 
 class JournalUpdate(BaseModel):
@@ -50,7 +49,6 @@ class JournalUpdate(BaseModel):
     tags: list[str] | None = Field(None, description="关联的标签列表（覆盖替换）")
     related_todo_ids: list[int] | None = Field(None, description="关联待办ID列表")
     related_activity_ids: list[int] | None = Field(None, description="关联活动ID列表")
-    related_note_ids: list[int] | None = Field(None, description="关联日记ID列表（批注）")
 
 
 class JournalResponse(BaseModel):
@@ -73,7 +71,7 @@ class JournalResponse(BaseModel):
     tags: list[JournalTag] = Field(default_factory=list, description="关联标签列表")
     related_todo_ids: list[int] = Field(default_factory=list, description="关联待办ID列表")
     related_activity_ids: list[int] = Field(default_factory=list, description="关联活动ID列表")
-    related_note_ids: list[int] = Field(default_factory=list, description="关联日记ID列表（批注）")
+    related_note_ids: list[int] = Field(default_factory=list, description="关联笔记ID列表（从 note_links 计算）")
 
     class Config:
         from_attributes = True

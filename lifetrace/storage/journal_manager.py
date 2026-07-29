@@ -12,9 +12,9 @@ from lifetrace.storage.database_base import DatabaseBase
 from lifetrace.storage.models import (
     Journal,
     JournalActivityRelation,
-    JournalNoteRelation,
     JournalTagRelation,
     JournalTodoRelation,
+    NoteLink,
     Tag,
 )
 from lifetrace.storage.sql_utils import col
@@ -43,7 +43,6 @@ class JournalCreatePayload:
     tags: list[str] | None = None
     related_todo_ids: list[int] | None = None
     related_activity_ids: list[int] | None = None
-    related_note_ids: list[int] | None = None
 
 
 @dataclass(frozen=True)
@@ -62,7 +61,6 @@ class JournalUpdatePayload:
     tags: list[str] | None | Any = _UNSET
     related_todo_ids: list[int] | None | Any = _UNSET
     related_activity_ids: list[int] | None | Any = _UNSET
-    related_note_ids: list[int] | None | Any = _UNSET
 
 
 class JournalManager:
@@ -131,13 +129,25 @@ class JournalManager:
         ]
 
     def _get_related_note_ids(self, session, journal_id: int) -> list[int]:
-        return [
-            rel.note_id
-            for rel in session.query(JournalNoteRelation)
-            .filter(col(JournalNoteRelation.journal_id) == journal_id)
-            .filter(col(JournalNoteRelation.deleted_at).is_(None))
+        """从 note_links 表获取（原 journal_note_relations 数据已迁移至 note_links）"""
+        rows = (
+            session.query(NoteLink.target_note_id)
+            .filter(
+                col(NoteLink.source_note_id) == journal_id,
+                col(NoteLink.deleted_at).is_(None),
+            )
             .all()
-        ]
+        )
+        # 去重：同源同目标可能有多种关系类型
+        seen: set[int] = set()
+        result: list[int] = []
+        for (tid,) in rows:
+            if tid not in seen:
+                seen.add(tid)
+                result.append(tid)
+        return result
+
+
 
     def _replace_tags(self, session, journal_id: int, tags: list[str] | None) -> None:
         """替换日记标签关联"""
@@ -191,17 +201,6 @@ class JournalManager:
         for activity_id in dict.fromkeys(activity_ids):
             session.add(JournalActivityRelation(journal_id=journal_id, activity_id=activity_id))
 
-    def _replace_related_notes(self, session, journal_id: int, note_ids: list[int] | None) -> None:
-        session.query(JournalNoteRelation).filter_by(journal_id=journal_id).delete(
-            synchronize_session=False
-        )
-
-        if not note_ids:
-            return
-
-        for note_id in dict.fromkeys(note_ids):
-            session.add(JournalNoteRelation(journal_id=journal_id, note_id=note_id))
-
     def _apply_journal_updates(self, journal: Journal, payload: JournalUpdatePayload) -> None:
         if payload.content_format is not _UNSET:
             journal.content_format = payload.content_format or "markdown"
@@ -249,7 +248,6 @@ class JournalManager:
                 self._replace_tags(session, journal.id, payload.tags)
                 self._replace_related_todos(session, journal.id, payload.related_todo_ids)
                 self._replace_related_activities(session, journal.id, payload.related_activity_ids)
-                self._replace_related_notes(session, journal.id, payload.related_note_ids)
 
                 logger.info(f"创建日记成功: {journal.id} - {payload.name}")
                 return journal.id
@@ -388,9 +386,6 @@ class JournalManager:
                         session, journal_id, payload.related_activity_ids
                     )
 
-                if payload.related_note_ids is not _UNSET:
-                    self._replace_related_notes(session, journal_id, payload.related_note_ids)
-
                 journal.updated_at = get_utc_now()
                 session.flush()
                 logger.info(f"更新日记: {journal_id}")
@@ -416,9 +411,6 @@ class JournalManager:
                     synchronize_session=False
                 )
                 session.query(JournalActivityRelation).filter_by(journal_id=journal_id).delete(
-                    synchronize_session=False
-                )
-                session.query(JournalNoteRelation).filter_by(journal_id=journal_id).delete(
                     synchronize_session=False
                 )
 

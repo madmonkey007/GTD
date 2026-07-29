@@ -14,6 +14,7 @@ export interface ChatMessage {
   conversation_id?: string | null;
   use_rag?: boolean;
   mode?: string | null;
+  chat_type?: string | null;
   selected_tools?: string[] | null;
   external_tools?: string[] | null;
   workspace_path?: string | null;

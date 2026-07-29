@@ -423,7 +423,6 @@ class JournalService:
             tags=tags,
             related_todo_ids=data.related_todo_ids,
             related_activity_ids=data.related_activity_ids,
-            related_note_ids=data.related_note_ids,
         )
         journal_id = self.repository.create(payload)
         if not journal_id:
@@ -486,6 +485,16 @@ class JournalService:
         # 从向量库删除
         if self._vector_db is not None:
             self._vector_db.delete_journal(journal_id)
+
+        # 级联清理 NoteLink（刚删除的笔记可能被其他笔记链接）
+        try:
+            from lifetrace.repositories.sql_note_link_repository import (
+                SqlNoteLinkRepository,
+            )
+
+            SqlNoteLinkRepository(self.db_base).delete_by_note(journal_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"清理笔记思想链接失败: {exc}")
 
         logger.info(f"成功删除日记: {journal_id}")
 

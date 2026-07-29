@@ -24,6 +24,7 @@ import {
 	useJournalMutations,
 	useJournals,
 } from "@/lib/query";
+import { useNoteLinkMutations } from "@/lib/query/note-links";
 import { useJournalStore } from "@/lib/store/journal-store";
 import { usePinStore } from "@/lib/store/pin-store";
 import { useLocaleStore } from "@/lib/store/locale";
@@ -46,7 +47,6 @@ const emptyDraft = (date: Date): JournalDraft => ({
 	tags: [],
 	relatedTodoIds: [],
 	relatedActivityIds: [],
-	relatedNoteIds: [],
 	date: normalizeDateOnly(date),
 });
 
@@ -192,6 +192,7 @@ export function DiaryPanel() {
 		isCreating,
 		isUpdating,
 		} = useJournalMutations();
+	const { createNoteLink } = useNoteLinkMutations();
 	const noteLinkList = useMemo(() => {
 		if (!allNotesData?.journals) return [];
 		return allNotesData.journals.map((n: any) => ({
@@ -200,52 +201,31 @@ export function DiaryPanel() {
 			preview: (n.userNotes ?? '').replace(/[\r\n]/g, ' ').slice(0, 80),
 		}));
 	}, [allNotesData]);
-	const linkedNoteTitles = useMemo(() => {
-			const ids = draft.relatedNoteIds ?? [];
-			if (ids.length === 0) return [];
-			return ids.map((id: number) => {
-				const found = allNotesData?.journals?.find((j: any) => j.id === id);
-				return found ? { id: found.id, name: found.name ?? '' } : null;
-			}).filter((x): x is { id: number; name: string } => x !== null);
-		}, [draft.relatedNoteIds, allNotesData]);
-		const handleLinkNote = useCallback(async (targetId: number) => {
-		const currentId = draft.id;
-		if (currentId) {
-			try {
-				const current = allNotesData?.journals?.find((j: any) => j.id === currentId);
-				const existing = current?.relatedNoteIds ?? [];
-				if (Array.isArray(existing) && existing.includes(targetId)) return;
-				const newIds = Array.isArray(existing) ? [...existing, targetId] : [targetId];
-				await updateJournal(currentId, { related_note_ids: newIds } as any);
-				// Also update local draft so chips appear immediately
-				setDraft((prev) => ({ ...prev, relatedNoteIds: newIds }));
-				refetchAllNotes();
-			} catch (e) {
-				console.error('Failed to link note:', e);
-			}
-		} else {
-			setDraft((prev) => {
-				const existing = prev.relatedNoteIds ?? [];
-				if (existing.includes(targetId)) return prev;
-				return { ...prev, relatedNoteIds: [...existing, targetId] };
+	// 使用 NoteLink API 创建 SUPPORTS 链接（替代原先的 related_note_ids 写入）
+	// sourceId 可选：编辑态卡片用 editingCardId；新建态无 id 时先保存再建链
+	const handleSaveRef = useRef<(opts?: { draftOverride?: Partial<JournalDraft> }) => Promise<JournalView | null>>(async () => null);
+	const handleLinkNote = useCallback(async (targetId: number, sourceId?: number) => {
+		let sid = sourceId ?? draft.id;
+		if (!sid) {
+			// 新建笔记尚未保存：先保存拿到 id 再建链
+			const saved = await handleSaveRef.current({});
+			sid = saved?.id;
+		}
+		if (!sid) return;
+		try {
+			await createNoteLink({
+				sourceNoteId: sid,
+				input: { targetNoteId: targetId, relationType: "SUPPORTS" },
 			});
+			refetchAllNotes();
+		} catch (e) {
+			console.error('Failed to link note:', e);
 		}
-	}, [draft.id, allNotesData, updateJournal, refetchAllNotes, setDraft]);
+	}, [draft.id, createNoteLink, refetchAllNotes]);
 
-		const handleRemoveLink = useCallback((targetId: number) => {
-		const currentId = draft.id;
-		if (currentId) {
-			const current = allNotesData?.journals?.find((j: any) => j.id === currentId);
-			const existing = current?.relatedNoteIds ?? [];
-			const newIds = existing.filter((id: number) => id !== targetId);
-			void updateJournal(currentId, { related_note_ids: newIds } as any);
-		} else {
-			setDraft((prev) => ({
-				...prev,
-				relatedNoteIds: (prev.relatedNoteIds ?? []).filter((id: number) => id !== targetId),
-			}));
-		}
-	}, [draft.id, allNotesData, updateJournal, setDraft]);
+	const handleRemoveLink = useCallback((_targetId: number) => {
+		// Removal now happens in ReferenceModal
+	}, []);
 
 	const syncDraftFromJournal = useCallback(
 		(journal: JournalView) => {
@@ -261,7 +241,6 @@ export function DiaryPanel() {
 				tags: (journal.tags ?? []).map((tag) => tag.tagName),
 				relatedTodoIds: journal.relatedTodoIds ?? [],
 				relatedActivityIds: journal.relatedActivityIds ?? [],
-				relatedNoteIds: journal.relatedNoteIds ?? [],
 				date: journalDate,
 			});
 			setSelectedDate(journalDate);
@@ -359,14 +338,13 @@ const handleRestore = async (entry: TrashEntry) => {
 };
 const handleSaveCardEdit = async (
 	journalId: number,
-	data: { name?: string | null; user_notes?: string | null; related_note_ids?: number[] | null },
+	data: { name?: string | null; user_notes?: string | null },
 ) => {
 	const tags = data.user_notes ? extractTagsFromUserNotes(data.user_notes) : [];
 	await updateJournal(journalId, {
 		name: data.name ?? null,
 		user_notes: data.user_notes ?? null,
 		tags: tags.length > 0 ? tags : null,
-		related_note_ids: data.related_note_ids ?? null,
 	});
 };
 
@@ -388,7 +366,6 @@ const handleSaveCardEdit = async (
 		tags,
 		related_todo_ids: updatedDraft.relatedTodoIds,
 		related_activity_ids: updatedDraft.relatedActivityIds,
-		related_note_ids: updatedDraft.relatedNoteIds,
 	});
 	const runAutoLink = async (
 		journalId: number,
@@ -460,10 +437,10 @@ const handleSaveCardEdit = async (
 				saved = await createJournal(payload);
 			}
 		} catch (_error) {
-			return;
+			return null;
 		}
 
-		if (!saved) return;
+		if (!saved) return null;
 
 		const savedDate = parseJournalDate(saved.date);
 		setDraft({
@@ -477,7 +454,6 @@ const handleSaveCardEdit = async (
 			tags: (saved.tags ?? []).map((tag) => tag.tagName),
 			relatedTodoIds: saved.relatedTodoIds ?? [],
 			relatedActivityIds: saved.relatedActivityIds ?? [],
-			relatedNoteIds: saved.relatedNoteIds ?? [],
 			date: savedDate,
 		});
 		setSelectedDate(savedDate);
@@ -509,7 +485,9 @@ const handleSaveCardEdit = async (
 		}
 		// 不 await：后台并发执行，完成后再触发各自 invalidate 更新 UI
 		void Promise.all(llmTasks);
+		return saved;
 	};
+	handleSaveRef.current = handleSave;
 	const handleAutoSave = (options?: {
 		tagValue?: string;
 		draftOverride?: Partial<JournalDraft>;
@@ -564,9 +542,17 @@ const handleSaveCardEdit = async (
 				user_notes: content,
 				date: formatDateInput(now),
 				content_format: "markdown",
-				related_note_ids: [annotateTarget.id],
 			});
 				if (result) {
+					// Create SUPPORTS NoteLink from the new annotation note to the target
+					try {
+						await createNoteLink({
+							sourceNoteId: result.id,
+							input: { targetNoteId: annotateTarget.id, relationType: "SUPPORTS" },
+						});
+					} catch (e) {
+						console.error("[annotate] failed to create NoteLink:", e);
+					}
 					setAnnotateTarget(null);
 					clearAfterSubmit.current = true;
 					refetch();
@@ -583,7 +569,7 @@ const handleSaveCardEdit = async (
 		// Refresh notes data after save
 		refetchAllNotes();
 		refetchStats();
-		setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "", relatedNoteIds: [] }));
+		setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "" }));
 		clearAfterSubmit.current = true;
 	};
 
@@ -646,7 +632,7 @@ const handleSaveCardEdit = async (
 			<div className="flex h-full flex-col overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20">
 			<div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-2 relative h-screen">
 
-					
+
 				{/* Left sidebar — inline when wide, otherwise hidden (drawer overlay) */}
 				{showLeftInline && <DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} onFilterModeChange={(mode) => { setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => setShowTrash(true)} selectedTag={selectedTag} onSelectTag={(tag) => { setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} />}
 				<div className="flex-1 min-w-0 max-w-[800px] flex flex-col">
@@ -683,7 +669,6 @@ const handleSaveCardEdit = async (
 							relatedNotesData={allNotesData?.journals ?? []}
 							noteLinkList={noteLinkList}
 							onLinkNote={handleLinkNote}
-							linkedNoteTitles={linkedNoteTitles}
 							onRemoveLink={handleRemoveLink}
 							onTitleChange={(value) =>
 								setDraft((prev) => ({ ...prev, name: value }))

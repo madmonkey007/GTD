@@ -12,7 +12,7 @@
 export interface TodoReorderItem {
   /** 待办ID */
   id: number;
-  /** 新的排序值 */
+  /** 新的排序序号 */
   order: number;
   /** 父级待办ID（可选，用于设置父子关系） */
   parent_todo_id?: number | null;

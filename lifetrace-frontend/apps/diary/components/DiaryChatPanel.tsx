@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-	Check, Copy, Send, Square, Sparkles, MessageSquareText,
-	ChevronDown, ChevronUp, History, Plus,
+  Send, Square, Sparkles,
+  History, Plus,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useChatSessions, useChatHistory } from "@/lib/query/chat";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import { sendChatMessageStream } from "@/lib/api";
 import type { ToolCallEvent } from "@/lib/api";
@@ -17,24 +15,25 @@ import { LinkedNotes } from "@/apps/chat/components/input/LinkedNotes";
 import { useNoteChatStore } from "@/lib/store/note-chat-store";
 import { useLocaleStore } from "@/lib/store/locale";
 import { queryKeys } from "@/lib/query/keys";
+import { MessageBubble } from "@/apps/chat/components/chat-ui/index";
 
 // ─── Tab definitions ───
 
 type TabDef = { key: string; label: string };
 
 const TAB_LABELS: Record<string, string> = {
-	insight: "默认洞察",
-	value: "价值澄清",
-	inversion: "逆向思考",
-	secondOrder: "二阶思考",
-	cbt: "CBT疗法",
-	mbti: "MBTI分析",
+  insight: "默认洞察",
+  value: "价值澄清",
+  inversion: "逆向思考",
+  secondOrder: "二阶思考",
+  cbt: "CBT疗法",
+  mbti: "MBTI分析",
 };
 
 const ANALYSIS_TABS: TabDef[] = Object.entries(TAB_LABELS).map(([key, label]) => ({ key, label }));
 
 const TAB_PROMPTS: Record<string, string> = {
-	insight: `你是一位深度思维分析师，专门帮助用户从笔记中发现隐藏的认知模式。
+  insight: `你是一位深度思维分析师，专门帮助用户从笔记中发现隐藏的认知模式。
 
 ## 你的任务
 仔细阅读用户提供的所有笔记内容，从以下维度进行深度分析：
@@ -54,7 +53,7 @@ const TAB_PROMPTS: Record<string, string> = {
 
 ## 笔记内容
 {{notes}}`,
-	value: `你是一位价值观挖掘顾问，擅长从日常碎片化记录中提炼一个人真正在意的东西。
+  value: `你是一位价值观挖掘顾问，擅长从日常碎片化记录中提炼一个人真正在意的东西。
 
 ## 你的任务
 阅读用户提供的笔记，完成以下分析：
@@ -76,7 +75,7 @@ const TAB_PROMPTS: Record<string, string> = {
 
 ## 笔记内容
 {{notes}}`,
-	inversion: `你是查理·芒格的逆向思维实践者。你相信"如果我知道自己会死在哪里，我就永远不去那个地方"。
+  inversion: `你是查理·芒格的逆向思维实践者。你相信"如果我知道自己会死在哪里，我就永远不去那个地方"。
 
 ## 你的任务
 阅读用户的笔记，运用逆向思维方法进行分析：
@@ -99,7 +98,7 @@ const TAB_PROMPTS: Record<string, string> = {
 
 ## 笔记内容
 {{notes}}`,
-	secondOrder: `你是一位系统性思维教练，专注于帮助用户从表层现象穿透到底层规律。
+  secondOrder: `你是一位系统性思维教练，专注于帮助用户从表层现象穿透到底层规律。
 
 ## 核心理念
 一阶思考问："这是什么？"
@@ -124,7 +123,7 @@ const TAB_PROMPTS: Record<string, string> = {
 
 ## 笔记内容
 {{notes}}`,
-	cbt: `你是一位受过认知行为疗法（CBT）训练的思维观察者。
+  cbt: `你是一位受过认知行为疗法（CBT）训练的思维观察者。
 注意：你不是心理治疗师，你的作用是帮助用户觉察思维模式，而非提供临床治疗。
 
 ## CBT核心框架
@@ -155,7 +154,7 @@ const TAB_PROMPTS: Record<string, string> = {
 
 ## 笔记内容
 {{notes}}`,
-	mbti: `你是一位人格类型分析师，精通 MBTI（迈尔斯-布里格斯类型指标）理论。
+  mbti: `你是一位人格类型分析师，精通 MBTI（迈尔斯-布里格斯类型指标）理论。
 
 ## 重要前提
 MBTI 是一种认知框架工具，而非科学测量。你的分析基于文字表达习惯推断倾向，
@@ -198,439 +197,58 @@ MBTI 是一种认知框架工具，而非科学测量。你的分析基于文字
 // ─── Helpers ───
 
 function createId() {
-	if (typeof crypto !== "undefined" && crypto.randomUUID) {
-		return crypto.randomUUID();
-	}
-	return `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
-
-// extractThinkingBlocks is defined below
 
 // ─── Empty state ───
 
 function EmptyState({ onTabSelect }: { onTabSelect: (tab: TabDef) => void }) {
-	return (
-		<motion.div
-			initial={{ opacity: 0, y: 12 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-			className="flex h-full flex-col items-center justify-center px-6"
-		>
-			<div className="flex flex-col items-center gap-5 text-center">
-				<div className="relative">
-					<div className="w-16 h-16 rounded-2xl bg-primary/8 flex items-center justify-center ring-1 ring-primary/10">
-						<Sparkles className="w-7 h-7 text-primary/60" />
-					</div>
-					<div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary/15 flex items-center justify-center">
-						<div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-					</div>
-				</div>
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="flex h-full flex-col items-center justify-center px-6"
+    >
+      <div className="flex flex-col items-center gap-5 text-center">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-2xl bg-primary/8 flex items-center justify-center ring-1 ring-primary/10">
+            <Sparkles className="w-7 h-7 text-primary/60" />
+          </div>
+          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary/15 flex items-center justify-center">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+          </div>
+        </div>
 
-				<div className="space-y-1.5">
-					<h2 className="text-base font-semibold tracking-tight text-foreground">
-						思维分析
-					</h2>
-					<p className="text-sm text-muted-foreground/70 leading-relaxed max-w-[240px]">
-						选择一个分析维度开始探索，或直接输入你的问题
-					</p>
-				</div>
+        <div className="space-y-1.5">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">
+            思维分析
+          </h2>
+          <p className="text-sm text-muted-foreground/70 leading-relaxed max-w-[240px]">
+            选择一个分析维度开始探索，或直接输入你的问题
+          </p>
+        </div>
 
-				<div className="flex flex-wrap justify-center gap-1.5 max-w-[260px]">
-					{ANALYSIS_TABS.map((tab) => (
-						<motion.button
-							key={tab.key}
-							type="button"
-							onClick={() => onTabSelect(tab)}
-							whileHover={{ scale: 1.03 }}
-							whileTap={{ scale: 0.97 }}
-							className="px-3 py-1.5 text-xs rounded-full border border-border/40 bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-primary/5 transition-colors font-medium"
-						>
-							{tab.label}
-						</motion.button>
-					))}
-				</div>
-			</div>
-		</motion.div>
-	);
-}
-
-// ─── Markdown content ───
-
-function MarkdownContent({ text }: { text: string }) {
-	return (
-		<div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:mb-2 prose-headings:mt-4 prose-headings:text-foreground prose-headings:font-semibold prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-li:leading-relaxed prose-code:px-1 prose-code:py-0.5 prose-code:rounded-md prose-code:bg-muted/60 prose-code:text-foreground prose-code:text-[11px] prose-pre:bg-muted/40 prose-pre:border prose-pre:border-border/40 prose-pre:rounded-xl prose-strong:text-foreground">
-			<ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
-		</div>
-	);
-}
-
-// ─── Auto-collapse thinking block ───
-
-function AutoCollapseThinkingBlock({ content }: { content: string }) {
-	const [open, setOpen] = useState(true);
-
-	useEffect(() => {
-		setOpen(true);
-		const timer = setTimeout(() => setOpen(false), 3000);
-		return () => clearTimeout(timer);
-	}, [content]);
-
-	return (
-		<details className="group mt-1.5" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-			<summary className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors select-none list-none [&::-webkit-details-marker]:hidden [&::marker]:hidden">
-				<span>思考过程</span>
-				<svg
-					className="w-3 h-3 transition-transform group-open:rotate-90"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="2"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-				>
-					<path d="m9 18 6-6-6-6" />
-				</svg>
-			</summary>
-			<div className="mt-1.5 pl-4 text-xs leading-relaxed text-muted-foreground/70 italic border-l-2 border-muted-foreground/20 prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-p:leading-relaxed">
-				<ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-			</div>
-		</details>
-	);
-}
-
-// ─── Execution process (thinking + tool calls merged chronologically) ───
-
-type MergedStep =
-	| { type: "thinking"; content: string; index: number; insertAt: number }
-	| { type: "tool"; step: ToolCallStep; index: number; insertAt: number }
-	| { type: "text"; content: string; index: number; insertAt: number };
-
-function ExecutionProcess({
-	mergedItems,
-	isStreaming,
-	firstThinkingEnded,
-}: {
-	mergedItems: MergedStep[];
-	isStreaming: boolean;
-	firstThinkingEnded: boolean;
-}) {
-	const [open, setOpen] = useState(false);
-	const [elapsed, setElapsed] = useState(0);
-	const startTimeRef = useRef<number | null>(null);
-
-	// Timer: count up every second while streaming
-	useEffect(() => {
-		if (isStreaming) {
-			if (!startTimeRef.current) {
-				startTimeRef.current = Date.now();
-			}
-			const interval = setInterval(() => {
-				setElapsed(Math.floor((Date.now() - startTimeRef.current!) / 1000));
-			}, 1000);
-			return () => {
-				clearInterval(interval);
-				if (startTimeRef.current) {
-					setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
-				}
-			};
-		}
-	}, [isStreaming]);
-
-	// Auto-open briefly when streaming ends, then close
-	useEffect(() => {
-		if (!isStreaming && startTimeRef.current !== null) {
-			setOpen(true);
-			const timer = setTimeout(() => setOpen(false), 3000);
-			return () => clearTimeout(timer);
-		}
-	}, [isStreaming]);
-
-	if (mergedItems.length === 0 && !isStreaming) return null;
-
-	const formatTime = (seconds: number) => {
-		const h = Math.floor(seconds / 3600);
-		const m = Math.floor((seconds % 3600) / 60);
-		const s = seconds % 60;
-		if (h > 0) return `${h}h${m}m${s}s`;
-		if (m > 0) return `${m}m${s}s`;
-		return `${s}s`;
-	};
-
-	return (
-		<>
-			<style>{`
-				@keyframes shimmerText {
-					0% { background-position: -200% center; }
-					100% { background-position: 200% center; }
-				}
-			`}</style>
-			<details className="mb-3" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-				<summary className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors select-none list-none [&::-webkit-details-marker]:hidden [&::marker]:hidden">
-					<span className="flex items-center gap-1.5">
-						{isStreaming && !firstThinkingEnded ? (
-							<span
-								className="relative inline-block font-medium"
-								style={{
-									background: "linear-gradient(90deg, currentColor 0%, currentColor 30%, rgba(255,255,255,0.8) 50%, currentColor 70%, currentColor 100%)",
-									backgroundSize: "200% 100%",
-									WebkitBackgroundClip: "text",
-									WebkitTextFillColor: "transparent",
-									backgroundClip: "text",
-									animation: "shimmerText 3s linear infinite",
-								}}
-							>
-								思考中
-							</span>
-						) : (
-							<span>已处理</span>
-						)}
-						<span className="tabular-nums">{formatTime(elapsed)}</span>
-					</span>
-					<svg
-						className="w-3 h-3 transition-transform duration-200"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)" }}
-					>
-						<path d="m9 18 6-6-6-6" />
-					</svg>
-				</summary>
-				<div className="mt-2 space-y-1">
-					{mergedItems.map((item, i) => {
-						if (item.type === "thinking") {
-							return <AutoCollapseThinkingBlock key={`think-${i}`} content={item.content} />;
-						}
-						if (item.type === "text") {
-							return (
-								<div
-									key={`text-${i}`}
-									className="py-0.5 text-xs leading-relaxed text-muted-foreground/80 whitespace-pre-wrap break-words"
-								>
-									{item.content}
-								</div>
-							);
-						}
-						return <ToolCallStepChip key={item.step.id} step={item.step} />;
-					})}
-				</div>
-			</details>
-		</>
-	);
-}
-
-// ─── Final response (authoritative final reply only) ───
-
-function FinalResponse({ text, isStreaming }: { text: string; isStreaming: boolean }) {
-	// 流式中且尚无最终回复时不渲染（避免把中间正文误当最终回复）
-	if (!text.trim()) return null;
-	const showStreaming = isStreaming && !text.trim();
-	if (showStreaming) return null;
-	return <MarkdownContent text={text} />;
-}
-
-// Helper: extract thinking blocks from content (handles unclosed tags during streaming)
-// ─── Message actions ───
-
-function MessageActions({ content }: { content: string }) {
-	const [copied, setCopied] = useState(false);
-	const copyContent = content
-		.replace(/\[THINK\][\s\S]*?\[\/THINK\]/g, "")
-		.replace(/\[THINK\][\s\S]*/g, "")
-		.trim() || content;
-
-	const handleCopy = useCallback(() => {
-		navigator.clipboard.writeText(copyContent).then(() => {
-			setCopied(true);
-			setTimeout(() => setCopied(false), 2000);
-		}).catch(() => {});
-	}, [copyContent]);
-
-	return (
-		<motion.div
-			initial={{ opacity: 0 }}
-			animate={{ opacity: 1 }}
-			transition={{ delay: 0.3, duration: 0.2 }}
-			className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-		>
-			<button type="button" onClick={handleCopy} title="复制"
-				className="rounded-md p-1 text-muted-foreground/40 hover:text-foreground hover:bg-muted/50 transition-colors">
-				{copied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
-			</button>
-		</motion.div>
-	);
-}
-
-// ─── Streaming indicator ───
-
-function StreamingIndicator() {
-	return (
-		<span className="inline-flex items-center gap-2 text-muted-foreground/60">
-			<span className="relative flex h-2 w-2">
-				<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/40" />
-				<span className="relative inline-flex rounded-full h-2 w-2 bg-primary/60" />
-			</span>
-			<span className="text-xs">分析中</span>
-		</span>
-	);
-}
-
-// ─── Tool call step (inline chip) ───
-
-function ToolCallStepChip({ step }: { step: ToolCallStep }) {
-	const [expanded, setExpanded] = useState(false);
-	return (
-		<div className="my-1.5">
-			<button
-				type="button"
-				onClick={() => setExpanded((v) => !v)}
-				className="flex items-center gap-2 w-full text-left px-2 py-1 rounded-md hover:bg-muted/50 transition-colors text-muted-foreground/70"
-			>
-				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 flex-shrink-0">
-					<path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75a4.5 4.5 0 0 1-4.884 4.484c-1.076-.091-2.264.071-2.95.904l-7.152 8.684a2.548 2.548 0 1 1-3.586-3.586l8.684-7.152c.833-.686.995-1.874.904-2.95a4.5 4.5 0 0 1 6.336-4.486l-3.276 3.276a3.004 3.004 0 0 0 2.25 2.25l3.276-3.276c.256.565.398 1.192.398 1.852Z" />
-				</svg>
-				<span className="text-xs truncate">
-					{step.toolName}
-					{step.status === "running" && (
-						<span className="ml-1.5 inline-flex items-center gap-1">
-							<span className="relative flex h-1.5 w-1.5">
-								<span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-muted-foreground/70" />
-								<span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-muted-foreground/70" />
-							</span>
-						</span>
-					)}
-				</span>
-				{expanded ? (
-					<ChevronUp className="w-3.5 h-3.5 flex-shrink-0" />
-				) : (
-					<ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
-				)}
-			</button>
-			{expanded && step.resultPreview && (
-				<pre className="mt-0.5 ml-8 px-2 py-1.5 rounded-md text-[11px] leading-relaxed whitespace-pre-wrap break-all overflow-x-auto max-h-48 overflow-y-auto bg-muted/40 text-muted-foreground/70">
-					{step.resultPreview}
-				</pre>
-			)}
-		</div>
-	);
-}
-
-// 把 assistant 内容拆分为「执行过程」和「最终回复」两个容器。
-// 执行过程 = 思考块 + 工具调用 + 工具之间的中间正文（content 中的非思考文本）。
-// 最终回复 = 后端注入的 [FINAL]（msg.finalReply）；无则回退到 content 的纯文本（无工具对话场景）。
-function AssistantBody({ content, steps, finalReply, isStreaming }: { content: string; steps?: ToolCallStep[]; finalReply?: { source: string; text: string }; isStreaming: boolean }) {
-	// 第一个思考是否已结束：存在已闭合的 [THINK]...[/THINK]、已出现工具调用，或已收到最终回复。
-	const closedThinkingCount = (content.match(/\[THINK\][\s\S]*?\[\/THINK\]/g) || []).length;
-	const firstThinkingEnded = closedThinkingCount > 0 || !!(steps && steps.length > 0) || !!finalReply;
-
-	const stripThink = (s: string) =>
-		s.replace(/\[THINK\][\s\S]*?\[\/THINK\]/g, "").replace(/\[THINK\][\s\S]*/g, "").trim();
-
-	// 用锚点（思考块 / 工具点）把 content 切成有序片段，构造执行过程时间线。
-	type Item = { kind: "think" | "tool" | "text"; start: number; thinkContent?: string; step?: ToolCallStep; text?: string };
-	const items: Item[] = [];
-
-	const thinkRe = /\[THINK\]([\s\S]*?)(\[\/THINK\]|$)/g;
-	let tm: RegExpExecArray | null;
-	let thinkEnd = 0;
-	while ((tm = thinkRe.exec(content)) !== null) {
-		// 思考块之前的正文 → 中间正文
-		if (tm.index > thinkEnd) {
-			const seg = stripThink(content.slice(thinkEnd, tm.index));
-			if (seg) items.push({ kind: "text", start: thinkEnd, text: seg });
-		}
-		items.push({ kind: "think", start: tm.index, thinkContent: tm[1] });
-		thinkEnd = tm.index + tm[0].length;
-		if (tm[2] !== "[/THINK]") break; // 未闭合的流式尾巴
-	}
-	// 末尾正文（最后一次工具调用之后的中间正文；最终回复本身由 [FINAL] 承载，不在 content 里）
-	const tailText = stripThink(content.slice(thinkEnd));
-	if (tailText) items.push({ kind: "text", start: thinkEnd, text: tailText });
-
-	// 工具调用按 insertAt 插入时间线
-	(steps || []).forEach((step) => {
-		if (typeof step.insertAt === "number") {
-			items.push({ kind: "tool", start: step.insertAt, step });
-		}
-	});
-	items.sort((a, b) => a.start - b.start);
-
-	const mergedItems: MergedStep[] = items.map((it, i) => {
-		if (it.kind === "think") return { type: "thinking", content: it.thinkContent ?? "", index: i, insertAt: it.start };
-		if (it.kind === "tool" && it.step) return { type: "tool", step: it.step, index: i, insertAt: it.start };
-		return { type: "text", content: it.text ?? "", index: i, insertAt: it.start };
-	});
-
-	// 最终回复文本：优先用后端注入的 [FINAL]；无则回退到 content 纯文本（无工具对话）
-	const finalText = finalReply?.text ?? (isStreaming ? "" : stripThink(content));
-
-	return (
-		<>
-			<ExecutionProcess
-				mergedItems={mergedItems}
-				isStreaming={isStreaming}
-				firstThinkingEnded={firstThinkingEnded}
-			/>
-			<FinalResponse text={finalText} isStreaming={isStreaming} />
-		</>
-	);
-}
-function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming: boolean }) {
-	const isUser = msg.role === "user";
-
-	return (
-		<motion.div
-			initial={{ opacity: 0, y: 8, scale: 0.98 }}
-			animate={{ opacity: 1, y: 0, scale: 1 }}
-			transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-			className={`flex group ${isUser ? "justify-end" : "justify-start"}`}
-		>
-			<div className={isUser ? "max-w-[85%] min-w-0" : "w-full min-w-0"}>
-				{/* 用户消息：先渲染附带的笔记卡片，再渲染文本 */}
-				{isUser && msg.attachedNotes && msg.attachedNotes.length > 0 && (
-					<div className="flex flex-col gap-1.5 mb-1.5 items-end">
-						{msg.attachedNotes.map((n) => (
-							<div key={n.id} className="w-full max-w-full rounded-lg border border-border/40 bg-background px-2.5 py-1.5">
-								<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
-									<MessageSquareText className="w-3 h-3" />
-									<span className="truncate">{n.name}</span>
-									{n.date && <span className="ml-auto shrink-0">{n.date.slice(5, 10)}</span>}
-								</div>
-								{n.preview && (
-									<p className="mt-0.5 text-[11px] text-muted-foreground/60 line-clamp-2 leading-relaxed">{n.preview}</p>
-								)}
-							</div>
-						))}
-					</div>
-				)}
-				<div className={`px-3.5 text-sm leading-relaxed ${
-					isUser
-						? "inline-block rounded-lg py-1.5 text-foreground"
-						: "rounded-2xl py-2.5 text-foreground border border-border/30 bg-muted/25"
-				}`} style={isUser ? { backgroundColor: "#EFEFEE" } : undefined}>
-					{isUser ? (
-						msg.content ? (
-							<p className="whitespace-pre-wrap text-[13px]">{msg.content}</p>
-						) : null
-					) : (
-						<>
-							{msg.content === "" && isStreaming && !(msg.toolCallSteps && msg.toolCallSteps.length > 0) ? (
-								<StreamingIndicator />
-							) : (msg.content || (msg.toolCallSteps && msg.toolCallSteps.length > 0)) ? (
-								<div className="text-[13px] [&_details+div]:mt-3 [&_details]:mb-3">
-									<AssistantBody content={msg.content} steps={msg.toolCallSteps} finalReply={msg.finalReply} isStreaming={isStreaming} />
-								</div>
-							) : null}
-						</>
-					)}
-				</div>
-				{!isUser && (msg.content || msg.finalReply) && <MessageActions content={msg.finalReply?.text ?? msg.content} />}
-			</div>
-		</motion.div>
-	);
+        <div className="flex flex-wrap justify-center gap-1.5 max-w-[260px]">
+          {ANALYSIS_TABS.map((tab) => (
+            <motion.button
+              key={tab.key}
+              type="button"
+              onClick={() => onTabSelect(tab)}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              className="px-3 py-1.5 text-xs rounded-full border border-border/40 bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-primary/5 transition-colors font-medium"
+            >
+              {tab.label}
+            </motion.button>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
 // ─── Main component ───
@@ -733,431 +351,430 @@ const THINKING_COACH_SYSTEM_PROMPT = `你是一个思维教练，不是助手。
 
 // 构建关联笔记上下文（供 handleTabClick / handleSendInput 使用）
 function buildNoteContext() {
-	const notes = useNoteChatStore.getState().linkedNotes;
-	return notes.length > 0
-		? `[关联笔记]\n${notes.map((n) =>
-			`笔记标题: ${n.name || "未命名"}\n笔记内容: ${n.userNotes || "无内容"}\n日期: ${n.date}\n标签: ${n.tags.join(", ") || "无"}`
-		).join("\n---\n")}\n---`
-		: "";
+  const notes = useNoteChatStore.getState().linkedNotes;
+  return notes.length > 0
+    ? `[关联笔记]\n${notes.map((n) =>
+      `笔记标题: ${n.name || "未命名"}\n笔记内容: ${n.userNotes || "无内容"}\n日期: ${n.date}\n标签: ${n.tags.join(", ") || "无"}`
+    ).join("\n---\n")}\n---`
+    : "";
 }
 
 type DiaryChatPanelProps = {
-	noteContent: string;
-	currentJournalId?: number | null;
-	showBackButton?: boolean;
-	onClose?: () => void;
-	/** 聊天工具改动了某条笔记（传入 noteId）；若正是当前打开的笔记，父组件可据此刷新编辑器 */
-	onNoteMutated?: (noteId: number) => void;
+  noteContent: string;
+  currentJournalId?: number | null;
+  showBackButton?: boolean;
+  onClose?: () => void;
+  /** 聊天工具改动了某条笔记（传入 noteId）；若正是当前打开的笔记，父组件可据此刷新编辑器 */
+  onNoteMutated?: (noteId: number) => void;
 };
 
 export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton = false, onClose, onNoteMutated }: DiaryChatPanelProps) {
-	const [messages, setMessages] = useState<ChatMessage[]>([]);
-	const [inputValue, setInputValue] = useState("");
-	const [isStreaming, setIsStreaming] = useState(false);
-	const [conversationId, setConversationId] = useState<string | null>(null);
-	const [error, setError] = useState<string | null>(null);
-	const abortRef = useRef<AbortController | null>(null);
-	const listRef = useRef<HTMLDivElement>(null);
-	const inputRef = useRef<HTMLTextAreaElement>(null);
-	const clearLinkedNotes = useNoteChatStore((s) => s.clearLinkedNotes);
-	const { locale } = useLocaleStore();
-	const queryClient = useQueryClient();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const clearLinkedNotes = useNoteChatStore((s) => s.clearLinkedNotes);
+  const { locale } = useLocaleStore();
+  const queryClient = useQueryClient();
 
-	// 历史记录下拉
-	const [historyOpen, setHistoryOpen] = useState(false);
-	const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
-	const sessionsQuery = useChatSessions({ chatType: "notes", enabled: historyOpen });
-	const historyQuery = useChatHistory(viewingSessionId, { enabled: !!viewingSessionId });
+  // 历史记录下拉
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
+  const sessionsQuery = useChatSessions({ chatType: "notes", enabled: historyOpen });
+  const historyQuery = useChatHistory(viewingSessionId, { enabled: !!viewingSessionId });
 
-	// 加载某个历史会话：替换当前消息，切换 conversationId 以便继续对话
-	useEffect(() => {
-		if (!viewingSessionId || !historyQuery.data) return;
-		const loaded: ChatMessage[] = historyQuery.data.map((item, i) => {
-			const msg: ChatMessage = {
-				id: `hist-${viewingSessionId}-${i}`,
-				role: item.role,
-				content: item.content,
-			};
+  // 加载某个历史会话：替换当前消息，切换 conversationId 以便继续对话
+  useEffect(() => {
+    if (!viewingSessionId || !historyQuery.data) return;
+    const loaded: ChatMessage[] = historyQuery.data.map((item, i) => {
+      const msg: ChatMessage = {
+        id: `hist-${viewingSessionId}-${i}`,
+        role: item.role,
+        content: item.content,
+      };
 
-			// 对 assistant 消息解析 extraData，还原工具调用步骤和思考过程
-			if (item.role === "assistant" && item.extraData) {
-				try {
-					const data = JSON.parse(item.extraData);
+      // 对 assistant 消息解析 extraData，还原工具调用步骤和思考过程
+      if (item.role === "assistant" && item.extraData) {
+        try {
+          const data = JSON.parse(item.extraData);
 
-					// 1) 还原思考过程：在正文前插入 [THINK] 标签
-					if (data.thinking_content) {
-						msg.content = `[THINK]${data.thinking_content}[/THINK]` + msg.content;
-					}
+          // 1) 还原思考过程：在正文前插入 [THINK] 标签
+          if (data.thinking_content) {
+            msg.content = `[THINK]${data.thinking_content}[/THINK]` + msg.content;
+          }
 
-					// 2) 还原工具调用步骤
-					if (Array.isArray(data.tool_events)) {
-						const steps: ToolCallStep[] = [];
-						const pending: Array<{ toolName: string; idx: number }> = [];
-						let stepIdx = 0;
-						for (const ev of data.tool_events) {
-							if (ev.type === "tool_call_start" && ev.tool_name) {
-								steps.push({
-									id: `hist-tc-${stepIdx}`,
-									toolName: ev.tool_name,
-									toolArgs: ev.tool_args,
-									status: "completed",
-									startTime: Date.now(),
-									endTime: Date.now(),
-								});
-								pending.push({ toolName: ev.tool_name, idx: stepIdx });
-								stepIdx++;
-							} else if (ev.type === "tool_call_end" && ev.tool_name) {
-								for (let j = pending.length - 1; j >= 0; j--) {
-									if (pending[j].toolName === ev.tool_name) {
-										steps[pending[j].idx] = { ...steps[pending[j].idx], resultPreview: ev.result_preview };
-										pending.splice(j, 1);
-										break;
-									}
-								}
-							}
-						}
-						msg.toolCallSteps = steps;
-					}
+          // 2) 还原工具调用步骤
+          if (Array.isArray(data.tool_events)) {
+            const steps: ToolCallStep[] = [];
+            const pending: Array<{ toolName: string; idx: number }> = [];
+            let stepIdx = 0;
+            for (const ev of data.tool_events) {
+              if (ev.type === "tool_call_start" && ev.tool_name) {
+                steps.push({
+                  id: `hist-tc-${stepIdx}`,
+                  toolName: ev.tool_name,
+                  toolArgs: ev.tool_args,
+                  status: "completed",
+                  startTime: Date.now(),
+                  endTime: Date.now(),
+                });
+                pending.push({ toolName: ev.tool_name, idx: stepIdx });
+                stepIdx++;
+              } else if (ev.type === "tool_call_end" && ev.tool_name) {
+                for (let j = pending.length - 1; j >= 0; j--) {
+                  if (pending[j].toolName === ev.tool_name) {
+                    steps[pending[j].idx] = { ...steps[pending[j].idx], resultPreview: ev.result_preview };
+                    pending.splice(j, 1);
+                    break;
+                  }
+                }
+              }
+            }
+            msg.toolCallSteps = steps;
+          }
 
-					// [FINAL] 模式：存储的正文 = 最终回复；content 只保留思考块（用于执行过程）
-					msg.finalReply = { source: "stored", text: item.content };
-					if (!data.thinking_content) {
-						msg.content = "";
-					} else {
-						msg.content = `[THINK]${data.thinking_content}[/THINK]`;
-					}
-				} catch {
-					// extraData 解析失败，回退到原始内容
-				}
-			}
+          // [FINAL] 模式：存储的正文 = 最终回复；content 只保留思考块（用于执行过程）
+          msg.finalReply = { source: "stored", text: item.content };
+          if (!data.thinking_content) {
+            msg.content = "";
+          } else {
+            msg.content = `[THINK]${data.thinking_content}[/THINK]`;
+          }
+        } catch {
+          // extraData 解析失败，回退到原始内容
+        }
+      }
 
-			return msg;
-		});
-		setMessages(loaded);
-		setConversationId(viewingSessionId);
-		setViewingSessionId(null);
-		setHistoryOpen(false);
-	}, [viewingSessionId, historyQuery.data]);
+      return msg;
+    });
+    setMessages(loaded);
+    setConversationId(viewingSessionId);
+    setViewingSessionId(null);
+    setHistoryOpen(false);
+  }, [viewingSessionId, historyQuery.data]);
 
-	// 开始新对话：清空当前会话
-	const startNewConversation = () => {
-		setMessages([]);
-		setConversationId(null);
-		setHistoryOpen(false);
-	};
+  // 开始新对话：清空当前会话
+  const startNewConversation = () => {
+    setMessages([]);
+    setConversationId(null);
+    setHistoryOpen(false);
+  };
 
-	useEffect(() => {
-		if (listRef.current) {
-			listRef.current.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-		}
-	}, [messages]);
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [messages]);
 
-	// Auto-resize textarea on input change
-	useEffect(() => {
-		const el = inputRef.current;
-		if (!el) return;
-		el.style.height = "0";
-		el.style.height = `${Math.min(el.scrollHeight, 150)}px`;
-	}, [inputValue]);
+  // Auto-resize textarea on input change
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "0";
+    el.style.height = `${Math.min(el.scrollHeight, 150)}px`;
+  }, [inputValue]);
 
-	const doStream = useCallback(async (prompt: string, assistantId: string, systemPrompt?: string, suppressText?: boolean) => {
-		setIsStreaming(true);
-		setError(null);
-		const ac = new AbortController();
-		abortRef.current = ac;
-		// 本地累计 assistant content 长度，用于给工具调用记录内联渲染锚点
-		let assistantContent = "";
-		try {
-			await sendChatMessageStream(
-				{
-					message: prompt,
-					userInput: prompt,
-					conversationId: conversationId ?? undefined,
-					mode: "agno",
-					chatType: "notes",
-					systemPrompt: systemPrompt ?? THINKING_COACH_SYSTEM_PROMPT,
-				selectedTools: ["create_note","update_note","delete_note","search_notes","get_note","list_note_tags","list_notes_by_tags","list_notes_by_date","get_insight","suggest_note_tags"],
-				},
-				(chunk) => {
-					assistantContent += chunk;
-					if (!suppressText) {
-						setMessages((prev) =>
-							prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m),
-						);
-					}
-				},
-				(id) => id && setConversationId(id),
-				ac.signal,
-				locale,
-				(event: ToolCallEvent) => {
-					if (event.type === "tool_call_start" && event.tool_name) {
-						const insertAt = assistantContent.length;
-						setMessages((prev) => prev.map((m) => m.id === assistantId ? {
-							...m,
-							toolCallSteps: [...(m.toolCallSteps || []), {
-								id: "tc-" + Date.now(),
-								toolName: event.tool_name!,
-								toolArgs: event.tool_args,
-								status: "running" as const,
-								startTime: Date.now(),
-								insertAt,
-							}],
-						} : m));
-					} else if (event.type === "tool_call_end" && event.tool_name) {
-						setMessages((prev) => prev.map((m) => {
-							if (m.id !== assistantId) return m;
-							const steps = [...(m.toolCallSteps || [])];
-							for (let i = steps.length - 1; i >= 0; i--) {
-								if (steps[i].toolName === event.tool_name && steps[i].status === "running") {
-									steps[i] = { ...steps[i], status: "completed", resultPreview: event.result_preview, endTime: Date.now() };
-									break;
-								}
-							}
-							return { ...m, toolCallSteps: steps };
-						}));
-						const noteMutationTools = ["create_note", "update_note", "delete_note"];
-						if (noteMutationTools.includes(event.tool_name)) {
-							void queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
-						}
-						// 笔记被工具改动：解析 noteId 通知父组件，以便刷新正在打开的编辑器
-						if (event.tool_name === "update_note" || event.tool_name === "create_note") {
-							const idMatch = /#(\d+)/.exec(event.result_preview ?? "");
-							if (idMatch) onNoteMutated?.(Number(idMatch[1]));
-						}
-					}
-				},
-				// onFinal：后端注入的权威最终回复（写操作回执 / 终态正文）
-				(payload) => {
-					setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, finalReply: payload } : m));
-				},
-			);
-		} catch (err) {
-			if (ac.signal.aborted) return;
-			setMessages((prev) =>
-				prev.map((m) => m.id === assistantId && m.content === ""
-					? { ...m, content: "抱歉，分析过程出现错误，请重试。" } : m),
-			);
-			setError("请求失败，请检查后端服务是否正常运行");
-		} finally {
-			setIsStreaming(false);
-			abortRef.current = null;
-			void queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
+  const doStream = useCallback(async (prompt: string, assistantId: string, systemPrompt?: string, suppressText?: boolean) => {
+    setIsStreaming(true);
+    setError(null);
+    const ac = new AbortController();
+    abortRef.current = ac;
+    // 本地累计 assistant content 长度，用于给工具调用记录内联渲染锚点
+    let assistantContent = "";
+    try {
+      await sendChatMessageStream(
+        {
+          message: prompt,
+          userInput: prompt,
+          conversationId: conversationId ?? undefined,
+          mode: "agno",
+          chatType: "notes",
+          systemPrompt: systemPrompt ?? THINKING_COACH_SYSTEM_PROMPT,
+          selectedTools: ["create_note","update_note","delete_note","search_notes","get_note","list_note_tags","list_notes_by_tags","list_notes_by_date","get_insight","suggest_note_tags"],
+        },
+        (chunk) => {
+          assistantContent += chunk;
+          if (!suppressText) {
+            setMessages((prev) =>
+              prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m),
+            );
+          }
+        },
+        (id) => id && setConversationId(id),
+        ac.signal,
+        locale,
+        (event: ToolCallEvent) => {
+          if (event.type === "tool_call_start" && event.tool_name) {
+            const insertAt = assistantContent.length;
+            setMessages((prev) => prev.map((m) => m.id === assistantId ? {
+              ...m,
+              toolCallSteps: [...(m.toolCallSteps || []), {
+                id: "tc-" + Date.now(),
+                toolName: event.tool_name!,
+                toolArgs: event.tool_args,
+                status: "running" as const,
+                startTime: Date.now(),
+                insertAt,
+              }],
+            } : m));
+          } else if (event.type === "tool_call_end" && event.tool_name) {
+            setMessages((prev) => prev.map((m) => {
+              if (m.id !== assistantId) return m;
+              const steps = [...(m.toolCallSteps || [])];
+              for (let i = steps.length - 1; i >= 0; i--) {
+                if (steps[i].toolName === event.tool_name && steps[i].status === "running") {
+                  steps[i] = { ...steps[i], status: "completed", resultPreview: event.result_preview, endTime: Date.now() };
+                  break;
+                }
+              }
+              return { ...m, toolCallSteps: steps };
+            }));
+            const noteMutationTools = ["create_note", "update_note", "delete_note"];
+            if (noteMutationTools.includes(event.tool_name)) {
+              void queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
+            }
+            // 笔记被工具改动：解析 noteId 通知父组件，以便刷新正在打开的编辑器
+            if (event.tool_name === "update_note" || event.tool_name === "create_note") {
+              const idMatch = /#(\d+)/.exec(event.result_preview ?? "");
+              if (idMatch) onNoteMutated?.(Number(idMatch[1]));
+            }
+          }
+        },
+        // onFinal：后端注入的权威最终回复（写操作回执 / 终态正文）
+        (payload) => {
+          setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, finalReply: payload } : m));
+        },
+      );
+    } catch (err) {
+      if (ac.signal.aborted) return;
+      setMessages((prev) =>
+        prev.map((m) => m.id === assistantId && m.content === ""
+          ? { ...m, content: "抱歉，分析过程出现错误，请重试。" } : m),
+      );
+      setError("请求失败，请检查后端服务是否正常运行");
+    } finally {
+      setIsStreaming(false);
+      abortRef.current = null;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
+    }
+  }, [conversationId, locale, queryClient, onNoteMutated]);
 
-		}
-	}, [conversationId, locale, queryClient, onNoteMutated]);
+  const handleTabClick = useCallback((tab: TabDef) => {
+    if (isStreaming) return;
+    const uid = createId();
+    const aid = createId();
+    setMessages((prev) => [
+      ...prev,
+      { id: uid, role: "user", content: `🧠 ${tab.label}` },
+      { id: aid, role: "assistant", content: "" },
+    ]);
+    const basePrompt = TAB_PROMPTS[tab.key]?.replace("{{notes}}", noteContent || "（暂无笔记内容）")
+      ?? "请分析以上笔记内容。";
+    const noteCtx = buildNoteContext();
+    doStream(noteCtx ? `${noteCtx}\n\n${basePrompt}` : basePrompt, aid);
+  }, [noteContent, isStreaming, doStream]);
 
-	const handleTabClick = useCallback((tab: TabDef) => {
-		if (isStreaming) return;
-		const uid = createId();
-		const aid = createId();
-		setMessages((prev) => [
-			...prev,
-			{ id: uid, role: "user", content: `🧠 ${tab.label}` },
-			{ id: aid, role: "assistant", content: "" },
-		]);
-		const basePrompt = TAB_PROMPTS[tab.key]?.replace("{{notes}}", noteContent || "（暂无笔记内容）")
-			?? "请分析以上笔记内容。";
-		const noteCtx = buildNoteContext();
-		doStream(noteCtx ? `${noteCtx}\n\n${basePrompt}` : basePrompt, aid);
-	}, [noteContent, isStreaming, doStream]);
+  const handleSendInput = useCallback(async () => {
+    if (isStreaming) return;
+    const linked = useNoteChatStore.getState().linkedNotes;
+    if (!inputValue.trim() && linked.length === 0) return;
+    setError(null);
+    const text = inputValue.trim();
+    setInputValue("");
+    const uid = createId();
+    const aid = createId();
+    // 只带入用户手动添加的关联笔记，不自动附加当前笔记
+    // （自由输入任务时不应强制带入当前笔记；Agent 可通过 get_insight/search_notes 工具按需取数）
+    const noteCtx = buildNoteContext();
+    let attachedNotes: { id: number; name: string; preview: string; date: string }[] | undefined;
+    if (linked.length > 0) {
+      attachedNotes = linked.map((n) => ({
+        id: n.id,
+        name: n.name || "未命名",
+        preview: (n.userNotes || "").slice(0, 80),
+        date: n.date || "",
+      }));
+    }
+    setMessages((prev) => [
+      ...prev,
+      { id: uid, role: "user", content: text, attachedNotes },
+      { id: aid, role: "assistant", content: "" },
+    ]);
+    const prompt = noteCtx ? `${noteCtx}\n\n${text}` : text;
+    doStream(prompt, aid, CREATE_NOTE_SYSTEM_PROMPT);
+    clearLinkedNotes();
+  }, [inputValue, isStreaming, doStream, clearLinkedNotes]);
 
-	const handleSendInput = useCallback(async () => {
-		if (isStreaming) return;
-		const linked = useNoteChatStore.getState().linkedNotes;
-		if (!inputValue.trim() && linked.length === 0) return;
-		setError(null);
-		const text = inputValue.trim();
-		setInputValue("");
-		const uid = createId();
-		const aid = createId();
-		// 只带入用户手动添加的关联笔记，不自动附加当前笔记
-		// （自由输入任务时不应强制带入当前笔记；Agent 可通过 get_insight/search_notes 工具按需取数）
-		const noteCtx = buildNoteContext();
-		let attachedNotes: { id: number; name: string; preview: string; date: string }[] | undefined;
-		if (linked.length > 0) {
-			attachedNotes = linked.map((n) => ({
-				id: n.id,
-				name: n.name || "未命名",
-				preview: (n.userNotes || "").slice(0, 80),
-				date: n.date || "",
-			}));
-		}
-		setMessages((prev) => [
-			...prev,
-			{ id: uid, role: "user", content: text, attachedNotes },
-			{ id: aid, role: "assistant", content: "" },
-		]);
-		const prompt = noteCtx ? `${noteCtx}\n\n${text}` : text;
-		doStream(prompt, aid, CREATE_NOTE_SYSTEM_PROMPT);
-		clearLinkedNotes();
-	}, [inputValue, isStreaming, doStream, clearLinkedNotes]);
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendInput();
+    }
+  }, [handleSendInput]);
 
-	const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-		if (e.key === "Enter" && !e.shiftKey) {
-			e.preventDefault();
-			handleSendInput();
-		}
-	}, [handleSendInput]);
+  const handleStop = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsStreaming(false);
+  }, []);
 
-	const handleStop = useCallback(() => {
-		abortRef.current?.abort();
-		abortRef.current = null;
-		setIsStreaming(false);
-	}, []);
+  const showWelcome = messages.length === 0 && !isStreaming;
 
-	const showWelcome = messages.length === 0 && !isStreaming;
+  return (
+    <div className="flex h-full flex-col bg-background">
+      {/* Header */}
+      <div className="flex-shrink-0 px-4 pt-3 pb-2 border-b border-border/30">
+        <div className="flex items-center gap-2">
+          {showBackButton && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 text-muted-foreground hover:text-foreground transition-colors mr-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5m7-7-7 7 7 7"/>
+              </svg>
+            </button>
+          )}
+          <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5 text-primary/60" />
+          </div>
+          <span className="text-sm font-semibold tracking-tight text-foreground/80">
+            思维分析
+          </span>
+          {/* 右侧：生成中指示 + 历史记录 */}
+          <div className="ml-auto flex items-center gap-1.5">
+            {isStreaming && (
+              <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/40" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary/60" />
+                </span>
+                生成中
+              </span>
+            )}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setHistoryOpen((v) => !v)}
+                title="历史记录"
+                className="p-1 text-muted-foreground/70 hover:text-foreground transition-colors rounded-md hover:bg-muted/50"
+              >
+                <History className="w-4 h-4" />
+              </button>
+              {historyOpen && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="关闭"
+                    className="fixed inset-0 z-40 cursor-default"
+                    onClick={() => setHistoryOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-lg border border-border/40 bg-background shadow-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={startNewConversation}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-foreground hover:bg-muted/50 border-b border-border/30"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> 新对话
+                    </button>
+                    <div className="max-h-72 overflow-y-auto scrollbar-thin">
+                      {sessionsQuery.isLoading ? (
+                        <div className="px-3 py-3 text-xs text-muted-foreground/60">加载中…</div>
+                      ) : (sessionsQuery.data?.length ?? 0) === 0 ? (
+                        <div className="px-3 py-3 text-xs text-muted-foreground/60">暂无历史会话</div>
+                      ) : (
+                        (sessionsQuery.data ?? []).map((s) => (
+                          <button
+                            key={s.sessionId}
+                            type="button"
+                            onClick={() => setViewingSessionId(s.sessionId)}
+                            className={`flex flex-col w-full px-3 py-2 text-left hover:bg-muted/50 border-b border-border/20 last:border-0 ${s.sessionId === conversationId ? "bg-muted/40" : ""}`}
+                          >
+                            <span className="text-xs text-foreground truncate">{s.title || "未命名会话"}</span>
+                            <span className="text-[10px] text-muted-foreground/60">
+                              {s.lastActive ? new Date(s.lastActive).toLocaleString() : ""}
+                              {s.messageCount ? ` · ${s.messageCount} 条` : ""}
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
-	return (
-		<div className="flex h-full flex-col bg-background">
-			{/* Header */}
-			<div className="flex-shrink-0 px-4 pt-3 pb-2 border-b border-border/30">
-				<div className="flex items-center gap-2">
-					{showBackButton && (
-						<button
-							type="button"
-							onClick={onClose}
-							className="p-1 text-muted-foreground hover:text-foreground transition-colors mr-1"
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-								<path d="M19 12H5m7-7-7 7 7 7"/>
-							</svg>
-						</button>
-					)}
-					<div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
-						<Sparkles className="w-3.5 h-3.5 text-primary/60" />
-					</div>
-					<span className="text-sm font-semibold tracking-tight text-foreground/80">
-						思维分析
-					</span>
-					{/* 右侧：生成中指示 + 历史记录 */}
-					<div className="ml-auto flex items-center gap-1.5">
-						{isStreaming && (
-							<span className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50">
-								<span className="relative flex h-1.5 w-1.5">
-									<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/40" />
-									<span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary/60" />
-								</span>
-								生成中
-							</span>
-						)}
-						<div className="relative">
-							<button
-								type="button"
-								onClick={() => setHistoryOpen((v) => !v)}
-								title="历史记录"
-								className="p-1 text-muted-foreground/70 hover:text-foreground transition-colors rounded-md hover:bg-muted/50"
-							>
-								<History className="w-4 h-4" />
-							</button>
-							{historyOpen && (
-								<>
-									<button
-										type="button"
-										aria-label="关闭"
-										className="fixed inset-0 z-40 cursor-default"
-										onClick={() => setHistoryOpen(false)}
-									/>
-									<div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-lg border border-border/40 bg-background shadow-lg overflow-hidden">
-										<button
-											type="button"
-											onClick={startNewConversation}
-											className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-foreground hover:bg-muted/50 border-b border-border/30"
-										>
-											<Plus className="w-3.5 h-3.5" /> 新对话
-										</button>
-										<div className="max-h-72 overflow-y-auto scrollbar-thin">
-											{sessionsQuery.isLoading ? (
-												<div className="px-3 py-3 text-xs text-muted-foreground/60">加载中…</div>
-											) : (sessionsQuery.data?.length ?? 0) === 0 ? (
-												<div className="px-3 py-3 text-xs text-muted-foreground/60">暂无历史会话</div>
-											) : (
-												(sessionsQuery.data ?? []).map((s) => (
-													<button
-														key={s.sessionId}
-														type="button"
-														onClick={() => setViewingSessionId(s.sessionId)}
-														className={`flex flex-col w-full px-3 py-2 text-left hover:bg-muted/50 border-b border-border/20 last:border-0 ${s.sessionId === conversationId ? "bg-muted/40" : ""}`}
-													>
-														<span className="text-xs text-foreground truncate">{s.title || "未命名会话"}</span>
-														<span className="text-[10px] text-muted-foreground/60">
-															{s.lastActive ? new Date(s.lastActive).toLocaleString() : ""}
-															{s.messageCount ? ` · ${s.messageCount} 条` : ""}
-														</span>
-													</button>
-												))
-											)}
-										</div>
-									</div>
-								</>
-							)}
-						</div>
-					</div>
-				</div>
-			</div>
+      {/* Messages area */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {showWelcome ? (
+          <EmptyState onTabSelect={handleTabClick} />
+        ) : (
+          <div ref={listRef} className="h-full overflow-y-auto space-y-3 px-3 py-3 scrollbar-thin">
+            <AnimatePresence mode="popLayout">
+              {messages.map((msg) => (
+                <MessageBubble key={msg.id} msg={msg} isStreaming={isStreaming} />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
 
-			{/* Messages area */}
-			<div className="flex-1 min-h-0 overflow-hidden">
-				{showWelcome ? (
-					<EmptyState onTabSelect={handleTabClick} />
-				) : (
-					<div ref={listRef} className="h-full overflow-y-auto space-y-3 px-3 py-3 scrollbar-thin">
-						<AnimatePresence mode="popLayout">
-							{messages.map((msg) => (
-								<MessageBubble key={msg.id} msg={msg} isStreaming={isStreaming} />
-							))}
-						</AnimatePresence>
-					</div>
-				)}
-			</div>
+      {/* Error banner */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 py-2">
+              <div className="flex items-center gap-2 rounded-lg bg-destructive/5 border border-destructive/15 px-3 py-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-destructive/50 flex-shrink-0" />
+                <p className="text-[11px] text-destructive/70 leading-relaxed">{error}</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-			{/* Error banner */}
-			<AnimatePresence>
-				{error && (
-					<motion.div
-						initial={{ opacity: 0, height: 0 }}
-						animate={{ opacity: 1, height: "auto" }}
-						exit={{ opacity: 0, height: 0 }}
-						className="overflow-hidden"
-					>
-						<div className="px-4 py-2">
-							<div className="flex items-center gap-2 rounded-lg bg-destructive/5 border border-destructive/15 px-3 py-2">
-								<div className="w-1.5 h-1.5 rounded-full bg-destructive/50 flex-shrink-0" />
-								<p className="text-[11px] text-destructive/70 leading-relaxed">{error}</p>
-							</div>
-						</div>
-					</motion.div>
-				)}
-			</AnimatePresence>
-
-			{/* Bottom: input */}
-			<div className="flex-shrink-0 border-t border-border/30 bg-muted/10">
-				<div className="px-3 pb-3 pt-3">
-					<LinkedNotes locale="zh" />
-					<div className="flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3.5 py-2.5 transition-all duration-200 focus-within:border-primary/30 focus-within:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)]">
-						<textarea
-							ref={inputRef}
-							value={inputValue}
-							onChange={(e) => setInputValue(e.target.value)}
-							onKeyDown={handleKeyDown}
-							placeholder="输入自定义问题..."
-							disabled={isStreaming}
-							rows={1}
-							className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus-visible:outline-none disabled:opacity-40 resize-none overflow-y-auto"
-						/>
-						{isStreaming ? (
-							<button type="button" onClick={handleStop} title="停止"
-								className="flex items-center justify-center rounded-lg bg-muted/50 p-1.5 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors">
-								<Square className="w-3.5 h-3.5 fill-current" />
-							</button>
-						) : (
-							<button type="button" onClick={handleSendInput} disabled={isStreaming || (!inputValue.trim() && !currentJournalId && useNoteChatStore.getState().linkedNotes.length === 0)} title="发送"
-								className="flex items-center justify-center rounded-lg bg-primary/10 p-1.5 text-primary hover:bg-primary/20 transition-colors disabled:opacity-25 disabled:cursor-not-allowed">
-								<Send className="w-3.5 h-3.5" />
-							</button>
-						)}
-					</div>
-				</div>
-			</div>
-		</div>
-	);
+      {/* Bottom: input */}
+      <div className="flex-shrink-0 border-t border-border/30 bg-muted/10">
+        <div className="px-3 pb-3 pt-3">
+          <LinkedNotes locale="zh" />
+          <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3.5 py-2.5 transition-all duration-200 focus-within:border-primary/30 focus-within:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)]">
+            <textarea
+              ref={inputRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="输入自定义问题..."
+              disabled={isStreaming}
+              rows={1}
+              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus-visible:outline-none disabled:opacity-40 resize-none overflow-y-auto"
+            />
+            {isStreaming ? (
+              <button type="button" onClick={handleStop} title="停止"
+                className="flex items-center justify-center rounded-lg bg-muted/50 p-1.5 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors">
+                <Square className="w-3.5 h-3.5 fill-current" />
+              </button>
+            ) : (
+              <button type="button" onClick={handleSendInput} disabled={isStreaming || (!inputValue.trim() && !currentJournalId && useNoteChatStore.getState().linkedNotes.length === 0)} title="发送"
+                className="flex items-center justify-center rounded-lg bg-primary/10 p-1.5 text-primary hover:bg-primary/20 transition-colors disabled:opacity-25 disabled:cursor-not-allowed">
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

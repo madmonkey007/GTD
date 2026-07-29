@@ -9,6 +9,5 @@ export interface JournalDraft {
 	tags: string[];
 	relatedTodoIds: number[];
 	relatedActivityIds: number[];
-	relatedNoteIds: number[];
 	date: Date;
 }

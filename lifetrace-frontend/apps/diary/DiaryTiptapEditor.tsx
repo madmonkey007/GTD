@@ -9,6 +9,7 @@ import StarterKit from "@tiptap/starter-kit";
 import MarkdownIt from "markdown-it";
 import { Bold, Highlighter, Underline, ListOrdered, List, Hash, AtSign, Search as SearchIcon  } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import TurndownService from "turndown";
 
 type Variant = "create" | "edit";
@@ -193,6 +194,7 @@ export function DiaryTiptapEditor({
 	onBlurRef.current = onBlur;
 	const [linkPopupOpen, setLinkPopupOpen] = useState(false);
 	const [linkSearch, setLinkSearch] = useState('');
+	const [popupPos, setPopupPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 	const linkPopupRef = useRef<HTMLDivElement>(null);
 
 	const wordCount = value.replace(/\s/g, '').length;
@@ -214,11 +216,29 @@ export function DiaryTiptapEditor({
 	noteLinkListRef.current = noteLinkList;
 	const onLinkNoteRef = useRef(onLinkNote);
 	onLinkNoteRef.current = onLinkNote;
-	// Open @ link popup when user types @ in the editor
-	const handleEditorKeyDown = useCallback((_view: any, event: KeyboardEvent) => {
+
+	// 打开 @ 候选弹窗并定位（coords 来自光标或触发按钮）
+	const openLinkPopup = (coords: { top: number; left: number }) => {
+		// 右侧防溢出（弹窗宽 320px）
+		const left = Math.max(8, Math.min(coords.left, window.innerWidth - 332));
+		// 下方空间不足时向上弹
+		const top = coords.top + 280 > window.innerHeight ? Math.max(8, coords.top - 290) : coords.top;
+		setPopupPos({ top, left });
+		setLinkPopupOpen(true);
+		setLinkSearch('');
+	};
+
+	// 输入 @ 时：定位到光标处
+	const handleEditorKeyDown = useCallback((view: any, event: KeyboardEvent) => {
 		if (event.key === '@' && noteLinkListRef.current && onLinkNoteRef.current) {
-			setLinkPopupOpen(true);
-			setLinkSearch('');
+			let coords = { top: 0, left: 0 };
+			try {
+				const c = view.coordsAtPos(view.state.selection.from);
+				coords = { top: c.bottom + 4, left: c.left };
+			} catch {
+				coords = { top: 100, left: 100 };
+			}
+			openLinkPopup(coords);
 			return true; // prevent @ from being inserted into editor content
 		}
 		return false;
@@ -363,61 +383,18 @@ export function DiaryTiptapEditor({
 					))}
 					{/* @ 关联笔记 */}
 					{noteLinkList && onLinkNote && (
-						<div className="relative" style={{ display: 'inline-flex' }}>
-							<button
-								type="button"
-								onClick={() => setLinkPopupOpen(!linkPopupOpen)}
-								title="关联笔记"
-								className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
-							>
-								<AtSign className="w-4 h-4" />
-							</button>
-							{linkPopupOpen && (
-								<div
-									ref={linkPopupRef}
-									className="absolute top-full left-0 mt-1 z-[100] w-80 h-72 rounded-lg border border-border/60 bg-popover shadow-lg flex flex-col"
-								>
-									<div className="relative p-2">
-										<SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/40" />
-										<input
-											type="text"
-											value={linkSearch}
-											onChange={(e) => setLinkSearch(e.target.value)}
-											placeholder="搜索笔记..."
-											className="w-full h-8 rounded-md border border-border/30 bg-background/50 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/30"
-										/>
-									</div>
-									<div className="flex-1 overflow-y-auto">
-										{noteLinkList
-											.map((n: NoteLinkItem) => {
-												if (!linkSearch) return { item: n, score: 0 };
-												const q = linkSearch.toLowerCase();
-												let score = 0;
-												if (n.name.toLowerCase().includes(q)) score += 10;
-												if (n.preview.toLowerCase().includes(q)) score += 1;
-												return { item: n, score };
-											})
-											.filter(x => !linkSearch || x.score > 0)
-											.sort((a, b) => b.score - a.score)
-											.slice(0, 10)
-											.map(({ item: n }) => (
-												<button
-													key={n.id}
-													type="button"
-													onClick={() => { onLinkNote(n.id); setLinkPopupOpen(false); setLinkSearch(''); }}
-													className="w-full flex flex-col items-start gap-0.5 px-3 py-2.5 text-left hover:bg-muted/40 transition-colors border-b border-border/20 last:border-0"
-												>
-													<span className="text-[10px] text-muted-foreground/40 truncate w-full">{n.name || '无标题'}</span>
-													<span className="text-xs text-foreground/80 leading-relaxed line-clamp-3 w-full">{n.preview}</span>
-												</button>
-											))}
-										{noteLinkList.length === 0 && (
-											<div className="px-3 py-4 text-xs text-muted-foreground/50 text-center">暂无笔记</div>
-										)}
-									</div>
-								</div>
-							)}
-						</div>
+						<button
+							type="button"
+							onClick={(e) => {
+								if (linkPopupOpen) { setLinkPopupOpen(false); return; }
+								const r = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+								openLinkPopup({ top: r.bottom + 4, left: r.left });
+							}}
+							title="关联笔记"
+							className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+						>
+							<AtSign className="w-4 h-4" />
+						</button>
 					)}
 				</div>
 				<div className="flex items-center gap-1">
@@ -426,6 +403,54 @@ export function DiaryTiptapEditor({
 					{toolbarEnd}
 				</div>
 			</div>
+			{/* @ 候选弹窗：Portal 到 body，fixed 定位，避免被父容器 overflow/层叠遮挡 */}
+			{linkPopupOpen && noteLinkList && onLinkNote && createPortal(
+				<div
+					ref={linkPopupRef}
+					style={{ position: 'fixed', top: popupPos.top, left: popupPos.left, zIndex: 9999 }}
+					className="w-80 h-72 rounded-lg border border-border/60 bg-popover shadow-lg flex flex-col"
+				>
+					<div className="relative p-2">
+						<SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/40" />
+						<input
+							type="text"
+							value={linkSearch}
+							onChange={(e) => setLinkSearch(e.target.value)}
+							placeholder="搜索笔记..."
+							className="w-full h-8 rounded-md border border-border/30 bg-background/50 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/30"
+						/>
+					</div>
+					<div className="flex-1 overflow-y-auto">
+						{noteLinkList
+							.map((n: NoteLinkItem) => {
+								if (!linkSearch) return { item: n, score: 0 };
+								const q = linkSearch.toLowerCase();
+								let score = 0;
+								if (n.name.toLowerCase().includes(q)) score += 10;
+								if (n.preview.toLowerCase().includes(q)) score += 1;
+								return { item: n, score };
+							})
+							.filter(x => !linkSearch || x.score > 0)
+							.sort((a, b) => b.score - a.score)
+							.slice(0, 10)
+							.map(({ item: n }) => (
+								<button
+									key={n.id}
+									type="button"
+									onClick={() => { onLinkNote(n.id); setLinkPopupOpen(false); setLinkSearch(''); }}
+									className="w-full flex flex-col items-start gap-0.5 px-3 py-2.5 text-left hover:bg-muted/40 transition-colors border-b border-border/20 last:border-0"
+								>
+									<span className="text-[10px] text-muted-foreground/40 truncate w-full">{n.name || '无标题'}</span>
+									<span className="text-xs text-foreground/80 leading-relaxed line-clamp-3 w-full">{n.preview}</span>
+								</button>
+							))}
+						{noteLinkList.length === 0 && (
+							<div className="px-3 py-4 text-xs text-muted-foreground/50 text-center">暂无笔记</div>
+						)}
+					</div>
+				</div>,
+				document.body,
+			)}
 		</div>
 	);
 }

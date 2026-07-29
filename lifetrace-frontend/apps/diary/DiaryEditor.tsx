@@ -25,6 +25,7 @@ import {
 	ArrowDownLeft,
 	Search,
 	MessageCircle,
+	Link2,
 } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import type { JournalDraft } from "@/apps/diary/types";
@@ -50,6 +51,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { DiaryTiptapEditor, type NoteLinkItem } from "./DiaryTiptapEditor";
 import { ReferenceModal } from "./components/ReferenceModal";
+import { AddNoteLinkModal } from "./components/AddNoteLinkModal";
 import { useNoteChatStore } from "@/lib/store/note-chat-store";
 
 export type DiaryFilterMode = "all" | "last7" | "random";
@@ -126,7 +128,7 @@ interface DiaryEditorProps {
 	onDelete: (note: JournalView) => void;
 	onTogglePin: (journalId: number) => void;
 	onSubmit: () => void;
-	onSaveCardEdit: (journalId: number, data: { name?: string | null; user_notes?: string | null; related_note_ids?: number[] | null }) => Promise<void>;
+	onSaveCardEdit: (journalId: number, data: { name?: string | null; user_notes?: string | null }) => Promise<void>;
 	onInlineTag?: (tagName: string) => void;
 	similarToNoteId?: number | null;
 	onSimilarClick?: (noteId: number) => void;
@@ -135,9 +137,8 @@ interface DiaryEditorProps {
 	onAnnotate?: (note: JournalView) => void;
 	onCompareNotes?: (sourceNote: JournalView, currentNote: JournalView) => void;
 	noteLinkList?: NoteLinkItem[];
-	onLinkNote?: (noteId: number) => void;
-		linkedNoteTitles?: { id: number; name: string }[];
-		onRemoveLink?: (noteId: number) => void;
+	onLinkNote?: (noteId: number, sourceId?: number) => void;
+	onRemoveLink?: (noteId: number) => void;
 	relatedNotesData?: JournalView[];
 	showLeftToggle?: boolean;
 	showRightToggle?: boolean;
@@ -170,7 +171,6 @@ export function DiaryEditor({
 	// onCompareNotes, // kept in interface for upstream
 	noteLinkList,
 	onLinkNote,
-	linkedNoteTitles,
 	onRemoveLink,
 	relatedNotesData,
 	showLeftToggle = false,
@@ -190,10 +190,10 @@ export function DiaryEditor({
 	const [editingCardId, setEditingCardId] = useState<number | null>(null);
 	const [editName, setEditName] = useState("");
 	const [editContent, setEditContent] = useState("");
-const [editRelatedNoteIds, setEditRelatedNoteIds] = useState<number[]>([]);
 	const [isSaving, setIsSaving] = useState(false);
 	const [randomShuffle, setRandomShuffle] = useState(0);
 	const [referenceViewNote, setReferenceViewNote] = useState<JournalView | null>(null);
+	const [addLinkNote, setAddLinkNote] = useState<JournalView | null>(null);
 		const [searchQuery, setSearchQuery] = useState("");
 		const [debouncedSearch, setDebouncedSearch] = useState("");
 	const PAGE_SIZE = 20;
@@ -295,14 +295,12 @@ const [editRelatedNoteIds, setEditRelatedNoteIds] = useState<number[]>([]);
 		setEditingCardId(note.id);
 		setEditName(note.name ?? "");
 		setEditContent(note.userNotes ?? "");
-		setEditRelatedNoteIds(note.relatedNoteIds ?? []);
 	};
 
 	const cancelEditing = () => {
 			setEditingCardId(null);
 			setEditName("");
 			setEditContent("");
-			setEditRelatedNoteIds([]);
 		};
 
 		const handleSaveEdit = async () => {
@@ -312,7 +310,6 @@ const [editRelatedNoteIds, setEditRelatedNoteIds] = useState<number[]>([]);
 				await onSaveCardEdit(editingCardId, {
 					name: editName || null,
 					user_notes: editContent || null,
-					related_note_ids: editRelatedNoteIds,
 				});
 				cancelEditing();
 			} catch (err) {
@@ -427,7 +424,6 @@ const [editRelatedNoteIds, setEditRelatedNoteIds] = useState<number[]>([]);
 					<DiaryTiptapEditor
 						noteLinkList={noteLinkList}
 						onLinkNote={onLinkNote}
-						linkedNoteTitles={linkedNoteTitles}
 						onRemoveLink={onRemoveLink}
 						variant="create"
 						value={draft.userNotes}
@@ -571,7 +567,7 @@ const [editRelatedNoteIds, setEditRelatedNoteIds] = useState<number[]>([]);
 						// --- Inline edit mode ---
 						<div className="space-y-2">
 							<input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={t("titlePlaceholder")} className="w-full text-sm font-semibold bg-transparent border-b border-border/40 pb-1 focus-visible:outline-none focus-visible:border-primary/40" />
-							<DiaryTiptapEditor noteLinkList={noteLinkList} onLinkNote={(id) => { setEditRelatedNoteIds(prev => prev.includes(id) ? prev : [...prev, id]); }} linkedNoteTitles={editRelatedNoteIds.map(id => { const f = (relatedNotesData ?? []).find(n => n.id === id); return f ? { id: f.id, name: f.name ?? "" } : null; }).filter((x): x is { id: number; name: string } => x !== null)} onRemoveLink={(id) => { setEditRelatedNoteIds(prev => prev.filter(i => i !== id)); }} variant="edit" value={editContent} onChange={setEditContent} recentTags={recentTags} placeholder={t("contentPlaceholder")}
+							<DiaryTiptapEditor noteLinkList={noteLinkList?.filter((n) => n.id !== editingCardId)} onLinkNote={onLinkNote ? (id: number) => onLinkNote(id, editingCardId ?? undefined) : undefined} variant="edit" value={editContent} onChange={setEditContent} recentTags={recentTags} placeholder={t("contentPlaceholder")}
 								toolbarEnd={
 									<>
 										<button type="button" onClick={cancelEditing} disabled={isSaving} className="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/40 transition-colors disabled:opacity-50"><X className="w-3.5 h-3.5" />{t("cancel")}</button>
@@ -644,6 +640,10 @@ const [editRelatedNoteIds, setEditRelatedNoteIds] = useState<number[]>([]);
 													<DropdownMenuItem onClick={() => onAnnotate?.(note)}>
 														<MessageSquarePlus className="w-3.5 h-3.5 mr-2" />
 														批注
+													</DropdownMenuItem>
+													<DropdownMenuItem onClick={() => setAddLinkNote(note)}>
+														<Link2 className="w-3.5 h-3.5 mr-2" />
+														链接
 													</DropdownMenuItem>
 													<DropdownMenuItem onClick={() => onTogglePin(note.id)}>
 														{pinnedIds.includes(note.id) ? (
@@ -791,6 +791,14 @@ const [editRelatedNoteIds, setEditRelatedNoteIds] = useState<number[]>([]);
 							allNotes={relatedNotesData ?? []}
 						/>
 					)}
+				{addLinkNote && (
+					<AddNoteLinkModal
+						isOpen={true}
+						onClose={() => setAddLinkNote(null)}
+						noteId={addLinkNote.id}
+						noteName={addLinkNote.name ?? ""}
+					/>
+				)}
 				</div>
 			</div>
 		</div>

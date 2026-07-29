@@ -29,11 +29,13 @@ from lifetrace.repositories.sql_event_repository import SqlEventRepository, SqlO
 from lifetrace.repositories.sql_journal_repository import SqlJournalRepository
 from lifetrace.repositories.sql_todo_repository import SqlTodoRepository
 from lifetrace.repositories.sql_habit_repository import SqlHabitRepository
+from lifetrace.repositories.sql_note_link_repository import SqlNoteLinkRepository
 from lifetrace.services.activity_service import ActivityService
 from lifetrace.services.chat_service import ChatService
 from lifetrace.services.event_service import EventService
 from lifetrace.services.habit_service import HabitService
 from lifetrace.services.journal_service import JournalService
+from lifetrace.services.note_link_service import NoteLinkService
 from lifetrace.services.todo_service import TodoService
 from lifetrace.services.zero_think_service import ZeroThinkService
 from lifetrace.storage.database_base import DatabaseBase
@@ -116,6 +118,25 @@ def get_habit_service(
 ) -> HabitService:
     """获取 Habit 服务实例"""
     return HabitService(repo, db_base)
+
+
+# ========== NoteLink 模块依赖注入 ==========
+
+
+def get_note_link_repository(
+    db_base: DatabaseBase = Depends(get_db_base),
+) -> SqlNoteLinkRepository:
+    """获取 NoteLink 仓库实例"""
+    return SqlNoteLinkRepository(db_base)
+
+
+def get_note_link_service(
+    repo: SqlNoteLinkRepository = Depends(get_note_link_repository),
+    journal_repo: IJournalRepository = Depends(get_journal_repository),
+    db_base: DatabaseBase = Depends(get_db_base),
+) -> NoteLinkService:
+    """获取 NoteLink 服务实例"""
+    return NoteLinkService(repo, journal_repo, db_base)
 
 
 # ========== Event 模块依赖注入 ==========

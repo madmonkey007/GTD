@@ -558,6 +558,126 @@ export const useDeleteJournalApiJournalsJournalIdDelete = <TError = HTTPValidati
       return useMutation(getDeleteJournalApiJournalsJournalIdDeleteMutationOptions(options), queryClient);
     }
     /**
+ * 获取洞察上下文：当前笔记 + 4条相似笔记 + 2条跨域笔记
+
+用于笔记页"思维分析"功能，给大模型提供更丰富的上下文以获得更深层次洞察。
+ * @summary Get Insight Context
+ */
+export type getInsightContextApiJournalsJournalIdInsightContextGetResponse200 = {
+  data: unknown
+  status: 200
+}
+
+export type getInsightContextApiJournalsJournalIdInsightContextGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+    
+export type getInsightContextApiJournalsJournalIdInsightContextGetResponseSuccess = (getInsightContextApiJournalsJournalIdInsightContextGetResponse200) & {
+  headers: Headers;
+};
+export type getInsightContextApiJournalsJournalIdInsightContextGetResponseError = (getInsightContextApiJournalsJournalIdInsightContextGetResponse422) & {
+  headers: Headers;
+};
+
+export type getInsightContextApiJournalsJournalIdInsightContextGetResponse = (getInsightContextApiJournalsJournalIdInsightContextGetResponseSuccess | getInsightContextApiJournalsJournalIdInsightContextGetResponseError)
+
+export const getGetInsightContextApiJournalsJournalIdInsightContextGetUrl = (journalId: number,) => {
+
+
+  
+
+  return `/api/journals/${journalId}/insight-context`
+}
+
+export const getInsightContextApiJournalsJournalIdInsightContextGet = async (journalId: number, options?: RequestInit): Promise<getInsightContextApiJournalsJournalIdInsightContextGetResponse> => {
+  
+  return customFetcher<getInsightContextApiJournalsJournalIdInsightContextGetResponse>(getGetInsightContextApiJournalsJournalIdInsightContextGetUrl(journalId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
+
+export const getGetInsightContextApiJournalsJournalIdInsightContextGetQueryKey = (journalId: number,) => {
+    return [
+    `/api/journals/${journalId}/insight-context`
+    ] as const;
+    }
+
+    
+export const getGetInsightContextApiJournalsJournalIdInsightContextGetQueryOptions = <TData = Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>, TError = HTTPValidationError>(journalId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>, TError, TData>>, request?: SecondParameter<typeof customFetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetInsightContextApiJournalsJournalIdInsightContextGetQueryKey(journalId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>> = ({ signal }) => getInsightContextApiJournalsJournalIdInsightContextGet(journalId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(journalId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetInsightContextApiJournalsJournalIdInsightContextGetQueryResult = NonNullable<Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>>
+export type GetInsightContextApiJournalsJournalIdInsightContextGetQueryError = HTTPValidationError
+
+
+export function useGetInsightContextApiJournalsJournalIdInsightContextGet<TData = Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>, TError = HTTPValidationError>(
+ journalId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>,
+          TError,
+          Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetInsightContextApiJournalsJournalIdInsightContextGet<TData = Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>, TError = HTTPValidationError>(
+ journalId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>,
+          TError,
+          Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetInsightContextApiJournalsJournalIdInsightContextGet<TData = Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>, TError = HTTPValidationError>(
+ journalId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>, TError, TData>>, request?: SecondParameter<typeof customFetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Insight Context
+ */
+
+export function useGetInsightContextApiJournalsJournalIdInsightContextGet<TData = Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>, TError = HTTPValidationError>(
+ journalId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInsightContextApiJournalsJournalIdInsightContextGet>>, TError, TData>>, request?: SecondParameter<typeof customFetcher>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetInsightContextApiJournalsJournalIdInsightContextGetQueryOptions(journalId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
  * 自动关联 Todo/活动
  * @summary Auto Link Journal
  */
