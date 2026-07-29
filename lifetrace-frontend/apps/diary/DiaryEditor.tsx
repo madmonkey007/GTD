@@ -21,7 +21,8 @@ import {
 	X,
 	RefreshCw,
 	MessageSquarePlus,
-	ArrowUpLeft,
+	ArrowUpRight,
+	ArrowDownLeft,
 	Search,
 	MessageCircle,
 } from "lucide-react";
@@ -47,7 +48,8 @@ import {
 	AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DiaryTiptapEditor } from "./DiaryTiptapEditor";
+import { DiaryTiptapEditor, type NoteLinkItem } from "./DiaryTiptapEditor";
+import { ReferenceModal } from "./components/ReferenceModal";
 import { useNoteChatStore } from "@/lib/store/note-chat-store";
 
 export type DiaryFilterMode = "all" | "last7" | "random";
@@ -124,7 +126,7 @@ interface DiaryEditorProps {
 	onDelete: (note: JournalView) => void;
 	onTogglePin: (journalId: number) => void;
 	onSubmit: () => void;
-	onSaveCardEdit: (journalId: number, data: { name?: string | null; user_notes?: string | null }) => Promise<void>;
+	onSaveCardEdit: (journalId: number, data: { name?: string | null; user_notes?: string | null; related_note_ids?: number[] | null }) => Promise<void>;
 	onInlineTag?: (tagName: string) => void;
 	similarToNoteId?: number | null;
 	onSimilarClick?: (noteId: number) => void;
@@ -132,6 +134,10 @@ interface DiaryEditorProps {
 	recentTags?: string[];
 	onAnnotate?: (note: JournalView) => void;
 	onCompareNotes?: (sourceNote: JournalView, currentNote: JournalView) => void;
+	noteLinkList?: NoteLinkItem[];
+	onLinkNote?: (noteId: number) => void;
+		linkedNoteTitles?: { id: number; name: string }[];
+		onRemoveLink?: (noteId: number) => void;
 	relatedNotesData?: JournalView[];
 	showLeftToggle?: boolean;
 	showRightToggle?: boolean;
@@ -161,7 +167,11 @@ export function DiaryEditor({
 	onClearSimilarFilter,
 	recentTags = [],
 	onAnnotate,
-	onCompareNotes,
+	// onCompareNotes, // kept in interface for upstream
+	noteLinkList,
+	onLinkNote,
+	linkedNoteTitles,
+	onRemoveLink,
 	relatedNotesData,
 	showLeftToggle = false,
 	showRightToggle = false,
@@ -174,13 +184,16 @@ export function DiaryEditor({
 	const locale = useLocale();
 	const autoFilledRef = { current: false };
 		const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
+		const [refsExpanded, setRefsExpanded] = useState<Set<number>>(new Set());
 	const [deleteDialogNote, setDeleteDialogNote] = useState<JournalView | null>(null);
 	const addLinkedNote = useNoteChatStore((s) => s.addLinkedNote);
 	const [editingCardId, setEditingCardId] = useState<number | null>(null);
 	const [editName, setEditName] = useState("");
 	const [editContent, setEditContent] = useState("");
+const [editRelatedNoteIds, setEditRelatedNoteIds] = useState<number[]>([]);
 	const [isSaving, setIsSaving] = useState(false);
 	const [randomShuffle, setRandomShuffle] = useState(0);
+	const [referenceViewNote, setReferenceViewNote] = useState<JournalView | null>(null);
 		const [searchQuery, setSearchQuery] = useState("");
 		const [debouncedSearch, setDebouncedSearch] = useState("");
 	const PAGE_SIZE = 20;
@@ -282,12 +295,14 @@ export function DiaryEditor({
 		setEditingCardId(note.id);
 		setEditName(note.name ?? "");
 		setEditContent(note.userNotes ?? "");
+		setEditRelatedNoteIds(note.relatedNoteIds ?? []);
 	};
 
 	const cancelEditing = () => {
 			setEditingCardId(null);
 			setEditName("");
 			setEditContent("");
+			setEditRelatedNoteIds([]);
 		};
 
 		const handleSaveEdit = async () => {
@@ -297,6 +312,7 @@ export function DiaryEditor({
 				await onSaveCardEdit(editingCardId, {
 					name: editName || null,
 					user_notes: editContent || null,
+					related_note_ids: editRelatedNoteIds,
 				});
 				cancelEditing();
 			} catch (err) {
@@ -409,6 +425,10 @@ export function DiaryEditor({
 						{!debouncedSearch && !heatmapFilterDate && !tagFilter && !similarToNoteId && (
 				<div className="px-4 pt-2 pb-2">
 					<DiaryTiptapEditor
+						noteLinkList={noteLinkList}
+						onLinkNote={onLinkNote}
+						linkedNoteTitles={linkedNoteTitles}
+						onRemoveLink={onRemoveLink}
 						variant="create"
 						value={draft.userNotes}
 						onChange={(v) => {
@@ -551,7 +571,7 @@ export function DiaryEditor({
 						// --- Inline edit mode ---
 						<div className="space-y-2">
 							<input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={t("titlePlaceholder")} className="w-full text-sm font-semibold bg-transparent border-b border-border/40 pb-1 focus-visible:outline-none focus-visible:border-primary/40" />
-							<DiaryTiptapEditor variant="edit" value={editContent} onChange={setEditContent} recentTags={recentTags} placeholder={t("contentPlaceholder")}
+							<DiaryTiptapEditor noteLinkList={noteLinkList} onLinkNote={(id) => { setEditRelatedNoteIds(prev => prev.includes(id) ? prev : [...prev, id]); }} linkedNoteTitles={editRelatedNoteIds.map(id => { const f = (relatedNotesData ?? []).find(n => n.id === id); return f ? { id: f.id, name: f.name ?? "" } : null; }).filter((x): x is { id: number; name: string } => x !== null)} onRemoveLink={(id) => { setEditRelatedNoteIds(prev => prev.filter(i => i !== id)); }} variant="edit" value={editContent} onChange={setEditContent} recentTags={recentTags} placeholder={t("contentPlaceholder")}
 								toolbarEnd={
 									<>
 										<button type="button" onClick={cancelEditing} disabled={isSaving} className="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/40 transition-colors disabled:opacity-50"><X className="w-3.5 h-3.5" />{t("cancel")}</button>
@@ -669,26 +689,62 @@ export function DiaryEditor({
 											<Clock className="w-3 h-3 text-muted-foreground/40" />
 											{formatTime(note.createdAt)}
 										</div>
-										{note.relatedNoteIds && note.relatedNoteIds.length > 0 && (() => {
-											const refNote = notesList.find(n => n.id === note.relatedNoteIds[0]) ?? relatedNotesData?.find(n => n.id === note.relatedNoteIds[0]);
-											if (!refNote) return null;
-											const firstLine = (refNote.userNotes || '').split('\n')[0] || '';
+										{(() => {
+											const refIds = note.relatedNoteIds ?? [];
+											const outgoingNotes = refIds.map((rid: number) => notesList.find(n => n.id === rid) ?? relatedNotesData?.find(n => n.id === rid)).filter(Boolean);
+											const incomingNotes = relatedNotesData?.filter(n => n.relatedNoteIds?.includes(note.id) && n.id !== note.id) ?? [];
+											const total = outgoingNotes.length + incomingNotes.length;
+											if (total === 0) return null;
+											const isExpandable = total >= 3;
+											const isOpen = !isExpandable || refsExpanded.has(note.id);
 											return (
-												<button
-													type="button"
-													onClick={() => onCompareNotes?.(refNote, note)}
-													className="flex items-center gap-1.5 mt-1.5 text-[10px] text-muted-foreground/50 hover:text-primary/70 transition-colors group/reflink w-full text-left"
-												>
-													<span className="w-3 h-3 rounded-full bg-foreground/20 flex items-center justify-center shrink-0">
-														<ArrowUpLeft className="w-2 h-2 text-background" />
-													</span>
-													<span className="truncate">{formatTime(refNote.createdAt)} {firstLine}</span>
-												</button>
+												<>
+													{isExpandable && (
+														<button
+															type="button"
+															onClick={() => setRefsExpanded(prev => { const n = new Set(prev); isOpen ? n.delete(note.id) : n.add(note.id); return n; })}
+															className="flex items-center gap-1.5 mt-1.5 text-[10px] text-muted-foreground/50 hover:text-primary/70 transition-colors"
+														>
+															{isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+															<span>引用{outgoingNotes.length}条笔记，被{incomingNotes.length}条笔记引用</span>
+														</button>
+													)}
+													{isOpen && outgoingNotes.length > 0 && outgoingNotes.map((ref: any) => (
+														<button
+															key={ref.id}
+															type="button"
+															onClick={() => setReferenceViewNote(note)}
+															className="flex items-start gap-1.5 mt-1.5 text-[10px] text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left"
+														>
+															<span className="w-3 h-3 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+																<ArrowUpRight className="w-2 h-2 text-primary/60" />
+															</span>
+															<span className="text-[10px] text-muted-foreground/40 leading-relaxed line-clamp-1 text-left break-words min-w-0 flex-1">
+																{((ref.name ?? "") + " " + (ref.userNotes ?? "").slice(0, 80)).trim()}
+															</span>
+														</button>
+													))}
+													{isOpen && incomingNotes.length > 0 && incomingNotes.map((ref: any) => (
+														<button
+															key={ref.id}
+															type="button"
+															onClick={() => setReferenceViewNote(note)}
+															className="flex items-start gap-1.5 mt-1.5 text-[10px] text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left"
+														>
+															<span className="w-3 h-3 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+																<ArrowDownLeft className="w-2 h-2 text-primary/60" />
+															</span>
+															<span className="text-[10px] text-muted-foreground/40 leading-relaxed line-clamp-1 text-left break-words min-w-0 flex-1">
+																{((ref.name ?? "") + " " + (ref.userNotes ?? "").slice(0, 80)).trim()}
+															</span>
+														</button>
+													))}
+												</>
 											);
 										})()}
 									</>
-								)}
-							</motion.div>
+									)}
+								</motion.div>
 						</div>
 						);
 					})
@@ -726,7 +782,15 @@ export function DiaryEditor({
 					</AlertDialogContent>
 				</AlertDialog>
 
-				
+					{referenceViewNote && (
+						<ReferenceModal
+							isOpen={true}
+							onClose={() => setReferenceViewNote(null)}
+							note={referenceViewNote}
+							noteName={referenceViewNote.name ?? ''}
+							allNotes={relatedNotesData ?? []}
+						/>
+					)}
 				</div>
 			</div>
 		</div>

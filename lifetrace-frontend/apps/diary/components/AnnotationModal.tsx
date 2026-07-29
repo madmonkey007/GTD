@@ -355,7 +355,8 @@ export function AnnotationModal({
               );
               return typeof document !== "undefined" ? createPortal(dropdown, document.body) : dropdown;
             })()}
-            <div className="flex items-center justify-end px-2 pb-2 pt-1">
+            <div className="flex items-center justify-end px-2 pb-2 pt-1 gap-1">
+              <span className="text-[10px] text-muted-foreground/40 select-none tabular-nums">{content.replace(/\s/g, '').length}</span>
               <button
                 type="button"
                 onClick={handleSubmit}
