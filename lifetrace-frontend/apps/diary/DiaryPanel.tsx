@@ -192,7 +192,7 @@ export function DiaryPanel() {
 		isCreating,
 		isUpdating,
 		} = useJournalMutations();
-	const { createNoteLink } = useNoteLinkMutations();
+	const { createNoteLinkAsync } = useNoteLinkMutations();
 	const noteLinkList = useMemo(() => {
 		if (!allNotesData?.journals) return [];
 		return allNotesData.journals.map((n: any) => ({
@@ -213,7 +213,7 @@ export function DiaryPanel() {
 		}
 		if (!sid) return;
 		try {
-			await createNoteLink({
+			await createNoteLinkAsync({
 				sourceNoteId: sid,
 				input: { targetNoteId: targetId, relationType: "SUPPORTS" },
 			});
@@ -221,7 +221,7 @@ export function DiaryPanel() {
 		} catch (e) {
 			console.error('Failed to link note:', e);
 		}
-	}, [draft.id, createNoteLink, refetchAllNotes]);
+	}, [draft.id, createNoteLinkAsync, refetchAllNotes]);
 
 	const handleRemoveLink = useCallback((_targetId: number) => {
 		// Removal now happens in ReferenceModal
@@ -546,7 +546,7 @@ const handleSaveCardEdit = async (
 				if (result) {
 					// Create SUPPORTS NoteLink from the new annotation note to the target
 					try {
-						await createNoteLink({
+						await createNoteLinkAsync({
 							sourceNoteId: result.id,
 							input: { targetNoteId: annotateTarget.id, relationType: "SUPPORTS" },
 						});

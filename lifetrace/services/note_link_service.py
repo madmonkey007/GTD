@@ -4,6 +4,9 @@
 候选复用 JournalService 同款的向量检索（search_similar_journals），不重写 embedding 逻辑。
 """
 
+from __future__ import annotations
+
+import re
 from typing import Any
 
 from fastapi import HTTPException
@@ -150,10 +153,42 @@ class NoteLinkService:
 
     # ---- 相似度候选（复用向量检索）----
 
+    @staticmethod
+    def _char_ngrams(text: str, n: int = 2) -> set[str]:
+        """提取文本的字符 n-gram 集合（用于中文关键词重叠计算）
+
+        用 n-gram 而非分词来捕捉中文关键词重叠，
+        避免中文无空格分词导致 token 整体不匹配的问题。
+        """
+        clean = re.sub(r'[\s,，。！？、；：""''（）()\[\]【】《》/\-—…··#\d:]+', '', text)
+        if len(clean) < n:
+            return {clean} if clean else set()
+        return {clean[i:i+n] for i in range(len(clean)-n+1)}
+
+    @staticmethod
+    def _keyword_overlap(a: str, b: str) -> float:
+        """计算两段文本的字符 bigram 覆盖率，范围 [0, 1]
+
+        使用不对称覆盖率（重叠数 / 较短文本的 n-gram 总数），
+        比 Jaccard 更适合中文短文本关键词匹配——短文本只要
+        大部分内容与查询重叠就能得到较高分数。
+        """
+        ta = NoteLinkService._char_ngrams(a, 2)
+        tb = NoteLinkService._char_ngrams(b, 2)
+        if not ta or not tb:
+            return 0.0
+        overlap = len(ta & tb)
+        return overlap / min(len(ta), len(tb))
+
+
     def get_candidates(self, source_note_id: int, top_k: int = 10) -> list[LinkCandidate]:
         """以当前笔记做 embedding 查询，返回相似度最高的候选笔记列表（带 score）。
 
-        自动排除自身和已建立链接的目标，避免重复建链。
+        使用混合评分：向量语义相似度（50%）+ 关键词重叠度（50%），
+        弥补短文本或无标签笔记纯向量匹配不足的问题。
+
+        检索量扩大到 top_k 的 8 倍，确保短文本笔记也能进入候选池，
+        然后用关键词重叠度重新排序。
         """
         if self._vector_db is None:
             return []
@@ -170,7 +205,8 @@ class NoteLinkService:
             return []
 
         already_linked = self.repository.existing_target_ids(source_note_id)
-        retrieve_k = max(50, top_k + len(already_linked) + 10)
+        # 扩大检索范围到 8x，让短文本笔记也能进入候选池
+        retrieve_k = max(80, top_k * 8 + len(already_linked) + 10)
         raw = self._vector_db.search_similar_journals(
             query_text=query_text,
             top_k=retrieve_k,
@@ -178,6 +214,10 @@ class NoteLinkService:
         )
         if not raw:
             return []
+
+        # 混合评分：50% 向量语义 + 50% 关键词重叠（bigram Jaccard）
+        VEC_WEIGHT = 0.5
+        KW_WEIGHT = 0.5
 
         candidates: list[LinkCandidate] = []
         for hit in raw:
@@ -187,6 +227,24 @@ class NoteLinkService:
             note = self.journal_repository.get_by_id(jid)
             if not note:
                 continue
+            vec_score = float(hit.get("score", 0.0))
+            candidate_text = (note.get("user_notes") or "") + " " + (note.get("name") or "")
+            kw_score = self._keyword_overlap(query_text, candidate_text)
+            final_score = VEC_WEIGHT * vec_score + KW_WEIGHT * kw_score
+
+        candidates: list[LinkCandidate] = []
+        for hit in raw:
+            jid = hit.get("journal_id")
+            if jid is None or jid in already_linked:
+                continue
+            note = self.journal_repository.get_by_id(jid)
+            if not note:
+                continue
+            vec_score = float(hit.get("score", 0.0))
+            candidate_text = (note.get("user_notes") or "") + " " + (note.get("name") or "")
+            kw_score = self._keyword_overlap(query_text, candidate_text)
+            final_score = VEC_WEIGHT * vec_score + KW_WEIGHT * kw_score
+
             preview = (
                 (note.get("user_notes") or "").replace("\r", " ").replace("\n", " ").strip()
             )
@@ -195,9 +253,10 @@ class NoteLinkService:
                     id=note["id"],
                     name=note.get("name") or "",
                     preview=preview[:80],
-                    score=float(hit.get("score", 0.0)),
+                    score=round(final_score, 4),
                 )
             )
-            if len(candidates) >= top_k:
-                break
-        return candidates
+
+        # 按混合分数重排序
+        candidates.sort(key=lambda c: c.score, reverse=True)
+        return candidates[:top_k]

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useMemo, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -31,6 +32,8 @@ import { useTranslations, useLocale } from "next-intl";
 import type { JournalDraft } from "@/apps/diary/types";
 import type { JournalView } from "@/lib/query";
 import { useJournals } from "@/lib/query";
+import { queryKeys } from "@/lib/query/keys";
+import { unwrapApiData } from "@/lib/api/fetcher";
 
 import {
 	DropdownMenu,
@@ -201,6 +204,8 @@ export function DiaryEditor({
 	const [allNotes, setAllNotes] = useState<JournalView[]>([]);
 	const [hasMore, setHasMore] = useState(true);
 		const sentinelRef = useRef<HTMLDivElement>(null);
+	const queryClient = useQueryClient();
+	const loadedPagesRef = useRef(0);
 
 
 	// Debounce search input
@@ -233,22 +238,43 @@ export function DiaryEditor({
 	}, [filterMode, heatmapFilterDate, debouncedSearch, notesOffset]);
 
 		const { data: notesData, isLoading: _isNotesLoading, isFetching: isNotesFetching } = useJournals(journalQuery);
-	// 分页累计：当新数据返回时追加到 allNotes
-	useEffect(() => {
-		if (!notesData) return;
-		const { journals, total } = notesData;
-		if (notesOffset === 0) {
-			setAllNotes(journals);
-		} else {
-			setAllNotes(prev => {
-				const existing = new Set(prev.map(n => n.id));
-				const newNotes = journals.filter(n => !existing.has(n.id));
-				return [...prev, ...newNotes];
-			});
-		}
-		const loadedCount = notesOffset === 0 ? journals.length : allNotes.length + journals.length;
-		setHasMore(loadedCount < total);
-	}, [notesData, notesOffset]);
+		// 分页累计：当新数据返回时追加到 allNotes。
+		// offset=0 且已累积多页时，用 fetchQuery 等待所有已加载页刷新后再重建列表，
+		// 确保链接创建/删除后 relatedNoteIds 等字段保持最新。
+		useEffect(() => {
+			if (!notesData) return;
+			const { journals, total } = notesData;
+			if (notesOffset === 0) {
+				if (loadedPagesRef.current > 1) {
+					const pagesToLoad = loadedPagesRef.current;
+					loadedPagesRef.current = 0;
+					(async () => {
+						const all: JournalView[] = [...journals];
+						for (let p = 1; p < pagesToLoad; p++) {
+							const raw = await queryClient.fetchQuery({
+								queryKey: queryKeys.journals.list({ limit: PAGE_SIZE, offset: p * PAGE_SIZE }),
+							});
+							const fresh = unwrapApiData<{ journals: JournalView[]; total: number }>(raw);
+							if (fresh?.journals) {
+								all.push(...fresh.journals);
+							}
+						}
+						setAllNotes(all);
+					})();
+				} else {
+					setAllNotes(journals);
+				}
+			} else {
+				loadedPagesRef.current = Math.max(loadedPagesRef.current, Math.floor(notesOffset / PAGE_SIZE) + 1);
+				setAllNotes((prev) => {
+					const existing = new Set(prev.map((n) => n.id));
+					const newNotes = journals.filter((n) => !existing.has(n.id));
+					return newNotes.length > 0 ? [...prev, ...newNotes] : prev;
+				});
+			}
+			const loadedCount = notesOffset + journals.length;
+			setHasMore(loadedCount < total);
+		}, [notesData, notesOffset]);
 
 	// 筛选条件变化时重置分页并清空已累积的旧页。
 	// 用 ref 比较真实变化，避免挂载时（含开发环境 StrictMode 对 effect 的二次触发）误清空 allNotes：
@@ -268,6 +294,7 @@ export function DiaryEditor({
 		setNotesOffset(0);
 		setAllNotes([]);
 		setHasMore(true);
+		loadedPagesRef.current = 0;
 	}, [filterMode, heatmapFilterDate, debouncedSearch]);
 
 	// 滚动加载更多（IntersectionObserver）
@@ -748,6 +775,10 @@ export function DiaryEditor({
 						</div>
 						);
 					})
+				)}
+				{hasMore && <div ref={sentinelRef} className="h-2" />}
+				{isNotesFetching && notesOffset > 0 && (
+					<div className="text-xs text-muted-foreground/40 text-center py-2">加载中...</div>
 				)}
 				<AlertDialog open={deleteDialogNote !== null} onOpenChange={(open) => { if (!open) setDeleteDialogNote(null); }}>
 					<AlertDialogContent className="p-0 gap-0 overflow-hidden max-w-sm border-l-[3px] border-l-destructive/40 shadow-xl">

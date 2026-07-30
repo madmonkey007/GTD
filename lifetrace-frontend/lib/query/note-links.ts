@@ -136,8 +136,9 @@ export function useNoteLinkMutations() {
 	const queryClient = useQueryClient();
 
 	const invalidate = (noteId?: number) => {
-		// 笔记本身或对端笔记的链接视图都可能变化，统一刷根键
 		queryClient.invalidateQueries({ queryKey: queryKeys.noteLinks.all });
+		// NoteLink 变更后 journals 的 relatedNoteIds 也实时变化，一并刷新
+		queryClient.invalidateQueries({ queryKey: queryKeys.journals.all, refetchType: 'all' });
 		if (noteId) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.noteLinks.candidates(noteId),

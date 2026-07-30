@@ -520,6 +520,10 @@ class VectorDatabase:
                     continue
                 if isinstance(t, str):
                     tag_names.append(t)
+                elif isinstance(t, dict):
+                    tn = t.get("tag_name") or t.get("name")
+                    if tn:
+                        tag_names.append(str(tn))
                 else:
                     # ORM 对象：取 tag_name 属性
                     tn = getattr(t, "tag_name", None) or getattr(t, "name", None)
