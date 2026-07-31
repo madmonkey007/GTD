@@ -544,7 +544,11 @@ const handleSaveCardEdit = async (
 				content_format: "markdown",
 			});
 				if (result) {
-					// Create SUPPORTS NoteLink from the new annotation note to the target
+					setAnnotateTarget(null);
+					clearAfterSubmit.current = true;
+					// mutations 的 onSuccess 已触发 journals 重新获取，不再需显式 refetch。
+					// 先设置 guard 再 await，避免后台查询在 async 间隙更新 activeJournal
+					// 导致 sync effect 将批注内容写入 draft。
 					try {
 						await createNoteLinkAsync({
 							sourceNoteId: result.id,
@@ -553,10 +557,6 @@ const handleSaveCardEdit = async (
 					} catch (e) {
 						console.error("[annotate] failed to create NoteLink:", e);
 					}
-					setAnnotateTarget(null);
-					clearAfterSubmit.current = true;
-					refetch();
-					refetchAllNotes();
 			}
 		} catch (err) {
 			console.error("[annotate] create failed:", err);
