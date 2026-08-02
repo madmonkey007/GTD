@@ -38,6 +38,8 @@ export type ChatMessage = {
 	toolCallSteps?: ToolCallStep[];
 	/** 权威最终回复（来自后端 [FINAL]；仅 assistant 工具流可能有）；history 重载时为 "stored" */
 	finalReply?: { source: "tool_result" | "model_content" | "error" | "stored"; text: string };
+	/** 该 assistant 消息的处理耗时（毫秒）。历史重载时由相邻消息的 createdAt 差值重建 */
+	durationMs?: number;
 	/** 用户消息附带的笔记卡片（仅 user 消息可能有） */
 	attachedNotes?: { id: number; name: string; preview: string; date: string }[];
 };

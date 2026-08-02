@@ -82,31 +82,31 @@ export function DiaryHeatmap({ dates, dailyCounts, onSelectDate }: DiaryHeatmapP
 	return (
 		<div className="space-y-1">
 			{/* Grid: 11 cols x 7 rows, spaced evenly */}
-			<div className="flex justify-between">
+			<div className="flex gap-[8px]">
 				{grid.map((col, colIdx) => (
-					<div key={colIdx} className="flex flex-col gap-[5px] items-center">
+					<div key={colIdx} className="flex flex-col gap-[8px] items-center">
 						{col.map((cell, rowIdx) => (
 							<button
 								key={rowIdx}
 								type="button"
 								title={cell.tooltip}
 								onClick={onSelectDate ? () => onSelectDate(cell.date) : undefined}
-								className={`w-3 h-3 rounded-full ${DOT_COLORS[cell.level]} ${onSelectDate ? 'cursor-pointer' : 'cursor-default'} transition-colors duration-150 hover:ring-1 hover:ring-ring hover:ring-offset-[0.5px]`}
+								className={`w-[17px] h-[17px] rounded-[3px] ${DOT_COLORS[cell.level]} ${onSelectDate ? 'cursor-pointer' : 'cursor-default'} transition-colors duration-150 hover:ring-1 hover:ring-ring hover:ring-offset-[0.5px]`}
 							/>
 						))}
 					</div>
 				))}
 			</div>
 
-			{/* Month labels at bottom, evenly spread */}
-			<div className="flex justify-between">
+			{/* Month labels at bottom, aligned to grid columns */}
+			<div className="flex gap-[8px]">
 				{Array.from({ length: 11 }).map((_, col) => {
 					const label = monthLabels.find((m) => m.col === col);
 					return (
 						<div
 							key={col}
 							className="text-[9px] text-muted-foreground/50 leading-none text-center whitespace-nowrap"
-							style={{ width: 12 }}
+							style={{ width: 17 }}
 						>
 							{label ? label.label : ""}
 						</div>

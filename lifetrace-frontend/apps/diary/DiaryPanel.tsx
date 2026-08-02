@@ -26,6 +26,7 @@ import {
 } from "@/lib/query";
 import { useNoteLinkMutations } from "@/lib/query/note-links";
 import { useJournalStore } from "@/lib/store/journal-store";
+import { useFocusTarget } from "@/lib/store/focus-target-store";
 import { usePinStore } from "@/lib/store/pin-store";
 import { useLocaleStore } from "@/lib/store/locale";
 import type { JournalDraft } from "@/apps/diary/types";
@@ -293,6 +294,19 @@ export function DiaryPanel() {
 		selectedDate,
 		syncDraftFromJournal,
 	]);
+
+	// 从 agent 卡片「查看」跳转过来时，打开对应笔记
+	const focusTarget = useFocusTarget((s) => s.target);
+	const clearFocusTarget = useFocusTarget((s) => s.setTarget);
+	useEffect(() => {
+		if (!focusTarget || focusTarget.feature !== "note") return;
+		const journals = allNotesData?.journals ?? [];
+		const found = journals.find((n: any) => String(n.id) === focusTarget.id);
+		if (found) {
+			syncDraftFromJournal(found as JournalView);
+			clearFocusTarget(null);
+		}
+	}, [focusTarget, allNotesData, syncDraftFromJournal, clearFocusTarget]);
 
 
 const handleDeleteJournal = async (note: TrashEntry) => {

@@ -6,14 +6,18 @@ import {
   useRef,
   useState,
 } from "react";
-import { Send, Square, Sparkles } from "lucide-react";
+import { ArrowUp, BookOpen, Heart, History, ListTodo, Loader2, Plus, Sparkles, Square, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { sendChatMessageStream, type ToolCallEvent } from "@/lib/api";
-import type { ChatMessage } from "@/apps/chat/types";
+import type { ChatMessage, ToolCallStep } from "@/apps/chat/types";
 import { useLocaleStore } from "@/lib/store/locale";
+import { useUiStore } from "@/lib/store/ui-store";
+import { useTodoStore } from "@/lib/store/todo-store";
+import { useFocusTarget } from "@/lib/store/focus-target-store";
 import { queryKeys } from "@/lib/query/keys";
-import { MessageBubble, MessageActions, StreamingIndicator, MarkdownContent } from "@/apps/chat/components/chat-ui/index";
+import { useChatSessions, useChatHistory } from "@/lib/query/chat";
+import { MessageBubble } from "@/apps/chat/components/chat-ui/index";
 
 // 三域工具全集：待办 + 笔记 + 习惯。后端 _build_instructions 检测到三类齐全
 // 会切换到 quick_command_instructions（路由指令），由 LLM 按意图自选工具。
@@ -43,6 +47,165 @@ function createId() {
   return `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+// 创建类工具 → 实体类型映射
+const CREATE_TOOLS: Record<string, "todo" | "note" | "habit"> = {
+  create_todo: "todo",
+  create_note: "note",
+  create_habit: "habit",
+};
+
+type ToolEvent = {
+  type?: string;
+  tool_name?: string;
+  tool_args?: Record<string, unknown>;
+  result_preview?: string;
+  error?: boolean;
+};
+
+/** 从历史记录的 extraData 重建工具调用步骤 */
+function parseToolEvents(extraData?: string): ToolCallStep[] | undefined {
+  if (!extraData) return undefined;
+  try {
+    const parsed = JSON.parse(extraData) as { tool_events?: ToolEvent[] };
+    const events = parsed.tool_events;
+    if (!Array.isArray(events) || events.length === 0) return undefined;
+    const steps: ToolCallStep[] = [];
+    for (const event of events) {
+      if (event.type === "tool_call_start" && event.tool_name) {
+        steps.push({
+          id: `${event.tool_name}-${steps.length}`,
+          toolName: event.tool_name,
+          toolArgs: event.tool_args,
+          status: "running",
+          startTime: Date.now(),
+        });
+      } else if (event.type === "tool_call_end" && event.tool_name) {
+        const idx = [...steps]
+          .map((s, i) => ({ s, i }))
+          .reverse()
+          .find((it) => it.s.toolName === event.tool_name && it.s.status === "running")?.i;
+        if (idx !== undefined) {
+          steps[idx] = {
+            ...steps[idx],
+            status: event.error ? "error" : "completed",
+            resultPreview: event.result_preview,
+            endTime: Date.now(),
+          };
+        }
+      }
+    }
+    return steps.length > 0 ? steps : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+type Artifact = { kind: "todo" | "note" | "habit"; id: number | null; args: Record<string, unknown>; preview: string };
+
+/** 从 assistant 消息中提取已完成的创建类工具产物 */
+function extractArtifacts(m: ChatMessage): Artifact[] {
+  if (!m.toolCallSteps) return [];
+  const out: Artifact[] = [];
+  for (const s of m.toolCallSteps) {
+    const kind = CREATE_TOOLS[s.toolName];
+    if (!kind || s.status !== "completed") continue;
+    const idMatch = /#(\d+)/.exec(s.resultPreview ?? "");
+    out.push({ kind, id: idMatch ? Number(idMatch[1]) : null, args: s.toolArgs ?? {}, preview: s.resultPreview ?? "" });
+  }
+  return out;
+}
+
+function nameFromArtifact(a: Artifact, zh: boolean): string {
+  const fromArgs = typeof a.args.name === "string" && a.args.name.trim() ? a.args.name.trim() : "";
+  if (fromArgs) return fromArgs;
+  const afterColon = a.preview.split(":").slice(1).join(":").trim();
+  if (afterColon) return afterColon;
+  return zh ? "未命名" : "Untitled";
+}
+
+/** 创建实体卡片 */
+function CreatedEntityCard({ artifact, locale }: { artifact: Artifact; locale: string }) {
+  const zh = locale === "zh";
+  const { kind, args, id } = artifact;
+  const name = nameFromArtifact(artifact, zh);
+  const typeLabel = kind === "todo" ? (zh ? "待办" : "Todo") : kind === "note" ? (zh ? "笔记" : "Note") : (zh ? "习惯" : "Habit");
+  const tagsRaw = typeof args.tags === "string" ? args.tags : "";
+  const tags = tagsRaw.split(",").map((t) => t.trim()).filter(Boolean);
+  const description = typeof args.description === "string" ? args.description.trim() : "";
+  const noteContent = typeof args.user_notes === "string" ? args.user_notes.trim() : "";
+  const frequency = typeof args.frequency === "string" ? args.frequency : "";
+  const habitIcon = typeof args.icon === "string" && args.icon ? args.icon : null;
+
+  const setActiveView = useUiStore((s) => s.setActiveView);
+  const setSelectedTodoId = useTodoStore((s) => s.setSelectedTodoId);
+  const setFocusTarget = useFocusTarget((s) => s.setTarget);
+
+  const handleView = () => {
+    if (kind === "todo") {
+      if (id != null) setSelectedTodoId(id);
+      setActiveView("list");
+    } else if (kind === "note") {
+      if (id != null) setFocusTarget({ feature: "note", id: String(id) });
+      setActiveView("diary");
+    } else {
+      if (id != null) setFocusTarget({ feature: "habit", id: String(id) });
+      setActiveView("habits");
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl border border-border bg-background px-3 py-2.5 shadow-sm"
+    >
+      <div className="flex items-start gap-2.5">
+        <div className={
+          "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm " +
+          (kind === "todo" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+            : kind === "note" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400")
+        }>
+          {kind === "habit" && habitIcon ? <span>{habitIcon}</span>
+            : kind === "todo" ? <ListTodo className="h-4 w-4" />
+              : kind === "note" ? <BookOpen className="h-4 w-4" /> : <Heart className="h-4 w-4" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">{typeLabel}</span>
+            {id != null && <span className="text-[10px] text-muted-foreground/50">#{id}</span>}
+            <span className="text-[10px] text-emerald-600/80">{zh ? "已创建" : "created"}</span>
+          </div>
+          <p className="text-sm font-medium text-foreground leading-snug break-words">{name}</p>
+          {kind === "todo" && description && (
+            <p className="mt-0.5 text-xs text-muted-foreground/80 line-clamp-2">{description}</p>
+          )}
+          {kind === "note" && noteContent && (
+            <p className="mt-0.5 text-xs text-muted-foreground/80 line-clamp-3 whitespace-pre-wrap">{noteContent}</p>
+          )}
+          {kind === "habit" && frequency && (
+            <p className="mt-0.5 text-xs text-muted-foreground/80">{frequency}</p>
+          )}
+          {tags.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {tags.map((t) => (
+                <span key={t} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">#{t}</span>
+              ))}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleView}
+          className="flex-shrink-0 self-center rounded-md border border-gray-300 bg-background px-2.5 py-1 text-xs font-medium text-black transition-colors hover:bg-gray-100"
+        >
+          {zh ? "查看" : "View"}
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 export function QuickCommandPanel() {
   const locale = useLocaleStore((s) => s.locale);
   const queryClient = useQueryClient();
@@ -50,9 +213,55 @@ export function QuickCommandPanel() {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [streamingId, setStreamingId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // 历史记录
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [loadTarget, setLoadTarget] = useState<string | null>(null);
+  const { data: sessionsData, isLoading: sessionsLoading } = useChatSessions({
+    chatType: "quickCommand",
+    enabled: historyOpen,
+  });
+  const sessions = sessionsData ?? [];
+  const { data: historyItems } = useChatHistory(loadTarget, { enabled: !!loadTarget });
+
+  // 加载选中的历史会话
+  useEffect(() => {
+    if (!loadTarget || !historyItems) return;
+    const rebuilt: ChatMessage[] = historyItems.map((it, i) => {
+      // 由相邻消息的 createdAt 差值重建该 assistant 消息的处理耗时
+      let durationMs: number | undefined;
+      if (it.role === "assistant" && i > 0) {
+        const prev = historyItems[i - 1];
+        const curTs = it.createdAt ? Date.parse(it.createdAt) : NaN;
+        const prevTs = prev.createdAt ? Date.parse(prev.createdAt) : NaN;
+        if (!isNaN(curTs) && !isNaN(prevTs)) {
+          durationMs = Math.max(0, curTs - prevTs);
+        }
+      }
+      return {
+        id: `hist-${loadTarget}-${i}`,
+        role: it.role,
+        content: it.content,
+        toolCallSteps: it.role === "assistant" ? parseToolEvents(it.extraData) : undefined,
+        finalReply: it.role === "assistant" ? { source: "stored", text: it.content } : undefined,
+        durationMs,
+      };
+    });
+    setMessages(rebuilt);
+    setConversationId(loadTarget);
+    setLoadTarget(null);
+    setHistoryOpen(false);
+  }, [loadTarget, historyItems]);
+
+  const handleNewChat = useCallback(() => {
+    setMessages([]);
+    setConversationId(null);
+    setHistoryOpen(false);
+  }, []);
 
   // 自动滚到底
   useEffect(() => {
@@ -78,10 +287,12 @@ export function QuickCommandPanel() {
       const assistantId = createId();
       const assistantMsg: ChatMessage = { id: assistantId, role: "assistant", content: "", toolCallSteps: [] };
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
+      setStreamingId(assistantId);
       setIsStreaming(true);
 
       const ac = new AbortController();
       abortRef.current = ac;
+      const startedAt = Date.now();
       let assistantContent = "";
       try {
         await sendChatMessageStream(
@@ -139,8 +350,12 @@ export function QuickCommandPanel() {
           setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + `\n\n⚠️ ${(err as Error).message || "请求失败"}` } : m)));
         }
       } finally {
+        const durationMs = Date.now() - startedAt;
+        setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, durationMs } : m)));
         setIsStreaming(false);
+        setStreamingId(null);
         abortRef.current = null;
+        queryClient.invalidateQueries({ queryKey: queryKeys.chatHistory.sessions("quickCommand") });
       }
     },
     [conversationId, locale, invalidateByTool],
@@ -167,55 +382,82 @@ export function QuickCommandPanel() {
   };
 
   const examples = locale === "zh"
-    ? ["建个待办：明天买菜", "记一条笔记：今天试了新功能 #测试", "帮我打卡今天的跑步习惯"]
-    : ["Add a todo: buy groceries tomorrow", "Note: tried the new feature #test", "Check in today's running habit"];
+    ? [
+        { label: "创建待办", prompt: "建个待办：明天买菜", icon: ListTodo },
+        { label: "打卡新习惯", prompt: "帮我打卡今天的跑步习惯", icon: Heart },
+        { label: "记录新笔记", prompt: "记一条笔记：今天试了新功能 #测试", icon: BookOpen },
+      ]
+    : [
+        { label: "Add a todo", prompt: "Add a todo: buy groceries tomorrow", icon: ListTodo },
+        { label: "Check in a habit", prompt: "Check in today's running habit", icon: Heart },
+        { label: "Write a note", prompt: "Note: tried the new feature #test", icon: BookOpen },
+      ];
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       {/* 标题 */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30">
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((v) => !v)}
+          title={locale === "zh" ? "历史记录" : "History"}
+          className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${historyOpen ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"}`}
+        >
+          <History className="h-4 w-4" />
+        </button>
         <Sparkles className="w-4 h-4 text-primary/70" />
-        <span className="text-sm font-semibold">{locale === "zh" ? "智能指令" : "Quick Command"}</span>
-        <span className="text-[11px] text-muted-foreground/50 ml-1">
+        <span className="text-sm font-semibold">{locale === "zh" ? "AI Agent" : "AI Agent"}</span>
+        <span className="text-[11px] text-muted-foreground/50 ml-1 hidden sm:inline">
           {locale === "zh" ? "一句话操作 待办 / 笔记 / 习惯" : "One line for Todo / Note / Habit"}
         </span>
       </div>
 
       {/* 消息区 */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-primary/8 flex items-center justify-center ring-1 ring-primary/10">
-              <Sparkles className="w-6 h-6 text-primary/60" />
-            </div>
-            <p className="text-sm text-muted-foreground/70 max-w-[260px] leading-relaxed">
-              {locale === "zh"
-                ? "输入一条指令，我会判断要操作待办、笔记还是习惯，并直接执行。"
-                : "Type a command. I'll route it to todo, note, or habit and execute."}
-            </p>
-            <div className="flex flex-wrap justify-center gap-1.5 max-w-[320px]">
-              {examples.map((ex) => (
-                <button
-                  key={ex}
-                  type="button"
-                  onClick={() => setInput(ex)}
-                  className="px-2.5 py-1 text-xs rounded-full border border-border/40 bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-primary/5 transition-colors"
-                >
-                  {ex}
-                </button>
-              ))}
+          <div className="flex h-full flex-col items-center justify-center text-center gap-6">
+            <h2 className="text-[24px] font-semibold text-foreground leading-tight">
+              {locale === "zh" ? "今天你要做什么" : "What's on your mind today?"}
+            </h2>
+            <div className="flex justify-center gap-3">
+              {examples.map((ex) => {
+                const Icon = ex.icon;
+                return (
+                  <button
+                    key={ex.label}
+                    type="button"
+                    onClick={() => setInput(ex.prompt)}
+                    className="flex w-24 h-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-300 bg-background px-2 text-center transition-colors hover:border-primary/40 hover:bg-primary/5"
+                  >
+                    <Icon className="w-6 h-6 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">{ex.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : (
-          messages.map((m) => (
-            <MessageBubble key={m.id} msg={m} isStreaming={isStreaming} />
-          ))
+          <div className="mx-auto space-y-4" style={{ width: "70%" }}>
+            {messages.map((m) => {
+              const artifacts = m.role === "assistant" ? extractArtifacts(m) : [];
+              return (
+                <MessageBubble
+                  key={m.id}
+                  msg={m}
+                  isStreaming={isStreaming && m.id === streamingId}
+                  footer={artifacts.map((a, i) => (
+                    <CreatedEntityCard key={`${m.id}-art-${i}`} artifact={a} locale={locale} />
+                  ))}
+                />
+              );
+            })}
+          </div>
         )}
       </div>
 
       {/* 输入区 */}
-      <div className="border-t border-border/30 px-4 py-3">
-        <div className="flex items-end gap-2 rounded-xl border border-border/40 bg-background px-3 py-2 focus-within:border-primary/40 transition-colors">
+      <div className="border-t border-border/30 py-3">
+        <div className="mx-auto flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3 py-2 focus-within:border-primary/40 transition-colors" style={{ width: "70%" }}>
           <textarea
             ref={taRef}
             value={input}
@@ -243,13 +485,70 @@ export function QuickCommandPanel() {
               type="button"
               onClick={onSubmit}
               disabled={!input.trim()}
-              className="flex-shrink-0 rounded-lg p-2 text-primary hover:bg-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="发送"
+              className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <Send className="w-4 h-4" />
+              <ArrowUp className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
+      {/* 历史记录抽屉（左侧滑出） */}
+      {historyOpen && (
+        <div className="absolute inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-border bg-background shadow-lg">
+          <div className="flex items-center justify-between px-3 py-3 border-b border-border/30">
+            <span className="text-sm font-semibold">{locale === "zh" ? "历史记录" : "History"}</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleNewChat}
+                title={locale === "zh" ? "新对话" : "New chat"}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(false)}
+                title={locale === "zh" ? "关闭" : "Close"}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {sessionsLoading ? (
+              <div className="flex items-center justify-center py-6 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : sessions.length === 0 ? (
+              <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+                {locale === "zh" ? "暂无历史记录" : "No history yet"}
+              </p>
+            ) : (
+              sessions.map((s, i) => (
+                <button
+                  key={s.sessionId ? `${s.sessionId}-${i}` : `s-${i}`}
+                  type="button"
+                  onClick={() => setLoadTarget(s.sessionId)}
+                  className={`w-full rounded-lg border border-border/60 px-2.5 py-2 text-left transition-colors hover:bg-foreground/5 ${s.sessionId === conversationId ? "ring-1 ring-ring" : ""}`}
+                >
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {s.title || (locale === "zh" ? "新对话" : "New chat")}
+                  </p>
+                  <div className="mt-0.5 flex items-center justify-between text-[10px] text-muted-foreground/70">
+                    <span className="truncate">{s.lastActive ?? ""}</span>
+                    {typeof s.messageCount === "number" && (
+                      <span className="ml-1 flex-shrink-0">{s.messageCount}{locale === "zh" ? "条" : "msg"}</span>
+                    )}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

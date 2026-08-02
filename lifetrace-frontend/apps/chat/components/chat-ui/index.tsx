@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Check, Copy, MessageSquareText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -111,13 +112,15 @@ export function ExecutionProcess({
   mergedItems,
   isStreaming,
   firstThinkingEnded,
+  initialDurationSec = 0,
 }: {
   mergedItems: MergedStep[];
   isStreaming: boolean;
   firstThinkingEnded: boolean;
+  initialDurationSec?: number;
 }) {
   const [open, setOpen] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(initialDurationSec);
   const startTimeRef = useRef<number | null>(null);
 
   // Timer: count up every second while streaming
@@ -353,11 +356,13 @@ export function AssistantBody({
   steps,
   finalReply,
   isStreaming,
+  durationMs,
 }: {
   content: string;
   steps?: ToolCallStep[];
   finalReply?: { source: string; text: string };
   isStreaming: boolean;
+  durationMs?: number;
 }) {
   const closedThinkingCount = (content.match(/\[THINK\][\s\S]*?\[\/THINK\]/g) || []).length;
   const firstThinkingEnded = closedThinkingCount > 0 || !!(steps && steps.length > 0) || !!finalReply;
@@ -371,6 +376,7 @@ export function AssistantBody({
         mergedItems={mergedItems}
         isStreaming={isStreaming}
         firstThinkingEnded={firstThinkingEnded}
+        initialDurationSec={Math.round((durationMs ?? 0) / 1000)}
       />
       <FinalResponse text={finalText} isStreaming={isStreaming} />
     </>
@@ -382,9 +388,11 @@ export function AssistantBody({
 export function MessageBubble({
   msg,
   isStreaming,
+  footer,
 }: {
   msg: ChatMessage;
   isStreaming: boolean;
+  footer?: ReactNode;
 }) {
   const isUser = msg.role === "user";
 
@@ -428,9 +436,10 @@ export function MessageBubble({
                 <StreamingIndicator text="处理中" />
               ) : (msg.content || (msg.toolCallSteps && msg.toolCallSteps.length > 0)) ? (
                 <div className="text-[13px] [&_details+div]:mt-3 [&_details]:mb-3">
-                  <AssistantBody content={msg.content} steps={msg.toolCallSteps} finalReply={msg.finalReply} isStreaming={isStreaming} />
+                  <AssistantBody content={msg.content} steps={msg.toolCallSteps} finalReply={msg.finalReply} isStreaming={isStreaming} durationMs={msg.durationMs} />
                 </div>
               ) : null}
+              {footer && <div className="mt-3 space-y-2">{footer}</div>}
             </>
           )}
         </div>
