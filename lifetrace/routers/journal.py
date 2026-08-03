@@ -1,8 +1,11 @@
 """日记相关路由"""
 
+import re
+from pathlib import Path as PathLibPath
+from uuid import uuid4
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, File, UploadFile
 
 from lifetrace.core.dependencies import get_journal_service
 from lifetrace.schemas.journal import (
@@ -17,10 +20,78 @@ from lifetrace.schemas.journal import (
 )
 from lifetrace.services.journal_service import JournalService
 from lifetrace.util.logging_config import get_logger
+from lifetrace.util.path_utils import get_journal_image_dir
+from lifetrace.util.settings import settings
 
 logger = get_logger()
 
 router = APIRouter(tags=["journals"])
+
+# 笔记图片上传：格式/大小限制与文件名清洗
+MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+_IMAGE_SIGNATURES = (
+    (b"\x89PNG\r\n\x1a\n", ".png"),
+    (b"\xff\xd8\xff", ".jpg"),
+    (b"GIF87a", ".gif"),
+    (b"GIF89a", ".gif"),
+)
+# markdown 特殊字符：出现在 alt/文件名里会破坏 ![](url) 语法
+_MARKDOWN_UNSAFE_CHARS = re.compile(r"[\[\]()#*`\\]")
+
+
+def _detect_image_ext(content: bytes) -> str | None:
+    """用文件头 magic bytes 判定图片类型，防止伪造扩展名/Content-Type。"""
+    if len(content) < 12:
+        return None
+    if content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return ".webp"
+    for sig, ext in _IMAGE_SIGNATURES:
+        if content.startswith(sig):
+            return ext
+    return None
+
+
+def _sanitize_alt(filename: str) -> str:
+    """把原始文件名清洗成安全的 markdown alt 文本。"""
+    stem = PathLibPath(filename).stem if filename else ""
+    stem = _MARKDOWN_UNSAFE_CHARS.sub("", stem).strip()
+    return stem[:50] or "image"
+
+
+@router.post("/api/journals/upload-image", status_code=201)
+async def upload_journal_image(file: UploadFile = File(..., description="图片文件")):
+    """上传笔记图片，落盘到 uploads/journal-images/，返回可在前端访问的相对 URL。
+
+    返回结构: {url, filename, alt, size}
+    url 形如 /uploads/journal-images/<uuid>.<ext>，前端经 next.config rewrite 代理到后端 StaticFiles。
+    """
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="图片内容为空")
+    if len(content) > MAX_IMAGE_SIZE:
+        raise HTTPException(status_code=413, detail="图片超过 5MB 限制")
+
+    ext = _detect_image_ext(content)
+    if ext is None:
+        raise HTTPException(status_code=400, detail="仅支持 PNG/JPEG/GIF/WEBP 图片")
+
+    storage_name = f"{uuid4().hex}{ext}"
+    image_dir = get_journal_image_dir()
+    image_dir.mkdir(parents=True, exist_ok=True)
+    (image_dir / storage_name).write_bytes(content)
+
+    rel_dir = settings.journal_images_dir.strip("/")
+    url = f"/{rel_dir}/{storage_name}"
+    alt = _sanitize_alt(file.filename or storage_name)
+    logger.info(
+        f"笔记图片上传: {file.filename} -> {storage_name} ({len(content)} bytes)"
+    )
+    return {
+        "url": url,
+        "filename": file.filename or storage_name,
+        "alt": alt,
+        "size": len(content),
+    }
 
 
 @router.post("/api/journals", response_model=JournalResponse, status_code=201)

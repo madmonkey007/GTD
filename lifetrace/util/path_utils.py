@@ -52,6 +52,18 @@ def get_attachments_dir() -> Path:
     return Path(attachments_dir)
 
 
+def get_journal_image_dir() -> Path:
+    """获取笔记图片上传目录（用于 StaticFiles 挂载在 /uploads 下）。
+
+    Returns:
+        Path: 笔记图片目录的绝对路径
+    """
+    journal_images_dir = settings.journal_images_dir
+    if not os.path.isabs(journal_images_dir):
+        return base_paths.get_user_data_dir() / journal_images_dir
+    return Path(journal_images_dir)
+
+
 def get_scheduler_database_path() -> Path:
     """获取调度器数据库路径
 

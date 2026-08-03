@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager, suppress
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from lifetrace.core.module_registry import (
     MODULES,
@@ -17,6 +18,7 @@ from lifetrace.core.module_registry import (
 from lifetrace.jobs.job_manager import get_job_manager
 from lifetrace.services.config_service import is_llm_configured
 from lifetrace.util.base_paths import get_user_logs_dir
+from lifetrace.util.path_utils import get_journal_image_dir
 from lifetrace.util.logging_config import get_logger, setup_logging
 from lifetrace.util.settings import settings
 
@@ -170,6 +172,11 @@ async def _verify_llm_connection_async() -> None:
 
 # 注册按配置启用的路由
 _register_priority_modules(app)
+
+# 暴露笔记图片等上传文件，前端经 next.config rewrite 代理 /uploads/* 访问
+_uploads_root = get_journal_image_dir().parent
+_uploads_root.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(_uploads_root)), name="uploads")
 
 
 def find_available_port(host: str, start_port: int, max_attempts: int = 100) -> int:

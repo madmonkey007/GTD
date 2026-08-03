@@ -100,9 +100,13 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResul
 	ownerIdRef.current = options.ownerId ?? DEFAULT_OWNER_ID;
 
 	// config 异步加载，存 ref 供 toggle 在事件时读取最新值
+	// 后端 /api/get-config 返回扁平 snake_case：audio_asr_api_key
 	const configRef = useRef<string | undefined>(undefined);
 	useEffect(() => {
-		configRef.current = config?.audioAsrApiKey as string | undefined;
+		const cfg = config as Record<string, unknown> | undefined;
+		configRef.current = (cfg?.audio_asr_api_key ?? cfg?.audioAsrApiKey) as
+			| string
+			| undefined;
 	}, [config]);
 
 	const [supported, setSupported] = useState(false);

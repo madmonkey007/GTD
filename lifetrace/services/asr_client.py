@@ -49,7 +49,7 @@ class ASRClient:
             self.max_sentence_silence = settings.audio.asr.max_sentence_silence
             self.heartbeat = settings.audio.asr.heartbeat
 
-            invalid_values = ["xxx", "YOUR_API_KEY_HERE", "YOUR_ASR_KEY_HERE"]
+            invalid_values = ["xxx", "YOUR_API_KEY_HERE", "YOUR_ASR_KEY_HERE", "YOUR_LLM_KEY_HERE"]
             if not self.api_key or self.api_key in invalid_values:
                 logger.warning("ASR API Key未配置或为默认占位符，ASR功能可能不可用")
         except Exception as e:
@@ -222,7 +222,7 @@ class ASRClient:
 
         try:
             # 检查API Key是否配置
-            invalid_values = ["xxx", "YOUR_API_KEY_HERE", "YOUR_ASR_KEY_HERE"]
+            invalid_values = ["xxx", "YOUR_API_KEY_HERE", "YOUR_ASR_KEY_HERE", "YOUR_LLM_KEY_HERE"]
             if not self.api_key or self.api_key in invalid_values:
                 error_msg = "ASR API Key未配置，请先配置API Key"
                 logger.error(error_msg)
