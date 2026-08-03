@@ -520,13 +520,17 @@ class AudioService:
             client._initialize_client()
 
             openai_client = client._get_client()
-            response = openai_client.chat.completions.create(
-                model=client.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.3,
+            # 注意：openai 同步客户端的 create 是阻塞调用，必须放到线程里执行，
+            # 否则会卡住整个 asyncio 事件循环，导致期间所有其它请求（如创建笔记）排队等待。
+            response = await asyncio.to_thread(
+                lambda: openai_client.chat.completions.create(
+                    model=client.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.3,
+                )
             )
 
             optimized_text = (response.choices[0].message.content or "").strip()

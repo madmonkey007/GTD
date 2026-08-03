@@ -3,6 +3,7 @@
 处理音频转录文本的待办和日程提取逻辑。
 """
 
+import asyncio
 import hashlib
 import json
 from typing import Any
@@ -385,13 +386,16 @@ class AudioExtractionService:
             client._initialize_client()
 
             openai_client = client._get_client()
-            response = openai_client.chat.completions.create(
-                model=client.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.3,
+            # 同步 openai 客户端的 create 是阻塞调用，放线程里执行，避免卡住事件循环。
+            response = await asyncio.to_thread(
+                lambda: openai_client.chat.completions.create(
+                    model=client.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.3,
+                )
             )
 
             # 解析响应
