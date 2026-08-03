@@ -25,6 +25,7 @@ type ChatInputSectionProps = {
 	onCompositionEnd: () => void;
 	onToggleExpand: () => void;
 	onToggleTodo: (todoId: number) => void;
+	onTranscript?: (text: string) => void;
 };
 
 export function ChatInputSection({
@@ -44,6 +45,7 @@ export function ChatInputSection({
 	showSuggestions,
 	onSelectPrompt,
 	onToggleTodo,
+	onTranscript,
 }: ChatInputSectionProps) {
 	const tPage = useTranslations("page");
 	const [showSlashMenu, setShowSlashMenu] = useState(false);
@@ -94,8 +96,9 @@ export function ChatInputSection({
 				onKeyDown={onKeyDown}
 				onCompositionStart={onCompositionStart}
 				onCompositionEnd={onCompositionEnd}
-					onAtClick={handleAtClick}
+				onAtClick={handleAtClick}
 				onSlashTyped={() => setShowSlashMenu(true)}
+				onTranscript={onTranscript}
 			/>
 
 			{error && <p className="mt-2 text-sm">{error}</p>}

@@ -159,6 +159,7 @@ export function ChatPanel() {
 
 				showSuggestions={chatController.messages.length === 0 || (chatController.messages.length === 1 && chatController.messages[0].role === "assistant") || chatController.messages.every((msg) => msg.role === "assistant")}
 onSelectPrompt={handleSelectPrompt}
+onTranscript={(text) => chatController.setInputValue((prev) => (prev ? prev + " " + text : text))}
 />
 		</div>
 	);

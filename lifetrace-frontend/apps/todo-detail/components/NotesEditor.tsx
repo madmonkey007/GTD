@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import TurndownService from "turndown";
 import { SectionHeader } from "@/components/common/layout/SectionHeader";
+import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 interface NotesEditorProps {
 	value: string;
@@ -93,9 +94,20 @@ export function NotesEditor({
 				isHovered={isHovered}
 			/>
 			{show && (
-				<div className="prose prose-sm max-w-none">
-					<EditorContent editor={editor} />
-				</div>
+				<>
+					<div className="flex items-center justify-end gap-1 px-1 py-1">
+						<VoiceInputButton
+							ownerId="notes-editor"
+							editorRef={{ current: editor }}
+							onTranscript={(text) => {
+								if (editor) editor.chain().focus().insertContent(` ${text}`).run();
+							}}
+						/>
+					</div>
+					<div className="prose prose-sm max-w-none">
+						<EditorContent editor={editor} />
+					</div>
+				</>
 			)}
 		</div>
 	);

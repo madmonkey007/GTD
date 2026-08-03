@@ -3,6 +3,7 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { VoiceInputButton } from "@/components/ui/voice-input-button";
 import { LinkedNotes } from "./LinkedNotes";
 
 type InputBoxProps = {
@@ -17,6 +18,8 @@ type InputBoxProps = {
 	onCompositionStart: () => void;
 	onCompositionEnd: () => void;
 	onAtClick?: () => void;
+	/** 语音输入回填：录音结束把 final 文本追加到输入框 */
+	onTranscript?: (text: string) => void;
 	onSlashTyped?: () => void;
 	linkedTodos?: React.ReactNode;
 	/** 最大高度，默认为 "40vh"（视口高度的40%） */
@@ -42,6 +45,7 @@ export function InputBox({
 	onCompositionEnd,
 	onAtClick,
 	onSlashTyped,
+	onTranscript,
 	linkedTodos,
 	locale = "en",
 	maxHeight = "40vh",
@@ -92,6 +96,9 @@ export function InputBox({
 	// 右侧按钮组（@ 按钮和发送/停止按钮）
 	const actionButtons = (
 		<div className="flex items-center gap-1">
+			{onTranscript && (
+				<VoiceInputButton ownerId="chat-input" onTranscript={onTranscript} />
+			)}
 			<button
 				type="button"
 				onClick={onAtClick}

@@ -4,13 +4,17 @@ import type { Editor } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import Highlight from "@tiptap/extension-highlight";
 import Mention from "@tiptap/extension-mention";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, useEditor, ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import MarkdownIt from "markdown-it";
-import { Bold, Highlighter, Underline, ListOrdered, List, Hash, AtSign, Search as SearchIcon  } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Bold, Highlighter, Underline, ListOrdered, List, Hash, AtSign, Search as SearchIcon, ImagePlus, Link as LinkIcon  } from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import TurndownService from "turndown";
+import Image from "@tiptap/extension-image";
+import { uploadJournalImage } from "@/lib/api";
+import { compressImageIfNeeded } from "@/lib/imageCompress";
+import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 type Variant = "create" | "edit";
 
@@ -168,6 +172,37 @@ function buildSuggestion(getTags: () => string[]) {
 	};
 }
 
+const ImageNodeView = ({ node, deleteNode }: { node: any; deleteNode: () => void }) => {
+	const { src, alt } = node.attrs as { src: string; alt?: string };
+	return (
+		<NodeViewWrapper className="inline-block relative my-1 align-top" style={{ width: 80, height: 80 }}>
+			<img
+				src={src}
+				alt={alt || ""}
+				className="w-full h-full object-cover rounded border border-border/40 bg-muted/20"
+				draggable={false}
+			/>
+			<button
+				type="button"
+				onClick={deleteNode}
+				title="移除图片"
+				className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-500 text-white text-[11px] leading-none flex items-center justify-center shadow hover:bg-zinc-600 hover:scale-110 transition"
+			>
+				✕
+			</button>
+		</NodeViewWrapper>
+	);
+};
+
+// 自定义图片节点：block 模式 + React NodeView（缩略图 + ✕ 删除）
+const ImageBlock = Image.extend({
+	inline: false,
+	group: "block",
+	addNodeView() {
+		return ReactNodeViewRenderer(ImageNodeView);
+	},
+});
+
 export function DiaryTiptapEditor({
 	value,
 	onChange,
@@ -257,6 +292,77 @@ export function DiaryTiptapEditor({
 		return service;
 	}, []);
 
+	const editorRef = useRef<Editor | null>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	const insertImage = useCallback((src: string, alt: string) => {
+		const ed = editorRef.current;
+		if (!ed) return;
+		const end = ed.state.doc.content.size;
+		ed.chain().focus().insertContentAt(end, { type: "image", attrs: { src, alt } }).run();
+	}, []);
+
+	const handleImageFile = useCallback(async (file: File): Promise<boolean> => {
+		if (!file.type.startsWith("image/")) return false;
+		try {
+			const compressed = await compressImageIfNeeded(file);
+			const r = await uploadJournalImage(compressed);
+			insertImage(r.url, r.alt);
+			return true;
+		} catch (e) {
+			console.error("[DiaryTiptapEditor] 图片上传失败:", e);
+			return false;
+		}
+	}, [insertImage]);
+
+	const onPickFile = useCallback(() => {
+		fileInputRef.current?.click();
+	}, []);
+
+	const onFileChange = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
+		const f = e.target.files?.[0];
+		if (f) await handleImageFile(f);
+		e.target.value = "";
+	}, [handleImageFile]);
+
+	const onUrlImage = useCallback(() => {
+		const url = window.prompt("输入图片 URL");
+		if (url && url.trim()) insertImage(url.trim(), "");
+	}, [insertImage]);
+
+	// 粘贴图片：只取 image/* 项，忽略 text/html 内的 base64，避免 user_notes 字段暴涨
+	const handlePasteImage = useCallback((_view: any, event: ClipboardEvent): boolean => {
+		const items = event.clipboardData?.items;
+		if (!items) return false;
+		let img: File | null = null;
+		for (let i = 0; i < items.length; i++) {
+			if (items[i].type.startsWith("image/")) {
+				img = items[i].getAsFile();
+				if (img) break;
+			}
+		}
+		if (!img) return false;
+		event.preventDefault();
+		void handleImageFile(img);
+		return true;
+	}, [handleImageFile]);
+
+	const handleDropImage = useCallback((_view: any, event: DragEvent): boolean => {
+		const files = event.dataTransfer?.files;
+		if (!files || files.length === 0) return false;
+		let img: File | null = null;
+		for (let i = 0; i < files.length; i++) {
+			if (files[i].type.startsWith("image/")) {
+				img = files[i];
+				break;
+			}
+		}
+		if (!img) return false;
+		event.preventDefault();
+		void handleImageFile(img);
+		return true;
+	}, [handleImageFile]);
+
 	const editor = useEditor({
 		immediatelyRender: false,
 		extensions: [
@@ -274,6 +380,10 @@ export function DiaryTiptapEditor({
 				placeholder: placeholder ?? "",
 				emptyEditorClass: "is-editor-empty",
 			}),
+			ImageBlock.configure({
+				inline: false,
+				allowBase64: false,
+			}),
 		],
 		content: value ? md.render(wrapTagsAsMentions(value)) : "",
 		editorProps: {
@@ -284,6 +394,8 @@ export function DiaryTiptapEditor({
 			},
 			transformPastedHTML: sanitizePastedHtml,
 			handleKeyDown: handleEditorKeyDown,
+			handlePaste: handlePasteImage,
+			handleDrop: handleDropImage,
 		},
 		onUpdate: ({ editor }: { editor: Editor }) => {
 			const markdown = turndown.turndown(editor.getHTML());
@@ -306,6 +418,10 @@ export function DiaryTiptapEditor({
 		},
 		onBlur: () => onBlurRef.current?.(),
 	}, [md, turndown, variant, placeholder]);
+
+	useEffect(() => {
+		editorRef.current = editor;
+	}, [editor]);
 
 	useEffect(() => {
 		if (!editor) return;
@@ -370,16 +486,27 @@ export function DiaryTiptapEditor({
 			`}</style>
 			<div className="DiaryTiptapEditor-toolbar flex items-center justify-between px-2 pb-2 pt-1">
 				<div className="flex items-center gap-0.5">
-					{FORMAT_ACTIONS.map(({ key, icon: Icon, title }) => (
-						<button
-							key={key}
-							type="button"
-							title={title}
-							onClick={() => runFormat(key)}
-							className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
-						>
-							<Icon className="w-4 h-4" />
-						</button>
+				{FORMAT_ACTIONS.map(({ key, icon: Icon, title }) => (
+						<Fragment key={key}>
+							<button
+								type="button"
+								title={title}
+								onClick={() => runFormat(key)}
+								className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+							>
+								<Icon className="w-4 h-4" />
+							</button>
+							{key === "bold" && (
+								<button
+									type="button"
+									title="插入图片"
+									onClick={onPickFile}
+									className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+								>
+									<ImagePlus className="w-4 h-4" />
+								</button>
+							)}
+						</Fragment>
 					))}
 					{/* @ 关联笔记 */}
 					{noteLinkList && onLinkNote && (
@@ -396,10 +523,30 @@ export function DiaryTiptapEditor({
 							<AtSign className="w-4 h-4" />
 						</button>
 					)}
+					{/* 网络图片（URL） */}
+					<button
+						type="button"
+						title="网络图片链接"
+						onClick={onUrlImage}
+						className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+					>
+						<LinkIcon className="w-4 h-4" />
+					</button>
+					<input ref={fileInputRef} type="file" accept="image/*" onChange={onFileChange} className="hidden" />
 				</div>
 				<div className="flex items-center gap-1">
 					{/* 字数统计 */}
 					<span className="text-[10px] text-muted-foreground/40 select-none tabular-nums mr-1">{wordCount}</span>
+					{/* 语音输入（发送按钮左侧） */}
+					<VoiceInputButton
+						ownerId="diary-tiptap"
+						stopPropagation
+						editorRef={editorRef}
+						onTranscript={(text) => {
+							const ed = editorRef.current;
+							if (ed) ed.chain().focus().insertContent(` ${text}`).run();
+						}}
+					/>
 					{toolbarEnd}
 				</div>
 			</div>

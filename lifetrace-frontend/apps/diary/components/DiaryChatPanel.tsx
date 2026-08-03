@@ -16,6 +16,7 @@ import { useNoteChatStore } from "@/lib/store/note-chat-store";
 import { useLocaleStore } from "@/lib/store/locale";
 import { queryKeys } from "@/lib/query/keys";
 import { MessageBubble } from "@/apps/chat/components/chat-ui/index";
+import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 // ─── Tab definitions ───
 
@@ -760,6 +761,10 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
               disabled={isStreaming}
               rows={1}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus-visible:outline-none disabled:opacity-40 resize-none overflow-y-auto"
+            />
+            <VoiceInputButton
+              ownerId="diary-chat"
+              onTranscript={(text) => setInputValue((prev) => (prev ? prev + " " + text : text))}
             />
             {isStreaming ? (
               <button type="button" onClick={handleStop} title="停止"

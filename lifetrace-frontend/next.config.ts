@@ -57,6 +57,10 @@ const nextConfig: NextConfig = {
 				source: "/assets/:path*",
 				destination: `${API_BASE_URL}/assets/:path*`,
 			},
+			{
+				source: "/uploads/:path*",
+				destination: `${API_BASE_URL}/uploads/:path*`,
+			},
 		];
 	},
 	images: {

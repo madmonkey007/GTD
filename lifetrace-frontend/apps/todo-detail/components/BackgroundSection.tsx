@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SectionHeader } from "@/components/common/layout/SectionHeader";
+import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 interface BackgroundSectionProps {
 	description?: string;
@@ -128,6 +129,13 @@ export function BackgroundSection({
 							className="w-full min-h-[80px] resize-none rounded-md border border-primary bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
 						/>
 						<div data-background-actions className="mt-2 flex justify-end gap-2">
+							<VoiceInputButton
+								ownerId="background"
+								onTranscript={(text) => {
+									setEditValue((prev) => (prev ? prev + " " + text : text));
+									adjustTextareaHeight();
+								}}
+							/>
 							<button
 								type="button"
 								onClick={handleCancel}

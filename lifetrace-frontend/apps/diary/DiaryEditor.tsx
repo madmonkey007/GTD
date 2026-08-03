@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
@@ -67,6 +68,41 @@ function extractTagsFromContent(content: string): string[] {
 
 // 笔记卡片 markdown 渲染组件：支持列表、粗体、标题等，#tag 通过 rehypeRaw 渲染 HTML 标签
 
+function NoteImage({ src, alt }: React.ImgHTMLAttributes<HTMLImageElement>) {
+	const [zoom, setZoom] = useState(false);
+	return (
+		<>
+			<img
+				src={src}
+				alt={alt ?? ""}
+				onClick={(e) => {
+					e.stopPropagation();
+					setZoom(true);
+				}}
+				className="block w-[120px] h-[120px] object-cover rounded my-1 cursor-zoom-in"
+			/>
+			{zoom &&
+				typeof document !== "undefined" &&
+				createPortal(
+					<div
+						onClick={(e) => {
+							e.stopPropagation();
+							setZoom(false);
+						}}
+						className="fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center cursor-zoom-out"
+					>
+						<img
+							src={src}
+							alt={alt ?? ""}
+							className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+						/>
+					</div>,
+					document.body,
+				)}
+		</>
+	);
+}
+
 function NoteMarkdown({ content }: { content: string }) {
 	// 预处理：把所有 #tag 替换成 HTML <span> 标签
 	// 使用 rehypeRaw 插件允许 HTML 在 markdown 中渲染
@@ -109,6 +145,9 @@ function NoteMarkdown({ content }: { content: string }) {
 					),
 					code: ({ children }: { children?: React.ReactNode }) => (
 						<code className="px-1 py-0.5 rounded text-[11px] font-mono bg-muted/40">{children}</code>
+					),
+					img: ({ src, alt }: React.ImgHTMLAttributes<HTMLImageElement>) => (
+						<NoteImage src={src} alt={alt ?? ""} />
 					),
 				}}
 			>

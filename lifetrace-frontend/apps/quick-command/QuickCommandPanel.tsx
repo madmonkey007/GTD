@@ -14,6 +14,7 @@ import type { ChatMessage } from "@/apps/chat/types";
 import { useLocaleStore } from "@/lib/store/locale";
 import { queryKeys } from "@/lib/query/keys";
 import { MessageBubble, MessageActions, StreamingIndicator, MarkdownContent } from "@/apps/chat/components/chat-ui/index";
+import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 // 三域工具全集：待办 + 笔记 + 习惯。后端 _build_instructions 检测到三类齐全
 // 会切换到 quick_command_instructions（路由指令），由 LLM 按意图自选工具。
@@ -228,6 +229,19 @@ export function QuickCommandPanel() {
             rows={1}
             placeholder={locale === "zh" ? "输入指令…（Enter 发送，Shift+Enter 换行）" : "Type a command… (Enter to send)"}
             className="flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/40 max-h-40"
+          />
+          <VoiceInputButton
+            ownerId="quick-command"
+            onTranscript={(text) => {
+              setInput((prev) => (prev ? prev + " " + text : text));
+              // 输入高度自适应
+              const ta = taRef.current;
+              if (ta) {
+                ta.style.height = "auto";
+                ta.style.height = `${Math.min(ta.scrollHeight, 160)}px`;
+              }
+            }}
+            className="flex-shrink-0 rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           />
           {isStreaming ? (
             <button

@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { JournalView } from "@/lib/query";
+import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 interface AnnotationModalProps {
   isOpen: boolean;
@@ -357,6 +358,20 @@ export function AnnotationModal({
             })()}
             <div className="flex items-center justify-end px-2 pb-2 pt-1 gap-1">
               <span className="text-[10px] text-muted-foreground/40 select-none tabular-nums">{content.replace(/\s/g, '').length}</span>
+              <VoiceInputButton
+                ownerId="annotation-modal"
+                stopOnUnmount
+                onTranscript={(text) => {
+                  const div = editorRef.current;
+                  if (!div) {
+                    console.log("[AnnotationModal] voice: no editor div");
+                    return;
+                  }
+                  div.focus();
+                  document.execCommand("insertText", false, ` ${text}`);
+                  syncContent();
+                }}
+              />
               <button
                 type="button"
                 onClick={handleSubmit}

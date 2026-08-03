@@ -8,6 +8,41 @@ function getStreamApiBaseUrl(): string {
 }
 
 // ============================================================================
+// 笔记图片上传（走 Next.js rewrite 到后端 /api/journals/upload-image）
+// ============================================================================
+
+export interface UploadImageResult {
+	url: string;
+	filename: string;
+	alt: string;
+	size: number;
+}
+
+/**
+ * 上传笔记图片。返回前端可直接使用的相对 URL（/uploads/journal-images/xxx）。
+ * 失败时抛 Error，message 携带后端 detail。
+ */
+export async function uploadJournalImage(file: File): Promise<UploadImageResult> {
+	const form = new FormData();
+	form.append("file", file);
+	const res = await fetch("/api/journals/upload-image", {
+		method: "POST",
+		body: form,
+	});
+	if (!res.ok) {
+		let detail = `上传失败 (${res.status})`;
+		try {
+			const j = (await res.json()) as { detail?: unknown };
+			if (typeof j?.detail === "string") detail = j.detail;
+		} catch {
+			// 忽略 JSON 解析失败，使用默认错误信息
+		}
+		throw new Error(detail);
+	}
+	return (await res.json()) as UploadImageResult;
+}
+
+// ============================================================================
 // 流式 API（Orval 不支持 Server-Sent Events，需要手动实现）
 // ============================================================================
 

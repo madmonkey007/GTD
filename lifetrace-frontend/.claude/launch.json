@@ -16,6 +16,11 @@
       "runtimeExecutable": "uv",
       "runtimeArgs": ["run", "python", "lifetrace/scripts/start_backend.py"],
       "port": 8001
+    },
+    {
+      "name": "Attach Frontend 3001",
+      "url": "http://localhost:3001",
+      "port": 3001
     }
   ]
 }
