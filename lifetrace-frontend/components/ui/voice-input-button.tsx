@@ -45,7 +45,7 @@ export function VoiceInputButton({
 		}
 		const update = () => {
 			setElapsedTime(
-				Math.max(0, Math.floor((performance.now() - start) / 1000)),
+				Math.max(0, Math.floor((Date.now() - start) / 1000)),
 			);
 		};
 		update();
