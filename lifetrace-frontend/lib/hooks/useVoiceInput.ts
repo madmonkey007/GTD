@@ -86,6 +86,11 @@ let activeVoiceOwnerId: string | null = null;
 // 发起方实例已卸载，切回后的新实例 stop() 必须能读到此前收集的文本。
 let voiceFinalBuffer = "";
 
+// 最新 partial 文本（DashScope 的 partial 是累计全文）。
+// 后端的最终结果(is_final)经 WS 关闭时容易丢帧、且 stop 信号偶发不达后端，
+// 因此以"最新 partial"作为回填的可靠主来源。
+let voicePartialBuffer = "";
+
 const DEFAULT_OWNER_ID = "__voice_default__";
 
 export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResult {
@@ -157,6 +162,8 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResul
 						: trimmed;
 				}
 			} else {
+				// partial 是累计全文，记录最新值作为回填主来源
+				voicePartialBuffer = text;
 				optionsRef.current.onPartial?.(text);
 			}
 		},
@@ -172,19 +179,25 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResul
 			activeVoiceOwnerId = null;
 		}
 		voiceFinalBuffer = "";
+		voicePartialBuffer = "";
 	}, []);
 
 	const stop = useCallback(() => {
 		if (!isThisRecordingRef.current) return;
-		const text = voiceFinalBuffer.trim();
-		voiceFinalBuffer = "";
 		isThisRecordingRef.current = false;
 		setIsThisRecording(false);
 		activeVoiceOwnerId = null;
-		stopRecording();
+		// 立即（同步）用当前已到达的文本回填输入框。
+		// partial 是累计全文，录音过程中已稳稳到达；停止瞬间即可用，无需等 WS final。
+		// 优先 final，回退最新 partial。
+		const text = (voiceFinalBuffer.trim() || voicePartialBuffer.trim());
+		voiceFinalBuffer = "";
+		voicePartialBuffer = "";
 		if (text) {
 			optionsRef.current.onTranscript(text);
 		}
+		// 异步关闭录音 WS（不阻塞回填）；intentionalCloseRef 会屏蔽关闭时的 onerror
+		void stopRecording();
 	}, [stopRecording]);
 
 	const toggle = useCallback(() => {
@@ -209,6 +222,7 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResul
 		}
 		clearSessionData();
 		voiceFinalBuffer = "";
+		voicePartialBuffer = "";
 		isThisRecordingRef.current = true;
 		setIsThisRecording(true);
 		activeVoiceOwnerId = ownerIdRef.current;
@@ -220,6 +234,7 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResul
 
 	const abort = useCallback(() => {
 		voiceFinalBuffer = "";
+		voicePartialBuffer = "";
 		isThisRecordingRef.current = false;
 		setIsThisRecording(false);
 		activeVoiceOwnerId = null;

@@ -75,8 +75,8 @@ interface AudioRecordingActions {
 		onError?: ErrorCallback,
 		is24x7?: boolean,
 	) => Promise<void>;
-	/** 停止录音 */
-	stopRecording: (segmentTimestamps?: number[]) => void;
+	/** 停止录音（等待最终识别结果后再关闭 WS） */
+	stopRecording: (segmentTimestamps?: number[]) => Promise<void>;
 	/** 重置时间戳引用（用于新段落） */
 	resetLastFinalEnd: () => void;
 	/** 更新 lastFinalEndMs */
@@ -126,6 +126,18 @@ const reconnectDelayMs = 3000; // 3秒后重连
 let shouldReconnectRef = false; // 标记是否应该重连
 let currentIs24x7 = false; // 当前是否为 7×24 模式
 
+// ========== 停止时等待最终识别结果 ==========
+// DashScope 实时 ASR 的最终结果在收到 stop 信号后才回传（约 100~300ms），
+// 若 stop 后立即关闭 WS，最终文本会丢失。这里在 stop 后保持 WS 打开，
+// 直到收到 is_final=true 的 TranscriptionResultChanged 或超时再关闭。
+let stopWaitResolveRef: (() => void) | null = null;
+let stopWaitTimeoutRef: ReturnType<typeof setTimeout> | null = null;
+const STOP_WAIT_TIMEOUT_MS = 800;
+// 标记本次关闭是前端主动停止（用户点了停止/abort）。
+// 后端 _cleanup_websocket 没有回发 close 帧，浏览器会把这种非正常关闭当成 onerror，
+// 这里在主动停止期间屏蔽 onerror/异常 onclose，避免吓人的报错弹窗（文本其实已成功回填）。
+let intentionalCloseRef = false;
+
 // ========== 内部辅助函数 ==========
 
 /**
@@ -144,8 +156,9 @@ function getApiBaseUrl(): string {
  * 清理录音资源
  * @param segmentTimestamps 段落时间戳数组
  * @param isReconnecting 是否正在重连（重连时不清理回调）
+ * @param sendStop 是否发送 stop 消息（停止流程已先行发送过时传 false）
  */
-function cleanupRecordingResources(segmentTimestamps?: number[], isReconnecting = false): void {
+function cleanupRecordingResources(segmentTimestamps?: number[], isReconnecting = false, sendStop = true): void {
 	// 停止 WebAudio
 	if (processorRef) {
 		try {
@@ -172,14 +185,20 @@ function cleanupRecordingResources(segmentTimestamps?: number[], isReconnecting 
 	}
 	if (wsRef) {
 		// 发送停止消息，包含时间戳数组（如果提供）
-		const stopMessage: { type: string; segment_timestamps?: number[] } = {
-			type: "stop",
-		};
-		if (segmentTimestamps && segmentTimestamps.length > 0) {
-			stopMessage.segment_timestamps = segmentTimestamps;
+		if (sendStop) {
+			const stopMessage: { type: string; segment_timestamps?: number[] } = {
+				type: "stop",
+			};
+			if (segmentTimestamps && segmentTimestamps.length > 0) {
+				stopMessage.segment_timestamps = segmentTimestamps;
+			}
+			try {
+				wsRef.send(JSON.stringify(stopMessage));
+			} catch {
+				// ignore
+			}
 		}
 		try {
-			wsRef.send(JSON.stringify(stopMessage));
 			wsRef.close();
 		} catch {
 			// ignore
@@ -233,6 +252,8 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 		}
 
 		try {
+			// 新一次录音开始，复位主动关闭标志（防御：上一次 onclose 可能未触发）
+			intentionalCloseRef = false;
 			// 设置 7×24 模式标志
 			currentIs24x7 = is24x7;
 			shouldReconnectRef = is24x7; // 7×24 模式启用自动重连
@@ -317,6 +338,16 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 							if (text && currentOnTranscription) {
 								currentOnTranscription(text, isFinal);
 							}
+							// 停止流程在等待最终结果：收到 is_final 即放行关闭 WS
+							if (isFinal && stopWaitResolveRef) {
+								const resolveStop = stopWaitResolveRef;
+								stopWaitResolveRef = null;
+								if (stopWaitTimeoutRef) {
+									clearTimeout(stopWaitTimeoutRef);
+									stopWaitTimeoutRef = null;
+								}
+								resolveStop();
+							}
 							return;
 						}
 
@@ -360,6 +391,11 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 			};
 
 			ws.onerror = (error) => {
+				// 主动停止期间，后端不回发 close 帧导致的 onerror 属于预期行为，屏蔽
+				if (intentionalCloseRef) {
+					console.debug("[AudioRecordingStore] intentional close onerror ignored");
+					return;
+				}
 				const errorMessage =
 					error instanceof Error
 						? error.message
@@ -383,6 +419,16 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 				if (event.wasClean) {
 					shouldReconnectRef = false;
 					currentIs24x7 = false;
+					intentionalCloseRef = false;
+					return;
+				}
+
+				// 主动停止导致的非干净关闭（后端未回发 close 帧）：视为正常，不报错
+				if (intentionalCloseRef) {
+					console.debug("[AudioRecordingStore] intentional close onclose(code=%s) treated as clean", event.code);
+					shouldReconnectRef = false;
+					currentIs24x7 = false;
+					intentionalCloseRef = false;
 					return;
 				}
 
@@ -485,7 +531,10 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 		}
 	},
 
-	stopRecording: (segmentTimestamps) => {
+	/** 停止录音 */
+	stopRecording: async (segmentTimestamps?: number[]) => {
+		// 标记为前端主动关闭，屏蔽后端未回发 close 帧导致的 onerror
+		intentionalCloseRef = true;
 		// 停止自动重连
 		shouldReconnectRef = false;
 		if (reconnectTimeoutRef) {
@@ -495,7 +544,8 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 		reconnectAttemptsRef = 0;
 		currentIs24x7 = false;
 
-		// 清理录音资源
+		// 回填用的是录音过程中已到达的 partial，不需要等后端 final。
+		// 立即关闭 WS + 停止麦克风，避免 ScriptProcessor 持续占用主线程导致 UI 卡顿。
 		cleanupRecordingResources(segmentTimestamps);
 		set({
 			isRecording: false,
@@ -503,6 +553,8 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 			recordingStartedDate: null,
 			lastFinalEndMs: null,
 		});
+		// 注意：此处不复位 intentionalCloseRef。ws.close() 触发的 onerror/onclose 是
+		// 异步事件，会在本函数返回后才触发，必须保持标志为 true 直到 onclose 真正执行。
 	},
 
 	resetLastFinalEnd: () => {
