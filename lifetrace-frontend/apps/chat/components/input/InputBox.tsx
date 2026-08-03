@@ -1,4 +1,4 @@
-import { AtSign, Send, Square } from "lucide-react";
+import { ArrowUp, AtSign, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
@@ -131,15 +131,14 @@ export function InputBox({
 					onClick={onSend}
 					disabled={isSendDisabled}
 					className={cn(
-						"flex h-8 w-8 items-center justify-center rounded-lg",
-						"bg-primary text-primary-foreground transition-colors",
-						"hover:bg-primary/90",
+						"flex h-8 w-8 items-center justify-center rounded-full",
+						"bg-foreground text-background transition-opacity hover:opacity-80",
 						"disabled:cursor-not-allowed disabled:opacity-50",
 						"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 					)}
 					aria-label={t("send")}
 				>
-					<Send className="h-4 w-4" />
+					<ArrowUp className="h-4 w-4" />
 				</button>
 			)}
 		</div>

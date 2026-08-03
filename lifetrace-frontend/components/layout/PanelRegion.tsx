@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, BookOpen, BrainCircuit, CalendarDays, Command, Heart, LayoutGrid, ListTodo, Timer, Settings } from "lucide-react";
+import { Award, BookOpen, BrainCircuit, CalendarDays, Heart, LayoutGrid, ListTodo, Timer, Settings, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useOpenSettings } from "@/lib/hooks/useOpenSettings";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -46,6 +46,7 @@ const SIDEBAR_NAV_ITEMS: {
 	label: string;
 	icon: typeof ListTodo;
 }[] = [
+	{ id: "quickCommand", label: "agent", icon: Sparkles },
 	{ id: "list", label: "清单", icon: ListTodo },
 	{ id: "calendar", label: "日历", icon: CalendarDays },
 	{ id: "quadrants", label: "四象限", icon: LayoutGrid },
@@ -54,7 +55,6 @@ const SIDEBAR_NAV_ITEMS: {
 	{ id: "diary", label: "笔记", icon: BookOpen },
 	{ id: "achievements", label: "成就", icon: Award },
 	{ id: "zeroThink", label: "零秒思考", icon: BrainCircuit },
-	{ id: "quickCommand", label: "智能指令", icon: Command },
 ];
 
 function SidebarNav() {

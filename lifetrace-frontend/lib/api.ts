@@ -505,6 +505,8 @@ export type ChatHistoryItem = {
 	role: "user" | "assistant";
 	content: string;
 	timestamp?: string;
+	/** 后端 created_at（ISO 字符串），用于重建每条 assistant 消息的处理耗时 */
+	createdAt?: string;
 	extraData?: string;
 };
 

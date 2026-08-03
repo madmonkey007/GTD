@@ -1,12 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { HabitDetailPanel } from "@/apps/habits/components/HabitDetailPanel";
 import { HabitStatsPanel } from "@/apps/habits/components/HabitStatsPanel";
 import { AddHabitDialog } from "@/apps/habits/components/AddHabitDialog";
 import { useHabits, type Habit } from "@/apps/habits/hooks/useHabits";
+import { useFocusTarget } from "@/lib/store/focus-target-store";
 import { ResizeHandle } from "@/components/layout/ResizeHandle";
 
 export function HabitsPanel() {
@@ -29,6 +30,18 @@ export function HabitsPanel() {
 	const handleSelectHabit = (habit: Habit) => {
 		setSelectedHabit(habit);
 	};
+
+	// 从 agent 卡片「查看」跳转过来时，选中对应习惯
+	const focusTarget = useFocusTarget((s) => s.target);
+	const clearFocusTarget = useFocusTarget((s) => s.setTarget);
+	useEffect(() => {
+		if (!focusTarget || focusTarget.feature !== "habit") return;
+		const found = habits.find((h) => String(h.id) === focusTarget.id);
+		if (found) {
+			setSelectedHabit(found);
+			clearFocusTarget(null);
+		}
+	}, [focusTarget, habits, clearFocusTarget]);
 
 	const handleToggleDate = (habitId: string, date: string) => {
 		toggleRecord(habitId, date);

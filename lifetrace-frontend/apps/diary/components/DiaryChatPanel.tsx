@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Send, Square, Sparkles,
+  ArrowUp, Square, Sparkles,
   History, Plus,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -773,8 +773,8 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
               </button>
             ) : (
               <button type="button" onClick={handleSendInput} disabled={isStreaming || (!inputValue.trim() && !currentJournalId && useNoteChatStore.getState().linkedNotes.length === 0)} title="发送"
-                className="flex items-center justify-center rounded-lg bg-primary/10 p-1.5 text-primary hover:bg-primary/20 transition-colors disabled:opacity-25 disabled:cursor-not-allowed">
-                <Send className="w-3.5 h-3.5" />
+                className="flex items-center justify-center w-7 h-7 rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-25 disabled:cursor-not-allowed">
+                <ArrowUp className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
