@@ -1,5 +1,4 @@
 "use client";
-
 import { AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
@@ -35,7 +34,6 @@ import { DiaryTrashView } from "@/apps/diary/components/DiaryTrashView";
 import { DiaryChatPanel } from "@/apps/diary/components/DiaryChatPanel";
 import { AnnotationModal } from "@/apps/diary/components/AnnotationModal";
 import { CompareNotesModal } from "@/apps/diary/components/CompareNotesModal";
-
 const emptyDraft = (date: Date): JournalDraft => ({
 	id: null,
 	name: "",
@@ -49,17 +47,14 @@ const emptyDraft = (date: Date): JournalDraft => ({
 	relatedActivityIds: [],
 	date: normalizeDateOnly(date),
 });
-
 const extractTagsFromUserNotes = (notes: string): string[] => {
 	// 匹配后跟空白符或行尾的完整 #标签
 	const matches = notes.match(/#([^\s#]+)(\s|$)/g);
 	if (!matches) return [];
 	return [...new Set(matches.map((m) => m.slice(1).trimEnd()))];
 };
-
 const parseTags = (input: string) =>
 	input.split(",").map((tag) => tag.trim()).filter((tag) => tag.length > 0);
-
 export function DiaryPanel() {
 	const t = useTranslations("journalPanel");
 	const { locale } = useLocaleStore();
@@ -77,6 +72,7 @@ export function DiaryPanel() {
 	const lastSyncKey = useRef<string | null>(null);
 	const clearAfterSubmit = useRef(false);
 	const initialLoadComplete = useRef(false);
+	const [pendingLinks, setPendingLinks] = useState<{ id: number; name: string }[]>([]);
 	const {
 		refreshMode,
 		fixedTime,
@@ -86,13 +82,11 @@ export function DiaryPanel() {
 		autoGenerateObjectiveEnabled,
 		autoGenerateAiEnabled,
 	} = useJournalStore();
-
 	// Responsive layout
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [containerWidth, setContainerWidth] = useState(0);
 	const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
 	const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
-
 	useEffect(() => {
 		const el = containerRef.current;
 		if (!el) return;
@@ -104,7 +98,6 @@ export function DiaryPanel() {
 		observer.observe(el);
 		return () => observer.disconnect();
 	}, []);
-
 	// Derived state: when container is wide enough, show sidebars inline
 	// left=288px + right=280px(min) + gaps=8px + middle needs ~400px min
 	// So at containerWidth >= ~976, all 3 panels can fit
@@ -150,10 +143,8 @@ export function DiaryPanel() {
 		() => journalResponse?.journals?.[0] ?? null,
 		[journalResponse?.journals],
 	);
-
 	// Load all notes for the AI chat panel
 	const { data: allNotesData, refetch: refetchAllNotes } = useJournals({ limit: 500, offset: 0 });
-
 	// 按最近使用排序的标签列表（用于自动补全）
 	const [cachedRecentTags, setCachedRecentTags] = useState<string[]>([]);
 	const recentTags = cachedRecentTags;
@@ -181,7 +172,6 @@ export function DiaryPanel() {
 			.filter(Boolean)
 			.join("\n\n---\n\n");
 	}, [allNotesData]);
-
 	const {
 		createJournal,
 		updateJournal,
@@ -195,38 +185,44 @@ export function DiaryPanel() {
 	const { createNoteLinkAsync } = useNoteLinkMutations();
 	const noteLinkList = useMemo(() => {
 		if (!allNotesData?.journals) return [];
-		return allNotesData.journals.map((n: any) => ({
-			id: n.id,
-			name: n.name ?? '',
-			preview: (n.userNotes ?? '').replace(/[\r\n]/g, ' ').slice(0, 80),
-		}));
-	}, [allNotesData]);
+		return allNotesData.journals
+			.filter((n: any) => n.id !== draft.id)
+			.map((n: any) => ({
+				id: n.id,
+				name: n.name ?? '',
+				preview: (n.userNotes ?? '').replace(/[\r\n]/g, ' ').slice(0, 80),
+			}));
+	}, [allNotesData, draft.id]);
+
 	// 使用 NoteLink API 创建 SUPPORTS 链接（替代原先的 related_note_ids 写入）
 	// sourceId 可选：编辑态卡片用 editingCardId；新建态无 id 时先保存再建链
 	const handleSaveRef = useRef<(opts?: { draftOverride?: Partial<JournalDraft> }) => Promise<JournalView | null>>(async () => null);
 	const handleLinkNote = useCallback(async (targetId: number, sourceId?: number) => {
-		let sid = sourceId ?? draft.id;
-		if (!sid) {
-			// 新建笔记尚未保存：先保存拿到 id 再建链
-			const saved = await handleSaveRef.current({});
-			sid = saved?.id;
+		// 编辑态/已保存草稿：直接创建 SUPPORTS 链接
+		const sid = sourceId ?? draft.id;
+		if (sid) {
+			try {
+				await createNoteLinkAsync({
+					sourceNoteId: sid,
+					input: { targetNoteId: targetId, relationType: "SUPPORTS" },
+				});
+				refetchAllNotes();
+			} catch (e) {
+				console.error('Failed to link note:', e);
+			}
+			return;
 		}
-		if (!sid) return;
-		try {
-			await createNoteLinkAsync({
-				sourceNoteId: sid,
-				input: { targetNoteId: targetId, relationType: "SUPPORTS" },
-			});
-			refetchAllNotes();
-		} catch (e) {
-			console.error('Failed to link note:', e);
-		}
-	}, [draft.id, createNoteLinkAsync, refetchAllNotes]);
-
-	const handleRemoveLink = useCallback((_targetId: number) => {
-		// Removal now happens in ReferenceModal
+		// 新建草稿（尚无 id）：先记为待处理链接，提交保存后再落库
+		setPendingLinks((prev) => {
+			if (prev.some((pl) => pl.id === targetId)) return prev;
+			const target = noteLinkList.find((n) => n.id === targetId);
+			return [...prev, { id: targetId, name: target?.name ?? "" }];
+		});
+	}, [draft.id, noteLinkList, createNoteLinkAsync, refetchAllNotes]);
+	const handleRemoveLink = useCallback((targetId: number) => {
+		// 仅移除尚未落库的待处理链接；已保存链接的删除在 ReferenceModal 中处理
+		setPendingLinks((prev) => prev.filter((pl) => pl.id !== targetId));
 	}, []);
-
 	const syncDraftFromJournal = useCallback(
 		(journal: JournalView) => {
 			const journalDate = parseJournalDate(journal.date);
@@ -263,14 +259,12 @@ export function DiaryPanel() {
 		if (isJournalLoading) return;
 		const syncKey = `${bucket.bucketStart.toISOString()}-${activeJournal?.id ?? "new"}`;
 		if (lastSyncKey.current === syncKey) return;
-
 		lastSyncKey.current = syncKey;
-
+		setPendingLinks([]);
 		if (clearAfterSubmit.current) {
 			clearAfterSubmit.current = false;
 			return;
 		}
-
 		if (activeJournal) {
 			const activeDate = parseJournalDate(activeJournal.date);
 			const activeTime = activeDate.getTime();
@@ -282,7 +276,6 @@ export function DiaryPanel() {
 				return;
 			}
 		}
-
 		setDraft(emptyDraft(selectedDate));
 		setTagInput("");
 	}, [
@@ -293,8 +286,6 @@ export function DiaryPanel() {
 		selectedDate,
 		syncDraftFromJournal,
 	]);
-
-
 const handleDeleteJournal = async (note: TrashEntry) => {
 	try {
 		addToTrash({
@@ -347,7 +338,6 @@ const handleSaveCardEdit = async (
 		tags: tags.length > 0 ? tags : null,
 	});
 };
-
 	const buildSavePayload = (
 		updatedDraft: JournalDraft,
 		tags: string[],
@@ -427,7 +417,6 @@ const handleSaveCardEdit = async (
 		setDraft(updatedDraft);
 		setTagInput(tags.join(", "));
 		const payload = buildSavePayload(updatedDraft, tags);
-
 		let saved = null;
 		try {
 			if (updatedDraft.id) {
@@ -439,9 +428,23 @@ const handleSaveCardEdit = async (
 		} catch (_error) {
 			return null;
 		}
-
 		if (!saved) return null;
-
+		// 首次创建成功后，把 @ 选中的待处理链接正式落库
+		if (pendingLinks.length > 0) {
+			try {
+				await Promise.all(
+					pendingLinks.map((pl) =>
+						createNoteLinkAsync({
+							sourceNoteId: saved.id,
+							input: { targetNoteId: pl.id, relationType: "SUPPORTS" },
+						}),
+					),
+				);
+			} catch (e) {
+				console.error('Failed to flush pending links:', e);
+			}
+			setPendingLinks([]);
+		}
 		const savedDate = parseJournalDate(saved.date);
 		setDraft({
 			id: saved.id,
@@ -458,13 +461,11 @@ const handleSaveCardEdit = async (
 		});
 		setSelectedDate(savedDate);
 		setTagInput((saved.tags ?? []).map((tag) => tag.tagName).join(", "));
-
 		const snapshot = {
 			title: saved.name ?? "",
 			content: saved.userNotes ?? "",
 			date: savedDate,
 		};
-
 		// LLM 后台生成（autoLink / 客观记录 / AI视角），不阻塞主流程
 		// 笔记已创建并刷新列表，这些增强在后台完成后各自 invalidate 更新
 		const llmTasks: Promise<void>[] = [];
@@ -505,7 +506,6 @@ const handleSaveCardEdit = async (
 			tags.length > 0 ||
 			(draftSnapshot.contentObjective ?? "").trim().length > 0 ||
 			(draftSnapshot.contentAi ?? "").trim().length > 0;
-
 		// 新笔记（无 id）不触发自动保存，避免输入时就在列表中生成草稿记录；
 		// 只有点击发送（handleSubmitNotes）才会创建。已有 id 的笔记保留失焦自动保存。
 		if (!draftSnapshot.id) return;
@@ -515,7 +515,6 @@ const handleSaveCardEdit = async (
 			draftOverride: options?.draftOverride,
 		});
 	};
-
 	const handleInlineTag = useCallback((tagName: string) => {
 		setDraft((prev) => {
 			if (prev.tags.includes(tagName)) return prev;
@@ -527,7 +526,6 @@ const handleSaveCardEdit = async (
 			return [...existing, tagName].join(", ");
 		});
 	}, []);
-
 	const handleAnnotate = async (content: string) => {
 		if (!annotateTarget) return;
 		try {
@@ -562,7 +560,6 @@ const handleSaveCardEdit = async (
 			console.error("[annotate] create failed:", err);
 		}
 	};
-
 	const handleSubmitNotes = async () => {
 		if (!draft.userNotes.trim()) return;
 		await handleSave();
@@ -572,7 +569,6 @@ const handleSaveCardEdit = async (
 		setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "" }));
 		clearAfterSubmit.current = true;
 	};
-
 	if (journalError) {
 		const errorMessage =
 			journalError instanceof Error
@@ -610,8 +606,6 @@ const handleSaveCardEdit = async (
 			</motion.div>
 		);
 	}
-
-
 	// 聊天工具改动了笔记：若正是当前打开的笔记，重新拉取并只同步标签（不触碰正文/标题，避免覆盖编辑中内容）
 	const handleNoteMutated = useCallback(async (noteId: number) => {
 		// AI 创建/修改了笔记，但该笔记不是当前编辑中的笔记
@@ -627,12 +621,9 @@ const handleSaveCardEdit = async (
 		setDraft((prev) => ({ ...prev, tags }));
 		setTagInput(tags.join(", "));
 	}, [activeJournal?.id, refetch]);
-
 		return ( <>
 			<div className="flex h-full flex-col overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20">
 			<div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-2 relative h-screen">
-
-
 				{/* Left sidebar — inline when wide, otherwise hidden (drawer overlay) */}
 				{showLeftInline && <DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} onFilterModeChange={(mode) => { setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => setShowTrash(true)} selectedTag={selectedTag} onSelectTag={(tag) => { setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} />}
 				<div className="flex-1 min-w-0 max-w-[800px] flex flex-col">
@@ -670,6 +661,7 @@ const handleSaveCardEdit = async (
 							noteLinkList={noteLinkList}
 							onLinkNote={handleLinkNote}
 							onRemoveLink={handleRemoveLink}
+							linkedNoteTitles={pendingLinks}
 							onTitleChange={(value) =>
 								setDraft((prev) => ({ ...prev, name: value }))
 							}
@@ -690,16 +682,13 @@ const handleSaveCardEdit = async (
 						/>
 						</>
 					)}
-
 				</div>
-
 		{/* Right-side chat panel for AI analysis — inline when wide, otherwise hidden (drawer overlay) */}
 		{showRightInline && (
 			<div className="w-[380px] flex-shrink min-w-[280px] flex flex-col rounded-(--radius) bg-[oklch(var(--card))] shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_1px_3px_0_rgba(0,0,0,0.06)] overflow-hidden">
 				<DiaryChatPanel noteContent={noteContent} currentJournalId={activeJournal?.id ?? null} onNoteMutated={handleNoteMutated} />
 			</div>
 		)}
-
 		{/* Left drawer overlay */}
 		<AnimatePresence>
 			{!showLeftInline && leftDrawerOpen && (
@@ -720,7 +709,6 @@ const handleSaveCardEdit = async (
 				</>
 			)}
 		</AnimatePresence>
-
 		{/* Right drawer overlay */}
 		<AnimatePresence>
 			{!showRightInline && rightDrawerOpen && (

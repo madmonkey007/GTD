@@ -142,6 +142,7 @@ interface DiaryEditorProps {
 	noteLinkList?: NoteLinkItem[];
 	onLinkNote?: (noteId: number, sourceId?: number) => void;
 	onRemoveLink?: (noteId: number) => void;
+	linkedNoteTitles?: { id: number; name: string }[];
 	relatedNotesData?: JournalView[];
 	showLeftToggle?: boolean;
 	showRightToggle?: boolean;
@@ -175,6 +176,7 @@ export function DiaryEditor({
 	noteLinkList,
 	onLinkNote,
 	onRemoveLink,
+	linkedNoteTitles,
 	relatedNotesData,
 	showLeftToggle = false,
 	showRightToggle = false,
@@ -452,6 +454,7 @@ export function DiaryEditor({
 						noteLinkList={noteLinkList}
 						onLinkNote={onLinkNote}
 						onRemoveLink={onRemoveLink}
+						linkedNoteTitles={linkedNoteTitles}
 						variant="create"
 						value={draft.userNotes}
 						onChange={(v) => {

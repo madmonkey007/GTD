@@ -438,6 +438,21 @@ class JournalService:
         update_data = data.model_dump(exclude_none=True)
         if "name" in update_data:
             update_data["name"] = self._normalize_name(update_data["name"])
+        # 与 CREATE 一致：前端 date-only 更新会被解析为午夜 00:00:00，
+        # 用当前时间填充（保留年月日），避免按 date DESC 排序时笔记沉底，
+        # 导致用户提交后看不到刚关联的笔记。
+        note_date = update_data.get("date")
+        if (
+            isinstance(note_date, datetime)
+            and note_date.hour == 0
+            and note_date.minute == 0
+            and note_date.second == 0
+            and note_date.microsecond == 0
+        ):
+            now = datetime.now()
+            update_data["date"] = now.replace(
+                year=note_date.year, month=note_date.month, day=note_date.day
+            )
         return JournalUpdatePayload(**update_data)
 
     def update_journal(self, journal_id: int, data: JournalUpdate) -> JournalResponse:
