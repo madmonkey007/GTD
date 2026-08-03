@@ -196,6 +196,7 @@ def _create_realtime_nlp_handler(  # noqa: C901
             self._buffer = ""
             self._last_emit = 0.0
             self._pending: asyncio.Task | None = None
+            self._running: asyncio.Task | None = None
 
         async def _send(self, name: str, payload: dict[str, Any]) -> None:
             try:
@@ -233,23 +234,30 @@ def _create_realtime_nlp_handler(  # noqa: C901
             return optimized, extracted
 
         async def _run_once(self) -> None:
-            text_snapshot = self._buffer.strip()
-            if not text_snapshot:
-                return
-            optimized, extracted = await self._compute(text_snapshot)
+            try:
+                # 客户端已断开：不要白跑 LLM（会占用 LLM 连接、拖慢用户后续请求）
+                if not is_connected_ref[0]:
+                    logger.info("实时优化/提取跳过：客户端已断开")
+                    return
+                text_snapshot = self._buffer.strip()
+                if not text_snapshot:
+                    return
+                optimized, extracted = await self._compute(text_snapshot)
 
-            preview = optimized.replace("\n", " ")[:200]
-            todos_preview = extracted.get("todos", [])
-            schedules_preview = extracted.get("schedules", [])
-            logger.info("实时优化/提取完成，准备推送给前端")
-            logger.info(f"优化预览: {preview}")
-            logger.info(f"提取结果: todos={todos_preview}, schedules={schedules_preview}")
+                preview = optimized.replace("\n", " ")[:200]
+                todos_preview = extracted.get("todos", [])
+                schedules_preview = extracted.get("schedules", [])
+                logger.info("实时优化/提取完成，准备推送给前端")
+                logger.info(f"优化预览: {preview}")
+                logger.info(f"提取结果: todos={todos_preview}, schedules={schedules_preview}")
 
-            await self._send("OptimizedTextChanged", {"text": optimized})
-            await self._send(
-                "ExtractionChanged",
-                {"todos": extracted.get("todos", []), "schedules": extracted.get("schedules", [])},
-            )
+                await self._send("OptimizedTextChanged", {"text": optimized})
+                await self._send(
+                    "ExtractionChanged",
+                    {"todos": extracted.get("todos", []), "schedules": extracted.get("schedules", [])},
+                )
+            finally:
+                self._running = None
 
         async def _debounced_run(self, delay: float) -> None:
             try:
@@ -269,7 +277,7 @@ def _create_realtime_nlp_handler(  # noqa: C901
             elapsed = now - self._last_emit
             if elapsed >= throttle_seconds:
                 self._last_emit = now
-                _track_task(task_set, self._run_once())
+                self._running = _track_task(task_set, self._run_once())
                 return
 
             if self._pending is None:
@@ -277,9 +285,14 @@ def _create_realtime_nlp_handler(  # noqa: C901
                 self._pending = _track_task(task_set, self._debounced_run(delay))
 
         def cancel(self) -> None:
+            # 取消尚未开始的防抖任务
             if self._pending and not self._pending.done():
                 self._pending.cancel()
             self._pending = None
+            # 取消正在运行的优化/提取（释放 LLM 连接，避免拖慢用户后续请求）
+            if self._running and not self._running.done():
+                self._running.cancel()
+            self._running = None
 
     throttler = _RealtimeNlpThrottler()
     return throttler.on_final_sentence, throttler.cancel

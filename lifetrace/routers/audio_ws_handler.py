@@ -166,7 +166,9 @@ async def _initialize_handlers_internal(
 
     def on_result(text: str, is_final: bool) -> None:
         on_result_base(text, is_final)
-        if is_final:
+        # 实时优化/提取（LLM）只在 7×24 常驻录音模式下运行；
+        # 普通语音输入（笔记/聊天/待办）不需要，否则会在停止后白跑十几秒 LLM，拖慢后续请求。
+        if is_final and is_24x7:
             on_final_sentence(text)
 
     on_error = _create_error_callback(
@@ -421,6 +423,10 @@ async def _cleanup_websocket(
     """清理 WebSocket 连接"""
     state["is_connected_ref"][0] = False
     cancel_realtime_nlp()
+
+    # 注意：不要在此处主动 websocket.close()。最终识别结果（is_final=True）是由
+    # 异步任务 _send_result 发送的，若提前 close() 会与之竞态、导致最终文本被静默丢弃。
+    # 关闭握手的"非干净关闭"由前端 intentionalCloseRef 屏蔽，不影响功能。
 
     try:
         await save_final_data()
