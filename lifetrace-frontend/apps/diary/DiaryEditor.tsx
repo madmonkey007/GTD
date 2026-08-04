@@ -189,6 +189,8 @@ interface DiaryEditorProps {
 	isRightOpen?: boolean;
 	onToggleLeft?: () => void;
 	onToggleRight?: () => void;
+	/** 提交成功后自增的信号，重置分页到第一页（新建笔记出现在列表顶部） */
+	notesResetSignal?: number;
 }
 
 export function DiaryEditor({
@@ -223,6 +225,7 @@ export function DiaryEditor({
 	isRightOpen = false,
 	onToggleLeft,
 	onToggleRight,
+	notesResetSignal = 0,
 }: DiaryEditorProps) {
 	const t = useTranslations("journalPanel");
 	const locale = useLocale();
@@ -337,6 +340,18 @@ export function DiaryEditor({
 		setHasMore(true);
 		loadedPagesRef.current = 0;
 	}, [filterMode, heatmapFilterDate, debouncedSearch]);
+
+	// 笔记提交成功后（父组件自增 signal），重置分页到第一页，
+	// 让新建的笔记出现在列表顶部（否则滚动加载后新笔记被合并逻辑丢弃）
+	const prevResetSignalRef = useRef(notesResetSignal);
+	useEffect(() => {
+		if (notesResetSignal === prevResetSignalRef.current) return;
+		prevResetSignalRef.current = notesResetSignal;
+		setNotesOffset(0);
+		setAllNotes([]);
+		setHasMore(true);
+		loadedPagesRef.current = 0;
+	}, [notesResetSignal]);
 
 	// 滚动加载更多（IntersectionObserver）
 	useEffect(() => {

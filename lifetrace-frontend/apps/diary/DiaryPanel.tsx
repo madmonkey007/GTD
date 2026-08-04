@@ -74,6 +74,8 @@ export function DiaryPanel() {
 	const clearAfterSubmit = useRef(false);
 	const initialLoadComplete = useRef(false);
 	const [pendingLinks, setPendingLinks] = useState<{ id: number; name: string }[]>([]);
+	// 提交成功后自增，通知 DiaryEditor 重置分页到第一页（否则滚动加载后新建的笔记不显示）
+	const [notesResetSignal, setNotesResetSignal] = useState(0);
 	const {
 		refreshMode,
 		fixedTime,
@@ -582,6 +584,8 @@ const handleSaveCardEdit = async (
 		// Refresh notes data after save
 		refetchAllNotes();
 		refetchStats();
+		// 重置 DiaryEditor 分页到第一页，让新建的笔记出现在列表顶部
+		setNotesResetSignal((v) => v + 1);
 		setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "" }));
 		clearAfterSubmit.current = true;
 	};
@@ -688,6 +692,7 @@ const handleSaveCardEdit = async (
 								handleAutoSave({ draftOverride: { userNotes: value } })
 							}
 							onSubmit={handleSubmitNotes}
+							notesResetSignal={notesResetSignal}
 							onInlineTag={handleInlineTag}
 							showLeftToggle={!showLeftInline}
 							showRightToggle={!showRightInline}

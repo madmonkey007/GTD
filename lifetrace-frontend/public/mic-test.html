@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>麦克风振幅测试（与 lifetrace 同采集代码）</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 560px; margin: 40px auto; padding: 0 16px; color: #1f2937; }
+  h1 { font-size: 20px; }
+  p.hint { color: #6b7280; font-size: 14px; }
+  #bar { width: 100%; height: 28px; background: #e5e7eb; border-radius: 6px; overflow: hidden; margin: 16px 0; }
+  #barFill { height: 100%; width: 0%; background: #22c55e; transition: width 120ms linear; }
+  #barFill.hot { background: #f59e0b; }
+  #barFill.peak { background: #ef4444; }
+  .stat { font-size: 15px; margin: 6px 0; font-family: ui-monospace, monospace; }
+  .stat b { color: #111827; }
+  #status { margin-top: 20px; font-size: 15px; }
+  #status.ok { color: #16a34a; }
+  #status.bad { color: #dc2626; }
+  button { padding: 10px 22px; font-size: 15px; border-radius: 8px; border: none; background: #2563eb; color: #fff; cursor: pointer; }
+  button:disabled { background: #9ca3af; }
+</style>
+</head>
+<body>
+  <h1>麦克风振幅测试</h1>
+  <p class="hint">点击"开始测试"并允许麦克风，然后正常说话。如果下面的条有波动、max_abs 不再是 0，说明麦克风有信号。如果一直显示 0，说明浏览器拿到的麦克风流是静音（系统/设备问题）。</p>
+  <button id="startBtn">开始测试</button>
+  <div id="bar"><div id="barFill" style="width:0%"></div></div>
+  <div class="stat">max_abs：<b id="maxAbs">-</b>（32768 = 满刻度）</div>
+  <div class="stat">RMS：<b id="rms">-</b>（&gt;20 = 有声音）</div>
+  <div class="stat">累计采样数：<b id="count">0</b>（约 16000/秒）</div>
+  <div id="status"></div>
+  <p class="hint" style="margin-top:20px">与 lifetrace 相同：AudioContext(16000) + ScriptProcessor(4096, 1, 1) + Float32→Int16。</p>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let stream = null, ctx = null, proc = null, timer = null;
+let accMax = 0, accSamples = 0;
+const VIEWPORT = 16000 / 0.4; // 400ms 窗口采样数
+
+async function start() {
+  $("startBtn").disabled = true;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    $("status").className = "ok";
+    $("status").textContent = "✅ 已获得麦克风流（deviceLabel: " + (stream.getAudioTracks()[0]?.label || "未知") + "）";
+  } catch (e) {
+    $("status").className = "bad";
+    $("status").textContent = "❌ 麦克风权限被拒绝：" + e.message;
+    $("startBtn").disabled = false;
+    return;
+  }
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  ctx = new AudioCtx({ sampleRate: 16000 });
+  const source = ctx.createMediaStreamSource(stream);
+  proc = ctx.createScriptProcessor(4096, 1, 1);
+  proc.onaudioprocess = (e) => {
+    const ch = e.inputBuffer.getChannelData(0);
+    for (let i = 0; i < ch.length; i++) {
+      const a = Math.abs(ch[i]);
+      if (a > accMax) accMax = a;
+    }
+    accSamples += ch.length;
+  };
+  source.connect(proc);
+  proc.connect(ctx.destination);
+  timer = setInterval(() => {
+    $("maxAbs").textContent = Math.round(accMax * 32767);
+    const rmsVal = accMax; // 简化：用窗口内最大绝对值代表振幅
+    $("rms").textContent = rmsVal.toFixed(3);
+    $("count").textContent = accSamples.toLocaleString();
+    const pct = Math.min(100, accMax * 100);
+    const fill = $("barFill");
+    fill.style.width = pct + "%";
+    fill.className = pct < 5 ? "" : pct < 30 ? "hot" : "peak";
+    if (accSamples >= VIEWPORT) {
+      $("status").textContent = "持续 400ms+ 采集中…";
+    }
+    accMax = 0;
+    accSamples = 0;
+  }, 400);
+  $("startBtn").textContent = "停止测试";
+  $("startBtn").disabled = false;
+  $("startBtn").onclick = stop;
+}
+
+function stop() {
+  clearInterval(timer);
+  if (proc) { try { proc.disconnect(); } catch {} }
+  if (ctx) { try { ctx.close(); } catch {} }
+  if (stream) { stream.getTracks().forEach((t) => t.stop()); }
+  stream = null; ctx = null; proc = null;
+  $("startBtn").textContent = "开始测试";
+  $("startBtn").onclick = start;
+}
+
+$("startBtn").onclick = start;
+</script>
+</body>
+</html>

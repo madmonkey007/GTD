@@ -126,13 +126,6 @@ const reconnectDelayMs = 3000; // 3秒后重连
 let shouldReconnectRef = false; // 标记是否应该重连
 let currentIs24x7 = false; // 当前是否为 7×24 模式
 
-// ========== 停止时等待最终识别结果 ==========
-// DashScope 实时 ASR 的最终结果在收到 stop 信号后才回传（约 100~300ms），
-// 若 stop 后立即关闭 WS，最终文本会丢失。这里在 stop 后保持 WS 打开，
-// 直到收到 is_final=true 的 TranscriptionResultChanged 或超时再关闭。
-let stopWaitResolveRef: (() => void) | null = null;
-let stopWaitTimeoutRef: ReturnType<typeof setTimeout> | null = null;
-const STOP_WAIT_TIMEOUT_MS = 800;
 // 标记本次关闭是前端主动停止（用户点了停止/abort）。
 // 后端 _cleanup_websocket 没有回发 close 帧，浏览器会把这种非正常关闭当成 onerror，
 // 这里在主动停止期间屏蔽 onerror/异常 onclose，避免吓人的报错弹窗（文本其实已成功回填）。
@@ -337,16 +330,6 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 							const isFinal = data.payload?.is_final || false;
 							if (text && currentOnTranscription) {
 								currentOnTranscription(text, isFinal);
-							}
-							// 停止流程在等待最终结果：收到 is_final 即放行关闭 WS
-							if (isFinal && stopWaitResolveRef) {
-								const resolveStop = stopWaitResolveRef;
-								stopWaitResolveRef = null;
-								if (stopWaitTimeoutRef) {
-									clearTimeout(stopWaitTimeoutRef);
-									stopWaitTimeoutRef = null;
-								}
-								resolveStop();
 							}
 							return;
 						}
