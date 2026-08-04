@@ -8,7 +8,7 @@ import {
 } from "react";
 import { ArrowUp, BookOpen, Heart, History, ListTodo, Loader2, Plus, Sparkles, Square, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { sendChatMessageStream, type ToolCallEvent } from "@/lib/api";
 import type { ChatMessage, ToolCallStep } from "@/apps/chat/types";
 import { useLocaleStore } from "@/lib/store/locale";
@@ -47,6 +47,21 @@ function createId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
+
+// spring 物理：进入（stiffness 偏软、damping 偏大）避免弹跳；stagger 让标题→按钮逐个浮现
+const CONTAINER_SPRING: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+};
+
+const ITEM_SPRING: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 100, damping: 20 },
+  },
+};
 
 // 创建类工具 → 实体类型映射
 const CREATE_TOOLS: Record<string, "todo" | "note" | "habit"> = {
@@ -384,14 +399,14 @@ export function QuickCommandPanel() {
 
   const examples = locale === "zh"
     ? [
-        { label: "创建待办", prompt: "建个待办：明天买菜", icon: ListTodo },
-        { label: "打卡新习惯", prompt: "帮我打卡今天的跑步习惯", icon: Heart },
-        { label: "记录新笔记", prompt: "记一条笔记：今天试了新功能 #测试", icon: BookOpen },
+        { label: "创建待办", prompt: "创建待办：明天买菜", icon: ListTodo },
+        { label: "打卡新习惯", prompt: "打卡今天的跑步", icon: Heart },
+        { label: "记录新笔记", prompt: "记笔记：思行合一", icon: BookOpen },
       ]
     : [
-        { label: "Add a todo", prompt: "Add a todo: buy groceries tomorrow", icon: ListTodo },
-        { label: "Check in a habit", prompt: "Check in today's running habit", icon: Heart },
-        { label: "Write a note", prompt: "Note: tried the new feature #test", icon: BookOpen },
+        { label: "Add a todo", prompt: "Add todo: buy groceries", icon: ListTodo },
+        { label: "Check in a habit", prompt: "Check today's run", icon: Heart },
+        { label: "Write a note", prompt: "Note: thoughts & action", icon: BookOpen },
       ];
 
   return (
@@ -408,35 +423,58 @@ export function QuickCommandPanel() {
         </button>
         <Sparkles className="w-4 h-4 text-primary/70" />
         <span className="text-sm font-semibold">{locale === "zh" ? "AI Agent" : "AI Agent"}</span>
-        <span className="text-[11px] text-muted-foreground/50 ml-1 hidden sm:inline">
-          {locale === "zh" ? "一句话操作 待办 / 笔记 / 习惯" : "One line for Todo / Note / Habit"}
-        </span>
       </div>
 
       {/* 消息区 */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center gap-6">
-            <h2 className="text-[24px] font-semibold text-foreground leading-tight">
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={CONTAINER_SPRING}
+            className="mx-auto flex h-full w-full flex-col justify-center px-6"
+            style={{ maxWidth: 640 }}
+          >
+            {/* 大字体提示：保留一句今天要做点什么 */}
+            <motion.h2
+              variants={ITEM_SPRING}
+              className="text-3xl font-semibold tracking-tighter text-foreground leading-[1.08] md:text-4xl"
+            >
               {locale === "zh" ? "今天你要做什么" : "What's on your mind today?"}
-            </h2>
-            <div className="flex justify-center gap-3">
+            </motion.h2>
+            <motion.p
+              variants={ITEM_SPRING}
+              className="mt-2.5 text-sm leading-relaxed text-muted-foreground/80"
+            >
+              {locale === "zh"
+                ? "一句话创建待办、记录笔记、打卡习惯，剩下的交给我。"
+                : "One line to add a todo, jot a note, or check in a habit."}
+            </motion.p>
+
+            <motion.div variants={ITEM_SPRING} className="mt-8 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               {examples.map((ex) => {
                 const Icon = ex.icon;
                 return (
                   <button
                     key={ex.label}
                     type="button"
-                    onClick={() => setInput(ex.prompt)}
-                    className="flex w-24 h-24 flex-col items-center justify-center gap-2 rounded-xl border border-gray-300 bg-background px-2 text-center transition-colors hover:border-primary/40 hover:bg-primary/5"
+                    onClick={() => setInput(`${ex.label}${locale === "zh" ? "：" : ":"}`)}
+                    className="group flex items-center gap-3 rounded-2xl border border-border/60 bg-background px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/[0.04] hover:shadow-sm active:scale-[0.98]"
                   >
-                    <Icon className="w-6 h-6 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">{ex.label}</span>
+                    <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="block truncate text-sm font-medium text-foreground">{ex.label}</span>
+                      <span className="mt-0.5 block truncate text-xs text-muted-foreground/60">
+                        {ex.prompt}
+                      </span>
+                    </span>
                   </button>
                 );
               })}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         ) : (
           <div className="mx-auto space-y-4" style={{ width: "70%" }}>
             {messages.map((m) => {
