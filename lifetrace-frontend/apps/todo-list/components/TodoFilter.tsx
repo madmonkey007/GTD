@@ -4,6 +4,7 @@ import { ChevronDown, Filter, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { PanelActionButton } from "@/components/common/layout/PanelHeader";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import type { Todo, TodoStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +34,7 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 	const tTodoList = useTranslations("todoList");
 	const [isOpen, setIsOpen] = useState(false);
 	const filterContainerRef = useRef<HTMLDivElement>(null);
+	const isMobile = useIsMobile();
 
 	const allTags = Array.from(
 		new Set(todos.flatMap((todo) => todo.tags || [])),
@@ -123,7 +125,14 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 				aria-label={tTodoList("filter")}
 			/>
 			{isOpen && (
-				<div className="absolute right-0 top-8 z-50 w-56 rounded-xl border border-border/30 bg-background shadow-lg p-4 space-y-4">
+				<div
+					className={cn(
+						"rounded-xl border border-border/30 bg-background shadow-lg p-4 space-y-4",
+						isMobile
+							? "fixed left-2 right-2 top-[68px] z-50"
+							: "absolute right-0 top-8 z-50 w-56",
+					)}
+				>
 					{/* Due Time Quick Filters */}
 					<div className="space-y-2">
 						<div className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wide">

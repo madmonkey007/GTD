@@ -971,6 +971,7 @@
     "selectTodoPrompt": "请选择一个待办事项查看详情",
     "detailViewLabel": "Detail",
     "artifactsViewLabel": "Artifacts",
+    "backToList": "返回列表",
     "markAsComplete": "标记为完成",
     "delete": "删除",
     "addDeadline": "添加日期",

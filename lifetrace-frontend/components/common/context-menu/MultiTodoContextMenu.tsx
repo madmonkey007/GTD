@@ -2,12 +2,13 @@
 
 import { Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
 	BaseContextMenu,
 	type MenuItem,
 	useContextMenu,
 } from "@/components/common/context-menu/BaseContextMenu";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useTodoMutations, useTodos } from "@/lib/query";
 import { useTodoStore } from "@/lib/store/todo-store";
 import type { Todo } from "@/lib/types";
@@ -28,6 +29,8 @@ export function MultiTodoContextMenu({
 
 	// 从 Zustand 获取 UI 状态操作
 	const { onTodoDeleted, clearTodoSelection } = useTodoStore();
+	const isMobile = useIsMobile();
+	const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// 使用通用菜单 hook
 	const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
@@ -46,6 +49,41 @@ export function MultiTodoContextMenu({
 			menuHeight: 100,
 		});
 	};
+
+	// 移动端长按列表空白区域：触发批量菜单（长按卡片本身由 TodoCard 处理）
+	const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
+		if (!isMobile) return;
+		const target = e.target as HTMLElement;
+		if (target.closest(".todo-card")) return;
+		if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+		const touch = e.touches[0];
+		if (!touch) return;
+		const container = e.currentTarget;
+		longPressTimerRef.current = setTimeout(() => {
+			container.dispatchEvent(
+				new MouseEvent("contextmenu", {
+					bubbles: true,
+					cancelable: true,
+					clientX: touch.clientX,
+					clientY: touch.clientY,
+				}),
+			);
+		}, 500);
+	};
+
+	const handleTouchEnd = () => {
+		if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+	};
+
+	const handleTouchMove = () => {
+		if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+	};
+
+	useEffect(() => {
+		return () => {
+			if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+		};
+	}, []);
 
 	const handleCancel = async () => {
 		try {
@@ -141,6 +179,10 @@ export function MultiTodoContextMenu({
 	// 克隆子元素并添加 onContextMenu 处理器
 	const childWithContextMenu = React.cloneElement(children, {
 		onContextMenu: handleOpenContextMenu,
+		onTouchStart: handleTouchStart,
+		onTouchEnd: handleTouchEnd,
+		onTouchCancel: handleTouchEnd,
+		onTouchMove: handleTouchMove,
 	} as React.HTMLAttributes<HTMLElement>);
 
 	return (

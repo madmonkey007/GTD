@@ -47,13 +47,23 @@ export function BaseContextMenu({
 }: BaseContextMenuProps) {
 	const menuRef = useRef<HTMLDivElement | null>(null);
 
+	// 记录菜单打开时间，用于忽略移动端长按触发的合成 mousedown
+	const openedAtRef = useRef<number>(0);
+
 	// 点击外部、滚动或按下 ESC 时关闭
 	useEffect(() => {
 		if (!open) return;
 
+		openedAtRef.current = Date.now();
+
 		const handleClickOutside = (event: MouseEvent) => {
 			const target = event.target as Node;
 			if (menuRef.current?.contains(target)) {
+				return;
+			}
+			// 移动端长按（onTouchStart 计时器派发 contextmenu）后，touchend 会合成 mousedown，
+			// 紧随其后的外部点击属于同一交互，300ms 内忽略
+			if (Date.now() - openedAtRef.current < 300) {
 				return;
 			}
 			onClose();

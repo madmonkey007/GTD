@@ -4,7 +4,9 @@ import { Download, X } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { getAttachmentFileUrl } from "@/lib/attachments";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import type { TodoAttachment } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface AttachmentPreviewPanelProps {
 	attachment: TodoAttachment;
@@ -30,9 +32,15 @@ export function AttachmentPreviewPanel({
 	const t = useTranslations("todoDetail");
 	const previewUrl = getAttachmentFileUrl(attachment.id);
 	const isImage = attachment.mimeType?.startsWith("image/");
+	const isMobile = useIsMobile();
 
 	return (
-		<div className="flex min-w-[240px] flex-1 flex-col rounded-xl border border-border bg-background px-4 py-4">
+		<div
+			className={cn(
+				"flex flex-col rounded-xl border border-border bg-background px-4 py-4",
+				isMobile ? "min-h-[240px] w-full" : "min-w-[240px] flex-1",
+			)}
+		>
 			<div className="flex items-center justify-between">
 				<div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
 					{t("previewLabel")}

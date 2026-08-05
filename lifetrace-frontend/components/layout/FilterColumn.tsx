@@ -12,7 +12,7 @@ const FILTER_ITEMS = [
 	{ id: "list" as const, label: "全部清单", icon: ListTodo },
 ] as const;
 
-export function FilterColumn() {
+export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 	const { sidebarMode, sidebarTag, setSidebarMode, setSidebarTag, sidebarWidth, setSidebarWidth } = useUiStore();
 	const { data: allTodos } = useTodos({ limit: 2000 });
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -93,7 +93,7 @@ export function FilterColumn() {
 				"relative flex flex-col overflow-hidden shrink-0 border-r border-border/40 bg-background",
 				isResizing && "pointer-events-none",
 			)}
-			style={{ width: sidebarWidth }}
+			style={{ width: widthOverride ?? sidebarWidth }}
 		>
 			{/* 头部 */}
 			<div className="flex h-10 items-center justify-between px-3 border-b border-border/20">

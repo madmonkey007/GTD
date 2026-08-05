@@ -7,6 +7,7 @@ import {
 	PanelActionButton,
 	usePanelIconStyle,
 } from "@/components/common/layout/PanelHeader";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import type { Todo } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import type { TodoFilterState } from "./components/TodoFilter";
@@ -33,6 +34,7 @@ export function TodoToolbar({
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const searchContainerRef = useRef<HTMLDivElement>(null);
 	const actionIconStyle = usePanelIconStyle("action");
+	const isMobile = useIsMobile();
 
 	useEffect(() => {
 		if (isSearchOpen && searchInputRef.current) {
@@ -91,7 +93,10 @@ export function TodoToolbar({
 									value={searchQuery}
 									onChange={(e) => onSearch(e.target.value)}
 									placeholder={tTodoList("searchPlaceholder")}
-									className="h-7 w-44 rounded-lg border border-border/40 bg-background px-7 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] transition-all duration-200"
+									className={cn(
+										"h-7 rounded-lg border border-border/40 bg-background px-7 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] transition-all duration-200",
+										isMobile ? "w-36 max-w-[38vw]" : "w-44",
+									)}
 								/>
 							</div>
 						) : (

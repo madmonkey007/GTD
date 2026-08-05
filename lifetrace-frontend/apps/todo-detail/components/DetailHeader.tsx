@@ -1,8 +1,9 @@
 "use client";
 
-import { FileText } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PanelHeader } from "@/components/common/layout/PanelHeader";
+import { useMobileDetail } from "@/components/layout/MobileDetailOverlay";
 import { cn } from "@/lib/utils";
 
 interface DetailHeaderProps {
@@ -16,6 +17,7 @@ export function DetailHeader({
 }: DetailHeaderProps) {
 	const t = useTranslations("page");
 	const tTodoDetail = useTranslations("todoDetail");
+	const mobile = useMobileDetail();
 
 	return (
 		<PanelHeader
@@ -24,6 +26,16 @@ export function DetailHeader({
 			hideMenu
 			actions={
 				<>
+					{mobile && (
+						<button
+							type="button"
+							onClick={mobile.onBack}
+							aria-label={tTodoDetail("backToList")}
+							className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+						>
+							<ArrowLeft className="h-4.5 w-4.5" />
+						</button>
+					)}
 					<div className="flex items-center rounded-full border border-border bg-muted/40 p-0.5 text-xs">
 						<button
 							type="button"

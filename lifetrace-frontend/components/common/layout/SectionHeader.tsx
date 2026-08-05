@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 
 interface SectionHeaderProps {
@@ -26,6 +27,7 @@ export function SectionHeader({
 	isHovered: externalIsHovered,
 }: SectionHeaderProps) {
 	const [internalIsHovered, setInternalIsHovered] = useState(false);
+	const isMobile = useIsMobile();
 
 	// 如果外部提供了 isHovered，使用外部的；否则使用内部状态
 	const isHovered =
@@ -62,7 +64,9 @@ export function SectionHeader({
 					aria-label={show ? "折叠" : "展开"}
 					className={cn(
 						"rounded-md px-2 py-1 transition-all hover:bg-muted/40 text-muted-foreground",
-						isHovered ? "opacity-100" : "opacity-0 pointer-events-none",
+						isMobile || isHovered
+							? "opacity-100"
+							: "opacity-0 pointer-events-none",
 						buttonClassName,
 					)}
 				>

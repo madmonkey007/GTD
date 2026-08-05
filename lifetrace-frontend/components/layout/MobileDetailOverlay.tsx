@@ -1,0 +1,59 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { createContext, useContext, useEffect } from "react";
+import { TodoDetail } from "@/apps/todo-detail";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { useUiStore } from "@/lib/store/ui-store";
+
+type MobileDetailValue = { onBack: () => void };
+
+const MobileDetailContext = createContext<MobileDetailValue | null>(null);
+
+export function useMobileDetail(): MobileDetailValue | null {
+	return useContext(MobileDetailContext);
+}
+
+export function MobileDetailOverlay() {
+	const isMobile = useIsMobile();
+	const mobileDetailOpen = useUiStore((s) => s.mobileDetailOpen);
+	const setMobileDetailOpen = useUiStore((s) => s.setMobileDetailOpen);
+	const isPanelBOpen = useUiStore((s) => s.isPanelBOpen);
+	const togglePanelB = useUiStore((s) => s.togglePanelB);
+
+	// 跨断点同步：窄屏↔宽屏切换时保持详情可见性连续
+	useEffect(() => {
+		if (isMobile && isPanelBOpen && !mobileDetailOpen) {
+			setMobileDetailOpen(true);
+			togglePanelB();
+		} else if (!isMobile && mobileDetailOpen) {
+			setMobileDetailOpen(false);
+			if (!isPanelBOpen) {
+				togglePanelB();
+			}
+		}
+	}, [
+		isMobile,
+		isPanelBOpen,
+		mobileDetailOpen,
+		setMobileDetailOpen,
+		togglePanelB,
+	]);
+
+	if (!isMobile || !mobileDetailOpen) return null;
+
+	const onClose = () => setMobileDetailOpen(false);
+
+	return (
+		<motion.div
+			className="fixed inset-0 z-50 flex flex-col bg-background shadow-xl"
+			initial={{ x: "100%" }}
+			animate={{ x: 0 }}
+			transition={{ type: "spring", damping: 30, stiffness: 300 }}
+		>
+			<MobileDetailContext.Provider value={{ onBack: onClose }}>
+				<TodoDetail />
+			</MobileDetailContext.Provider>
+		</motion.div>
+	);
+}

@@ -4,8 +4,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { Hammer, Paperclip, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { TodoContextMenu } from "@/components/common/context-menu/TodoContextMenu";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useTodos } from "@/lib/query";
 import { useTodoStore } from "@/lib/store/todo-store";
 import type { Todo } from "@/lib/types";
@@ -44,6 +45,39 @@ export function TodoCard({
 	const tTodoDetail = useTranslations("todoDetail");
 	const { data: todos = [] } = useTodos();
 	const { toggleTodoExpanded, isTodoExpanded } = useTodoStore();
+	const isMobile = useIsMobile();
+	const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const longPressTriggeredRef = useRef(false);
+	const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
+	const clearLongPress = () => {
+		if (longPressTimerRef.current) {
+			clearTimeout(longPressTimerRef.current);
+			longPressTimerRef.current = null;
+		}
+	};
+
+	const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+		if (!isMobile) return;
+		clearLongPress();
+		longPressTriggeredRef.current = false;
+		const touch = e.touches[0];
+		if (!touch) return;
+		touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+		const target = e.currentTarget;
+		longPressTimerRef.current = setTimeout(() => {
+			longPressTriggeredRef.current = true;
+			// 派发原生 contextmenu 事件，触发 TodoContextMenu 的 onContextMenu（React 事件委托）
+			target.dispatchEvent(
+				new MouseEvent("contextmenu", {
+					bubbles: true,
+					cancelable: true,
+					clientX: touch.clientX,
+					clientY: touch.clientY,
+				}),
+			);
+		}, 500);
+	};
 
 	const state = useTodoCardState(todo);
 	const drag = useTodoCardDrag({ todo, depth, isOverlay: isOverlay ?? false });
@@ -63,6 +97,10 @@ export function TodoCard({
 
 	const isExpanded = isTodoExpanded(todo.id);
 
+	useEffect(() => {
+		return () => clearLongPress();
+	}, []);
+
 	const style = !isOverlay
 		? {
 				transform: CSS.Transform.toString(drag.transform),
@@ -78,7 +116,36 @@ export function TodoCard({
 			style={style}
 			role="button"
 			tabIndex={0}
-			onClick={onSelect}
+			onClick={(e) => {
+				if (longPressTriggeredRef.current) {
+					longPressTriggeredRef.current = false;
+					e.preventDefault();
+					e.stopPropagation();
+					return;
+				}
+				onSelect(e);
+			}}
+			onTouchStart={handleTouchStart}
+			onTouchEnd={() => {
+				clearLongPress();
+				touchStartPosRef.current = null;
+			}}
+			onTouchCancel={() => {
+				clearLongPress();
+				touchStartPosRef.current = null;
+			}}
+			onTouchMove={(e) => {
+				if (!longPressTimerRef.current) return;
+				const touch = e.touches[0];
+				const start = touchStartPosRef.current;
+				// 移动超过 8px（与拖拽阈值一致）则视为拖拽，取消长按
+				if (
+					start &&
+					Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > 8
+				) {
+					clearLongPress();
+				}
+			}}
 			onMouseDown={(e) => {
 				if (e.shiftKey || e.metaKey || e.ctrlKey) {
 					e.preventDefault();
@@ -130,7 +197,14 @@ export function TodoCard({
 								onChange={state.setEditingName}
 							/>
 						</div>
-						<div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0 self-start mt-0.5 transition-opacity duration-150">
+						<div
+							className={cn(
+								"flex items-center gap-0.5 shrink-0 self-start mt-0.5 transition-opacity duration-150",
+								isMobile
+									? "opacity-100"
+									: "opacity-0 group-hover:opacity-100",
+							)}
+						>
 							<button
 								type="button"
 								onClick={(e) => {

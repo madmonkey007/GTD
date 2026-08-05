@@ -13,6 +13,7 @@ import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { MultiTodoContextMenu } from "@/components/common/context-menu/MultiTodoContextMenu";
 import type { DragData } from "@/lib/dnd";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useTodoMutations, useTodos } from "@/lib/query";
 import type { ReorderTodoItem } from "@/lib/query/todos";
 import { useTodoStore } from "@/lib/store/todo-store";
@@ -27,6 +28,7 @@ import { TodoTreeList } from "./TodoTreeList";
 
 export function TodoList() {
 	const tTodoList = useTranslations("todoList");
+	const isMobile = useIsMobile();
 	// 从 TanStack Query 获取 todos 数据
 	const { data: todos = [], isLoading, error } = useTodos();
 
@@ -318,10 +320,14 @@ export function TodoList() {
 		// 普通单击：只选择当前 todo
 		setSelectedTodoId(todoId);
 		setAnchorTodoId(todoId);
-		// 确保右侧详情面板打开
-		const { isPanelBOpen, togglePanelB } = useUiStore.getState();
-		if (!isPanelBOpen) {
-			togglePanelB();
+		// 窄屏：打开推入式整屏详情；宽屏：确保右侧详情面板打开
+		if (isMobile) {
+			useUiStore.getState().setMobileDetailOpen(true);
+		} else {
+			const { isPanelBOpen, togglePanelB } = useUiStore.getState();
+			if (!isPanelBOpen) {
+				togglePanelB();
+			}
 		}
 	};
 
@@ -341,38 +347,38 @@ export function TodoList() {
 		}
 	};
 
-	// 加载状态
-	if (isLoading) {
-		return (
-			<div className="flex h-full flex-col items-center justify-center gap-3">
-				<div className="flex gap-1.5">
-					{[0, 1, 2].map((i) => (
-						<div
-							key={i}
-							className="w-2 h-2 rounded-full bg-primary/30 animate-bounce"
-							style={{ animationDelay: `${i * 0.15}s` }}
-						/>
-					))}
-				</div>
-				<p className="text-xs text-muted-foreground/50">{tTodoList("loading")}</p>
-			</div>
-		);
-	}
-
-	// 错误状态
-	if (error) {
-		const errorMessage =
-			error instanceof Error ? error.message : String(error) || "Unknown error";
-		return (
-			<div className="flex h-full flex-col items-center justify-center gap-4 px-6">
-				<div className="w-12 h-12 rounded-2xl bg-destructive/8 flex items-center justify-center ring-1 ring-destructive/15">
-					<ChevronRight className="w-6 h-6 text-destructive/60 rotate-90" />
-				</div>
-				<p className="text-xs text-muted-foreground/70 leading-relaxed text-center max-w-[280px]">
-					{tTodoList("loadFailed", { error: errorMessage })}
-				</p>
-			</div>
-		);
+	// 加载状态
+	if (isLoading) {
+		return (
+			<div className="flex h-full flex-col items-center justify-center gap-3">
+				<div className="flex gap-1.5">
+					{[0, 1, 2].map((i) => (
+						<div
+							key={i}
+							className="w-2 h-2 rounded-full bg-primary/30 animate-bounce"
+							style={{ animationDelay: `${i * 0.15}s` }}
+						/>
+					))}
+				</div>
+				<p className="text-xs text-muted-foreground/50">{tTodoList("loading")}</p>
+			</div>
+		);
+	}
+
+	// 错误状态
+	if (error) {
+		const errorMessage =
+			error instanceof Error ? error.message : String(error) || "Unknown error";
+		return (
+			<div className="flex h-full flex-col items-center justify-center gap-4 px-6">
+				<div className="w-12 h-12 rounded-2xl bg-destructive/8 flex items-center justify-center ring-1 ring-destructive/15">
+					<ChevronRight className="w-6 h-6 text-destructive/60 rotate-90" />
+				</div>
+				<p className="text-xs text-muted-foreground/70 leading-relaxed text-center max-w-[280px]">
+					{tTodoList("loadFailed", { error: errorMessage })}
+				</p>
+			</div>
+		);
 	}
 
 	return (

@@ -13,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { normalizeReminderOffsets } from "@/lib/reminders";
 import { useLocaleStore } from "@/lib/store/locale";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import type { UpdateTodoInput } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -64,6 +65,7 @@ export function DatePickerPopover({
 }: DatePickerPopoverProps) {
 	const popoverRef = useRef<HTMLDivElement>(null);
 	const { locale } = useLocaleStore();
+	const isMobile = useIsMobile();
 	const tCalendar = useTranslations("calendar");
 	const tDatePicker = useTranslations("datePicker");
 	const tReminder = useTranslations("reminder");
@@ -347,8 +349,8 @@ export function DatePickerPopover({
 					</button>
 				</div>
 
-				<div className="grid grid-cols-[1fr_240px] gap-0">
-					<div className="px-4 py-3">
+				<div className={cn("grid gap-0", isMobile ? "grid-cols-1" : "grid-cols-[1fr_240px]")}>
+					<div className={cn("px-4 py-3", isMobile && "border-b border-border/70")}>
 						<MonthNavigation
 							currentMonth={currentMonth}
 							onPrevMonth={handlePrevMonth}

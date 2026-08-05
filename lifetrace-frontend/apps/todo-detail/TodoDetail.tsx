@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { removeTodoAttachment, uploadTodoAttachments } from "@/lib/attachments";
 import { useTodoMutations, useTodos } from "@/lib/query";
 import { queryKeys } from "@/lib/query/keys";
@@ -12,6 +13,7 @@ import { useUiStore } from "@/lib/store/ui-store";
 import { getPositionByFeature } from "@/lib/store/ui-store/utils";
 import { toastError } from "@/lib/toast";
 import type { Todo, TodoAttachment } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { ArtifactsView } from "./components/ArtifactsView";
 import { AttachmentPreviewPanel } from "./components/AttachmentPreviewPanel";
 import { BackgroundSection } from "./components/BackgroundSection";
@@ -46,6 +48,7 @@ export function TodoDetail() {
 	// 从 Zustand 获取 UI 状态
 	const { selectedTodoId, setSelectedTodoId, onTodoDeleted, titleAutoEdit, setTitleAutoEdit } = useTodoStore();
 	const { panelFeatureMap, isPanelAOpen, isPanelBOpen } = useUiStore();
+	const isMobile = useIsMobile();
 
 	// 各 section 的折叠状态
 	const [showDescription, setShowDescription] = useState(false);
@@ -288,7 +291,9 @@ export function TodoDetail() {
 		? panelFeatureMap[leftNeighbor]
 		: null;
 	const previewPlacement =
-		leftNeighborOpen && leftNeighborFeature === "chat" ? "left" : "right";
+		!isMobile && leftNeighborOpen && leftNeighborFeature === "chat"
+			? "left"
+			: "right";
 
 	if (!todo) {
 		return (
@@ -385,7 +390,7 @@ export function TodoDetail() {
 						/>
 					</>
 				) : (
-					<div className="flex h-full min-h-0 gap-4">
+					<div className={cn("flex h-full min-h-0", isMobile ? "flex-col gap-4" : "gap-4")}>
 						{previewPlacement === "left" && selectedAttachment && (
 							<AttachmentPreviewPanel
 								attachment={selectedAttachment}

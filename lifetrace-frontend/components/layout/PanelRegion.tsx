@@ -1,8 +1,5 @@
 "use client";
 
-import { Award, BookOpen, BrainCircuit, CalendarDays, Heart, LayoutGrid, ListTodo, Timer, Settings, Sparkles } from "lucide-react";
-import Image from "next/image";
-import { useOpenSettings } from "@/lib/hooks/useOpenSettings";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CalendarPanel } from "@/apps/calendar/CalendarPanel";
 import { HabitsPanel } from "@/apps/habits/HabitsPanel";
@@ -12,16 +9,20 @@ import { ZeroThinkPanel } from "@/apps/zero-think";
 import { PomodoroView } from "@/apps/pomodoro/PomodoroView";
 import { QuadrantsView } from "@/apps/quadrants/QuadrantsView";
 import { QuickCommandPanel } from "@/apps/quick-command/QuickCommandPanel";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useWindowAdaptivePanels } from "@/lib/hooks/useWindowAdaptivePanels";
 import { useUiStore } from "@/lib/store/ui-store";
 import type { SidebarView } from "@/lib/store/ui-store/types";
 import { cn } from "@/lib/utils";
 import { BottomDock } from "./BottomDock";
 import { FilterColumn } from "./FilterColumn";
+import { MobileDetailOverlay } from "./MobileDetailOverlay";
+import { MobileTopBar } from "./MobileTopBar";
 import { PanelContainer } from "./PanelContainer";
 import { PanelContent } from "./PanelContent";
 import { SettingsModal } from "./SettingsModal";
 import { ResizeHandle } from "./ResizeHandle";
+import { SidebarNav } from "./SidebarNav";
 
 // ========== 布局常量 ==========
 const BOTTOM_DOCK_HEIGHT = 60;
@@ -39,95 +40,6 @@ interface PanelRegionProps {
 	onPanelAResizePointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void;
 	onPanelCResizePointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void;
 	containerRef?: React.RefObject<HTMLDivElement | null>;
-}
-
-const SIDEBAR_NAV_ITEMS: {
-	id: SidebarView;
-	label: string;
-	icon: typeof ListTodo;
-}[] = [
-	{ id: "quickCommand", label: "agent", icon: Sparkles },
-	{ id: "list", label: "清单", icon: ListTodo },
-	{ id: "calendar", label: "日历", icon: CalendarDays },
-	{ id: "quadrants", label: "四象限", icon: LayoutGrid },
-	{ id: "pomodoro", label: "番茄时钟", icon: Timer },
-	{ id: "habits", label: "习惯", icon: Heart },
-	{ id: "diary", label: "笔记", icon: BookOpen },
-	{ id: "achievements", label: "成就", icon: Award },
-	{ id: "zeroThink", label: "零秒思考", icon: BrainCircuit },
-];
-
-function SidebarNav() {
-	const { activeView, setActiveView } = useUiStore();
-	const { openSettings } = useOpenSettings();
-
-	return (
-		<nav className="flex flex-col items-center h-full py-2">
-			{/* Logo at top */}
-			<button
-				onClick={() => setActiveView("list")}
-				className="relative h-6 w-6 shrink-0 mb-2.5"
-				title="GTD"
-				type="button"
-			>
-				<Image
-					src="/free-todo-logos/free_todo_icon_4_dark_with_grid.png"
-					alt="GTD"
-					fill
-					className="object-contain block dark:hidden"
-					priority
-				/>
-				<Image
-					src="/free-todo-logos/free_todo_icon_4_with_grid.png"
-					alt="GTD"
-					fill
-					className="object-contain hidden dark:block"
-					priority
-				/>
-			</button>
-
-			{/* Navigation items in the middle */}
-			<div className="flex flex-col items-center gap-0.5">
-				{SIDEBAR_NAV_ITEMS.map((item) => {
-					const Icon = item.icon;
-					const isActive = activeView === item.id;
-					return (
-						<button
-							key={item.id}
-							type="button"
-							onClick={() => setActiveView(item.id)}
-							title={item.label}
-							className={cn(
-								"group relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
-								"hover:bg-muted/50",
-								isActive
-									? "bg-primary/10 text-primary"
-									: "text-muted-foreground",
-							)}
-						>
-							{isActive && (
-								<div className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
-							)}
-							<Icon className="h-4.5 w-4.5" />
-						</button>
-					);
-				})}
-			</div>
-
-			{/* Spacer to push settings to bottom */}
-			<div className="flex-1" />
-
-			{/* Settings button at bottom */}
-			<button
-				onClick={openSettings}
-				type="button"
-				className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-				title="设置"
-			>
-				<Settings className="h-4.5 w-4.5" />
-			</button>
-		</nav>
-	);
 }
 
 
@@ -342,6 +254,7 @@ function ListPanels({
 			</div>
 			)}
 			<SettingsModal />
+			<MobileDetailOverlay />
 		</div>
 	);
 }
@@ -370,6 +283,7 @@ export function PanelRegion({
 	}, []);
 
 	const { activeView, sidebarWidth, setActiveView } = useUiStore();
+	const isMobile = useIsMobile();
 
 	// 计算容器高度
 	const panelsContainerHeight = useMemo(() => {
@@ -414,7 +328,7 @@ export function PanelRegion({
 			<div
 				ref={sidebarPanelsRef}
 				className={cn(
-					"relative flex min-h-0 overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20",
+					"relative flex flex-col min-h-0 overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20",
 					panelsContainerHeight ? "" : "flex-1",
 				)}
 				style={{
@@ -429,13 +343,17 @@ export function PanelRegion({
 						: {}),
 				}}
 			>
+			{isMobile && <MobileTopBar />}
+			<div className="relative flex min-h-0 flex-1 overflow-hidden">
 			{/* 左侧固定导航侧边栏 */}
+			{!isMobile && (
 			<div
 				className="flex flex-col h-full shrink-0 border-r border-border/40 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
 				style={{ width: `${SIDEBAR_WIDTH}px` }}
 			>
 				<SidebarNav />
 			</div>
+			)}
 
 				{/* 主内容区 */}
 				<div
@@ -445,10 +363,10 @@ export function PanelRegion({
 							activeView !== "diary" && "py-1.5",
 						)}
 					>
-					{activeView === "list" && <FilterColumn />}
+					{activeView === "list" && !isMobile && <FilterColumn />}
 					{activeView === "list" ? (
 						<ListPanels
-							width={width - SIDEBAR_WIDTH - (activeView === "list" ? sidebarWidth : 0)}
+							width={width - (isMobile ? 0 : SIDEBAR_WIDTH + (activeView === "list" ? sidebarWidth : 0))}
 							mounted={mounted}
 							isDraggingPanelA={isDraggingPanelA}
 							isDraggingPanelC={isDraggingPanelC}
@@ -474,5 +392,6 @@ export function PanelRegion({
 			</div>
 			<SettingsModal />
 		</div>
+	</div>
 	);
 }

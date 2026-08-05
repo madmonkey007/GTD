@@ -263,7 +263,7 @@ export function MetaSection({
 						value={tagsInput}
 						onChange={(e) => setTagsInput(e.target.value)}
 						placeholder={tTodoDetail("tagsPlaceholder")}
-						className="min-w-[240px] rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+						className="min-w-[120px] flex-1 basis-40 rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
 					/>
 					<button
 						type="button"

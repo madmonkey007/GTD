@@ -18,6 +18,8 @@ export const useUiStore = create<UiStoreState>()(
 			isPanelAOpen: DEFAULT_PANEL_STATE.isPanelAOpen,
 			isPanelBOpen: DEFAULT_PANEL_STATE.isPanelBOpen,
 			isPanelCOpen: DEFAULT_PANEL_STATE.isPanelCOpen,
+			// 窄屏推入式详情：仅运行时态
+			mobileDetailOpen: false,
 			panelAWidth: DEFAULT_PANEL_STATE.panelAWidth,
 			panelCWidth: DEFAULT_PANEL_STATE.panelCWidth,
 			// 动态功能分配初始状态：默认分配
@@ -82,6 +84,11 @@ export const useUiStore = create<UiStoreState>()(
 						autoClosedPanels: newAutoClosedPanels,
 					};
 				}),
+
+			setMobileDetailOpen: (open) =>
+				set(() => ({
+					mobileDetailOpen: open,
+				})),
 
 			// 位置槽位宽度设置方法
 			setPanelAWidth: (width: number) =>

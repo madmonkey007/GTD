@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { getLocale, getMessages } from "next-intl/server";
 import { IntlErrorBoundary } from "@/components/common/ui/IntlErrorBoundary";
 import { ThemeProvider } from "@/components/common/theme/ThemeProvider";
@@ -22,10 +22,18 @@ export const metadata: Metadata = {
 	manifest: "/manifest.json",
 	other: {
 		"theme-color": "#fafafa",
+		"apple-mobile-web-app-capable": "yes",
 	},
 	icons: {
 		apple: "/icon-192x192.png",
 	},
+};
+
+export const viewport: Viewport = {
+	width: 1,
+	maximumScale: 1,
+	userScalable: false,
+	viewportFit: "cover",
 };
 
 export default async function RootLayout({ children }: RootLayoutProps) {

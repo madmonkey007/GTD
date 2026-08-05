@@ -971,6 +971,7 @@
     "selectTodoPrompt": "Please select a todo to view details",
     "detailViewLabel": "Detail",
     "artifactsViewLabel": "Artifacts",
+    "backToList": "Back to list",
     "markAsComplete": "Mark as complete",
     "delete": "Delete",
     "addDeadline": "Add date",

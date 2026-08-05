@@ -103,9 +103,11 @@ export const createUiStoreStorage = () =>
 					state.backendDisabledFeatures =
 						DEFAULT_PANEL_STATE.backendDisabledFeatures;
 
+					// mobileDetailOpen 仅运行时，不持久化，加载时强制重置
+					state.mobileDetailOpen = false;
+
 					// 校验自动关闭的panel栈
-					if (Array.isArray(state.autoClosedPanels)) {
-						state.autoClosedPanels = state.autoClosedPanels.filter(
+					if (Array.isArray(state.autoClosedPanels)) {						state.autoClosedPanels = state.autoClosedPanels.filter(
 							(pos: unknown): pos is PanelPosition =>
 								typeof pos === "string" &&
 								VALID_POSITIONS.includes(pos as PanelPosition),

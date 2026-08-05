@@ -14,8 +14,10 @@ import { type ChangeEvent, useMemo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { getAttachmentFileUrl, MAX_ATTACHMENT_SIZE_BYTES } from "@/lib/attachments";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { toastError } from "@/lib/toast";
 import type { Todo, TodoAttachment } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface ArtifactsViewProps {
 	todo: Todo;
@@ -48,6 +50,7 @@ export function ArtifactsView({
 }: ArtifactsViewProps) {
 	const t = useTranslations("todoDetail");
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
+	const isMobile = useIsMobile();
 
 	const { artifacts, contextAttachments } = useMemo(() => {
 		const artifactsList: TodoAttachment[] = [];
@@ -83,14 +86,14 @@ export function ArtifactsView({
 				key={attachment.id}
 				className="flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-xs"
 			>
-				<div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted/40">
+				<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted/40">
 					{attachment.mimeType?.startsWith("image/") ? (
 						<ImageIcon className="h-4 w-4 text-muted-foreground" />
 					) : (
 						<Paperclip className="h-4 w-4 text-muted-foreground" />
 					)}
 				</div>
-				<div className="flex-1 truncate">
+				<div className="min-w-0 flex-1 truncate">
 					<div className="truncate text-sm font-medium text-foreground">
 						{attachment.fileName}
 					</div>
@@ -100,28 +103,35 @@ export function ArtifactsView({
 						<span>{formatBytes(attachment.fileSize)}</span>
 					</div>
 				</div>
-				<button
-					type="button"
-					onClick={() => onSelectAttachment(attachment)}
-					className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+				<div
+					className={cn(
+						"flex items-center gap-1",
+						isMobile && "flex-wrap justify-end",
+					)}
 				>
-					{t("previewLabel")}
-				</button>
-				<a
-					href={getAttachmentFileUrl(attachment.id)}
-					target="_blank"
-					rel="noreferrer"
-					className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-				>
-					{t("downloadLabel")}
-				</a>
-				<button
-					type="button"
-					onClick={() => onRemove(attachment.id)}
-					className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-				>
-					<Trash2 className="h-3.5 w-3.5" />
-				</button>
+					<button
+						type="button"
+						onClick={() => onSelectAttachment(attachment)}
+						className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+					>
+						{t("previewLabel")}
+					</button>
+					<a
+						href={getAttachmentFileUrl(attachment.id)}
+						target="_blank"
+						rel="noreferrer"
+						className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+					>
+						{t("downloadLabel")}
+					</a>
+					<button
+						type="button"
+						onClick={() => onRemove(attachment.id)}
+						className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+					>
+						<Trash2 className="h-3.5 w-3.5" />
+					</button>
+				</div>
 			</div>
 		);
 	};

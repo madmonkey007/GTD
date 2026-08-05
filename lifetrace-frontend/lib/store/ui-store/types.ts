@@ -27,6 +27,8 @@ export interface UiStoreState {
 	isPanelAOpen: boolean;
 	isPanelBOpen: boolean;
 	isPanelCOpen: boolean;
+	// 窄屏推入式详情是否打开（仅运行时，不持久化）
+	mobileDetailOpen: boolean;
 	// 位置槽位宽度
 	panelAWidth: number;
 	panelCWidth: number;
@@ -53,6 +55,7 @@ export interface UiStoreState {
 	togglePanelA: () => void;
 	togglePanelB: () => void;
 	togglePanelC: () => void;
+	setMobileDetailOpen: (open: boolean) => void;
 	// 位置槽位宽度设置方法
 	setPanelAWidth: (width: number) => void;
 	setPanelCWidth: (width: number) => void;
