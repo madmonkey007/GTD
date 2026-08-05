@@ -73,6 +73,12 @@ export function DiaryPanel() {
 	const lastSyncKey = useRef<string | null>(null);
 	const clearAfterSubmit = useRef(false);
 	const initialLoadComplete = useRef(false);
+	// 本次挂载已由外部（agent 创建/修改笔记、思维分析工具等）触发过一次 journals 刷新。
+	// 重挂载后 stale 缓存 refetch 会改变 activeJournal，若放行 sync 会把当天第一条笔记
+	// 自动回填进编辑器。对非用户主动（日期切换/手动选中/点击「查看」）的数据变化一律跳过 sync。
+	const skipExternalSync = useRef(false);
+	// 最近一次同步时的 bucket，用于区分「用户切换日期」与「同一天外部刷新」
+	const lastBucketRef = useRef<string | null>(null);
 	const [pendingLinks, setPendingLinks] = useState<{ id: number; name: string }[]>([]);
 	// 提交成功后自增，通知 DiaryEditor 重置分页到第一页（否则滚动加载后新建的笔记不显示）
 	const [notesResetSignal, setNotesResetSignal] = useState(0);
@@ -248,21 +254,36 @@ export function DiaryPanel() {
 		[],
 	);
 	useEffect(() => {
-		if (!initialLoadComplete.current) {
-			// Skip sync until initial data load finishes — editor stays empty on mount/remount.
-			// After loading completes, clear draft and lock initialLoadComplete so
-			// subsequent activeJournal updates (date changes, auto-save) sync normally.
+		if (initialLoadComplete.current) {
+			if (isJournalLoading) return;
+			const syncKey = `${bucket.bucketStart.toISOString()}-${activeJournal?.id ?? "new"}`;
+			if (lastSyncKey.current === syncKey) return;
+			lastSyncKey.current = syncKey;
+			// 用户切换日期（bucket 变化）：正常同步，同时复位外部刷新守卫
+			if (lastBucketRef.current !== bucket.bucketStart.toISOString()) {
+				lastBucketRef.current = bucket.bucketStart.toISOString();
+				skipExternalSync.current = false;
+			} else if (skipExternalSync.current) {
+				// 同一天内 activeJournal 变化且未复位守卫：判定为外部数据刷新
+				// （agent / 思维分析改动笔记后 invalidate 触发的 refetch），
+				// 跳过本次自动回填，避免第一条笔记被选中且内容被替换进编辑器
+				skipExternalSync.current = false;
+				return;
+			}
+		} else {
+			// 首次挂载（含从其他面板切回）：仅等待数据加载完成并锁定初始同步键，不回填编辑器。
+			// 编辑器初始为空；用户主动切换日期 / 选中笔记 / 点击「查看」后按正常逻辑同步。
 			if (isJournalLoading) return;
 			initialLoadComplete.current = true;
-			setDraft(emptyDraft(selectedDate));
-			setTagInput("");
+			lastBucketRef.current = bucket.bucketStart.toISOString();
+			// 记录挂载时已存在的数据键；当 activeJournal 因外部刷新而改变时，
+			// 第二分支靠 skipExternalSync 拦截，避免将第一条笔记自动回填进编辑器
 			lastSyncKey.current = `${bucket.bucketStart.toISOString()}-${activeJournal?.id ?? "new"}`;
+			// 标记本次挂载可能存在外部数据刷新（agent 创建笔记会 invalidate journals 缓存），
+			// 同 bucket 下首次出现 activeJournal 变化时跳过，阻止自动回填
+			skipExternalSync.current = true;
 			return;
 		}
-		if (isJournalLoading) return;
-		const syncKey = `${bucket.bucketStart.toISOString()}-${activeJournal?.id ?? "new"}`;
-		if (lastSyncKey.current === syncKey) return;
-		lastSyncKey.current = syncKey;
 		setPendingLinks([]);
 		if (clearAfterSubmit.current) {
 			clearAfterSubmit.current = false;
