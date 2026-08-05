@@ -28,6 +28,8 @@ import {
 	Search,
 	MessageCircle,
 	Link2,
+	List,
+	LayoutGrid,
 } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import type { JournalDraft } from "@/apps/diary/types";
@@ -243,6 +245,10 @@ export function DiaryEditor({
 	const [addLinkNote, setAddLinkNote] = useState<JournalView | null>(null);
 		const [searchQuery, setSearchQuery] = useState("");
 		const [debouncedSearch, setDebouncedSearch] = useState("");
+	const [viewMode, setViewMode] = useState<"single" | "double">(() => {
+		if (typeof window === "undefined") return "single";
+		return localStorage.getItem("diary-view-mode") === "double" ? "double" : "single";
+	});
 	const PAGE_SIZE = 20;
 	const [notesOffset, setNotesOffset] = useState(0);
 	const [allNotes, setAllNotes] = useState<JournalView[]>([]);
@@ -257,6 +263,10 @@ export function DiaryEditor({
 		const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
 		return () => clearTimeout(timer);
 	}, [searchQuery]);
+
+	useEffect(() => {
+		localStorage.setItem("diary-view-mode", viewMode);
+	}, [viewMode]);
 
 
 		const journalQuery = useMemo(() => {
@@ -471,6 +481,30 @@ export function DiaryEditor({
 						</svg>
 					</button>
 				)}
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							title={viewMode === "single" ? (locale === "zh" ? "单列" : "Single column") : (locale === "zh" ? "双列" : "Double column")}
+							className="flex items-center gap-1 h-8 px-2 rounded-lg border border-border/30 bg-background/50 text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-colors flex-shrink-0"
+						>
+							{viewMode === "single" ? <List className="w-3.5 h-3.5" /> : <LayoutGrid className="w-3.5 h-3.5" />}
+							<ChevronDown className="w-3 h-3 opacity-60" />
+						</button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="start" className="min-w-[120px]">
+						<DropdownMenuItem onClick={() => setViewMode("single")}>
+							<List className="w-3.5 h-3.5 mr-2" />
+							{locale === "zh" ? "单列" : "Single column"}
+							{viewMode === "single" && <Check className="w-3.5 h-3.5 ml-auto" />}
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => setViewMode("double")}>
+							<LayoutGrid className="w-3.5 h-3.5 mr-2" />
+							{locale === "zh" ? "双列" : "Double column"}
+							{viewMode === "double" && <Check className="w-3.5 h-3.5 ml-auto" />}
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 				<div className="relative flex-1">
 					<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
 					<input
@@ -625,7 +659,8 @@ export function DiaryEditor({
 						{locale === "zh" ? "暂无笔记" : "No notes yet"}
 					</div>
 				) : (
-					sortedNotes.map((note) => {
+					<div className={viewMode === "double" ? "columns-2 gap-2 [&>*]:mb-2 [&>*]:break-inside-avoid" : "space-y-2"}>
+					{sortedNotes.map((note) => {
 						const isExpanded = expandedCards.has(note.id);
 						const contentLines = note.userNotes?.split("\n") ?? [];
 						const isLong = contentLines.length > 20;
@@ -831,7 +866,8 @@ export function DiaryEditor({
 								</motion.div>
 						</div>
 						);
-					})
+					})}
+					</div>
 				)}
 				{hasMore && <div ref={sentinelRef} className="h-2" />}
 				{isNotesFetching && notesOffset > 0 && (
