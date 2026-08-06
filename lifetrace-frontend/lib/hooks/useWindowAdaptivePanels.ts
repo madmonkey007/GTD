@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { PanelPosition } from "@/lib/config/panel-config";
+import { useTodoStore } from "@/lib/store/todo-store";
 import { useUiStore } from "@/lib/store/ui-store";
 
 const MIN_PANEL_WIDTH_PX = 300;
@@ -20,10 +21,12 @@ export function useWindowAdaptivePanels(
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 	// 使用ref存储store的getState函数，避免依赖变化
 	const storeRef = useRef(useUiStore.getState());
+	const todoStoreRef = useRef(useTodoStore.getState());
 
 	// 更新store引用
 	useEffect(() => {
 		storeRef.current = useUiStore.getState();
+		todoStoreRef.current = useTodoStore.getState();
 	});
 
 	useEffect(() => {
@@ -33,20 +36,27 @@ export function useWindowAdaptivePanels(
 		// 计算当前打开的panel数量
 		const getOpenPanelCount = (): number => {
 			const state = storeRef.current;
+			// 代办详情面板在未选中 todo 时不计入（与 ListPanels 的可见性闸控一致）
+			const hasSelection = todoStoreRef.current.selectedTodoId != null;
+			const detailHidden = (pos: PanelPosition) =>
+				!hasSelection && state.panelFeatureMap[pos] === "todoDetail";
 			let count = 0;
-			if (state.isPanelAOpen) count++;
-			if (state.isPanelBOpen) count++;
-			if (state.isPanelCOpen) count++;
+			if (state.isPanelAOpen && !detailHidden("panelA")) count++;
+			if (state.isPanelBOpen && !detailHidden("panelB")) count++;
+			if (state.isPanelCOpen && !detailHidden("panelC")) count++;
 			return count;
 		};
 
 		// 找到最右侧打开的panel
 		const getRightmostOpenPanel = (): PanelPosition | null => {
 			const state = storeRef.current;
+			const hasSelection = todoStoreRef.current.selectedTodoId != null;
+			const detailHidden = (pos: PanelPosition) =>
+				!hasSelection && state.panelFeatureMap[pos] === "todoDetail";
 			// 优先级：panelC > panelB > panelA（从右到左）
-			if (state.isPanelCOpen) return "panelC";
-			if (state.isPanelBOpen) return "panelB";
-			if (state.isPanelAOpen) return "panelA";
+			if (state.isPanelCOpen && !detailHidden("panelC")) return "panelC";
+			if (state.isPanelBOpen && !detailHidden("panelB")) return "panelB";
+			if (state.isPanelAOpen && !detailHidden("panelA")) return "panelA";
 			return null;
 		};
 

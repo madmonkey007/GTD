@@ -12,6 +12,7 @@ import { QuickCommandPanel } from "@/apps/quick-command/QuickCommandPanel";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useWindowAdaptivePanels } from "@/lib/hooks/useWindowAdaptivePanels";
 import { useUiStore } from "@/lib/store/ui-store";
+import { useTodoStore } from "@/lib/store/todo-store";
 import type { SidebarView } from "@/lib/store/ui-store/types";
 import { cn } from "@/lib/utils";
 import { FilterColumn } from "./FilterColumn";
@@ -69,7 +70,14 @@ function ListPanels({
 		isPanelCOpen,
 		panelAWidth,
 		panelCWidth,
+		panelFeatureMap,
 	} = useUiStore();
+	// 代办详情面板只在选中了 todo 时才有意义：未选中时不展示，避免空面板占位。
+	const selectedTodoId = useTodoStore((s) => s.selectedTodoId);
+	const hasTodoSelection = selectedTodoId != null;
+	// 某面板若承载 todoDetail 且当前无选中，则隐藏（不占宽度）
+	const hideIfEmptyDetail = (pos: "panelA" | "panelB" | "panelC") =>
+		!hasTodoSelection && panelFeatureMap[pos] === "todoDetail";
 
 	useWindowAdaptivePanels(containerRef);
 
@@ -82,9 +90,9 @@ function ListPanels({
 	const shouldShowPanelB = mounted ? width >= PANEL_DUAL_THRESHOLD : false;
 	const shouldShowPanelC = mounted ? width >= PANEL_TRIPLE_THRESHOLD : false;
 
-	const panelAVisible = mounted ? isPanelAOpen : true;
-	const panelBVisible = mounted ? isPanelBOpen : false;
-	const panelCVisible = mounted ? isPanelCOpen : false;
+	const panelAVisible = (mounted ? isPanelAOpen : true) && !hideIfEmptyDetail("panelA");
+	const panelBVisible = (mounted ? isPanelBOpen : false) && !hideIfEmptyDetail("panelB");
+	const panelCVisible = (mounted ? isPanelCOpen : false) && !hideIfEmptyDetail("panelC");
 
 	const showPanelA = panelAVisible;
 	const showPanelB = shouldShowPanelB && panelBVisible;
