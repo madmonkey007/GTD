@@ -13,6 +13,9 @@ export function MobileTopBar() {
 	const [filterOpen, setFilterOpen] = useState(false);
 	const [navOpen, setNavOpen] = useState(false);
 
+	// 筛选抽屉是代办专用的，只在代办视图显示
+	const showFilter = activeView === "list";
+
 	const activeLabel =
 		SIDEBAR_NAV_ITEMS.find((item) => item.id === activeView)?.label ??
 		activeView;
@@ -20,14 +23,18 @@ export function MobileTopBar() {
 	return (
 		<>
 			<div className="relative z-40 flex h-12 shrink-0 items-center justify-between border-b border-border/40 bg-background px-3">
-				<button
-					type="button"
-					onClick={() => setFilterOpen(true)}
-					className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50"
-					aria-label="筛选"
-				>
-					<Filter className="h-4.5 w-4.5" />
-				</button>
+				{showFilter ? (
+					<button
+						type="button"
+						onClick={() => setFilterOpen(true)}
+						className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50"
+						aria-label="筛选"
+					>
+						<Filter className="h-4.5 w-4.5" />
+					</button>
+				) : (
+					<div className="w-8" aria-hidden />
+				)}
 
 				<span className="text-sm font-medium text-foreground">
 					{activeLabel}
@@ -44,7 +51,7 @@ export function MobileTopBar() {
 			</div>
 
 			<AnimatePresence>
-				{filterOpen && (
+				{showFilter && filterOpen && (
 					<>
 						<motion.div
 							className="fixed inset-0 z-50 bg-black/30"
