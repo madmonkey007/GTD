@@ -34,6 +34,6 @@ export interface JournalUpdate {
   related_todo_ids?: number[] | null;
   /** 关联活动ID列表 */
   related_activity_ids?: number[] | null;
-  /** 关联日记ID列表（批注） */
-  related_note_ids?: number[] | null;
+  /** 来源：manual/todo_background/todo_notes */
+  origin?: string | null;
 }

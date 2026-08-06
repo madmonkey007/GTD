@@ -39,6 +39,9 @@ export interface JournalCreate {
   related_todo_ids?: number[];
   /** 关联活动ID列表 */
   related_activity_ids?: number[];
-  /** 关联日记ID列表（批注） */
-  related_note_ids?: number[];
+  /**
+   * 来源：manual/todo_background/todo_notes
+   * @maxLength 20
+   */
+  origin?: string;
 }

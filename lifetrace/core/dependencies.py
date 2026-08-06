@@ -79,9 +79,10 @@ def get_todo_repository(
 
 def get_todo_service(
     repo: ITodoRepository = Depends(get_todo_repository),
+    db_base: DatabaseBase = Depends(get_db_base),
 ) -> TodoService:
     """获取 Todo 服务实例"""
-    return TodoService(repo)
+    return TodoService(repo, db_base=db_base)
 
 
 # ========== Journal 模块依赖注入 ==========
@@ -97,9 +98,10 @@ def get_journal_repository(
 def get_journal_service(
     repo: IJournalRepository = Depends(get_journal_repository),
     db_base: DatabaseBase = Depends(get_db_base),
+    todo_repo: ITodoRepository = Depends(get_todo_repository),
 ) -> JournalService:
     """获取 Journal 服务实例"""
-    return JournalService(repo, db_base)
+    return JournalService(repo, db_base, todo_repository=todo_repo)
 
 
 # ========== Habit 模块依赖注入 ==========

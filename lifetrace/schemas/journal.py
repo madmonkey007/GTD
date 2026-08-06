@@ -12,6 +12,21 @@ class JournalTag(BaseModel):
     tag_name: str = Field(..., description="标签名称")
 
 
+class JournalRelatedTodo(BaseModel):
+    """日记关联的待办（含名称，用于 UI 展示）"""
+
+    id: int = Field(..., description="待办ID")
+    name: str = Field(..., description="待办名称")
+    role: str | None = Field(None, description="关联角色：background/notes/null")
+
+
+# Journal.origin 取值常量
+ORIGIN_MANUAL = "manual"
+ORIGIN_TODO_BACKGROUND = "todo_background"
+ORIGIN_TODO_NOTES = "todo_notes"
+TODO_ORIGINS = {ORIGIN_TODO_BACKGROUND, ORIGIN_TODO_NOTES}
+
+
 class JournalCreate(BaseModel):
     """创建日记请求模型"""
 
@@ -30,6 +45,7 @@ class JournalCreate(BaseModel):
     tags: list[str] = Field(default_factory=list, description="关联的标签列表")
     related_todo_ids: list[int] = Field(default_factory=list, description="关联待办ID列表")
     related_activity_ids: list[int] = Field(default_factory=list, description="关联活动ID列表")
+    origin: str = Field("manual", max_length=20, description="来源：manual/todo_background/todo_notes")
 
 
 class JournalUpdate(BaseModel):
@@ -49,6 +65,7 @@ class JournalUpdate(BaseModel):
     tags: list[str] | None = Field(None, description="关联的标签列表（覆盖替换）")
     related_todo_ids: list[int] | None = Field(None, description="关联待办ID列表")
     related_activity_ids: list[int] | None = Field(None, description="关联活动ID列表")
+    origin: str | None = Field(None, max_length=20, description="来源：manual/todo_background/todo_notes")
 
 
 class JournalResponse(BaseModel):
@@ -68,9 +85,11 @@ class JournalResponse(BaseModel):
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     deleted_at: datetime | None = Field(None, description="删除时间")
+    origin: str = Field("manual", max_length=20, description="来源：manual/todo_background/todo_notes")
     tags: list[JournalTag] = Field(default_factory=list, description="关联标签列表")
     related_todo_ids: list[int] = Field(default_factory=list, description="关联待办ID列表")
     related_activity_ids: list[int] = Field(default_factory=list, description="关联活动ID列表")
+    related_todos: list[JournalRelatedTodo] = Field(default_factory=list, description="关联待办列表（含名称）")
     related_note_ids: list[int] = Field(default_factory=list, description="关联笔记ID列表（从 note_links 计算）")
 
     class Config:

@@ -30,6 +30,8 @@ interface UseJournalsParams {
 	startDate?: string;
 	endDate?: string;
 	search?: string;
+	origin?: string;
+	origins?: string;
 }
 
 function extractTagsFromContent(userNotes: string): string[] {
@@ -42,6 +44,8 @@ const normalizeJournal = (raw: Record<string, unknown>) => {
 	const userNotes = (raw.userNotes as string) ?? "";
 	// 标签始终从正文 #tag 提取，不显示 DB 中旧的独立标签（用户已确认不需要独立标签体系）
 	const contentTags = extractTagsFromContent(userNotes);
+
+	const rawRelatedTodos = (raw.relatedTodos as Array<Record<string, unknown>>) ?? (raw.related_todos as Array<Record<string, unknown>>) ?? [];
 
 	return {
 		id: raw.id as number,
@@ -58,10 +62,16 @@ const normalizeJournal = (raw: Record<string, unknown>) => {
 		createdAt: raw.createdAt as string,
 		updatedAt: raw.updatedAt as string,
 		deletedAt: (raw.deletedAt as string) ?? null,
+		origin: (raw.origin as string) ?? "manual",
 		tags: contentTags.map((t) => ({ id: 0, tagName: t })),
 		relatedTodoIds: (raw.relatedTodoIds as number[]) ?? (raw.related_todo_ids as number[]) ?? [],
 		relatedActivityIds: (raw.relatedActivityIds as number[]) ?? (raw.related_activity_ids as number[]) ?? [],
 		relatedNoteIds: (raw.relatedNoteIds as number[]) ?? (raw.related_note_ids as number[]) ?? [],
+		relatedTodos: rawRelatedTodos.map((t) => ({
+			id: (t.id as number) ?? 0,
+			name: (t.name as string) ?? "",
+			role: (t.role as string | null) ?? null,
+		})),
 	};
 };
 
@@ -83,6 +93,8 @@ export function useJournals(params?: UseJournalsParams) {
 		start_date: params?.startDate,
 		end_date: params?.endDate,
 		search: params?.search,
+		origin: params?.origin,
+		origins: params?.origins,
 	};
 
 	return useListJournalsApiJournalsGet(queryParams, {
@@ -163,6 +175,8 @@ export function useJournalMutations() {
 			updateJournal(id, input),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
+			// 镜像笔记回写后，待办详情的背景/备注需刷新
+			queryClient.invalidateQueries({ queryKey: queryKeys.todos.all });
 		},
 	});
 

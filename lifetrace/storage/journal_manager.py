@@ -16,6 +16,7 @@ from lifetrace.storage.models import (
     JournalTodoRelation,
     NoteLink,
     Tag,
+    Todo,
 )
 from lifetrace.storage.sql_utils import col
 from lifetrace.util.logging_config import get_logger
@@ -43,6 +44,9 @@ class JournalCreatePayload:
     tags: list[str] | None = None
     related_todo_ids: list[int] | None = None
     related_activity_ids: list[int] | None = None
+    origin: str = "manual"
+    # 仅供 JournalSyncService 使用：建立带 role 的 todo 关联
+    related_todo_roles: list[tuple[int, str]] | None = None
 
 
 @dataclass(frozen=True)
@@ -61,6 +65,7 @@ class JournalUpdatePayload:
     tags: list[str] | None | Any = _UNSET
     related_todo_ids: list[int] | None | Any = _UNSET
     related_activity_ids: list[int] | None | Any = _UNSET
+    origin: str | Any = _UNSET
 
 
 class JournalManager:
@@ -77,6 +82,7 @@ class JournalManager:
         related_todo_ids: list[int] | None = None,
         related_activity_ids: list[int] | None = None,
         related_note_ids: list[int] | None = None,
+        related_todos: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         tag_list = [{"id": t.id, "tag_name": t.tag_name} for t in tags] if tags else []
         return {
@@ -94,9 +100,11 @@ class JournalManager:
             "created_at": journal.created_at,
             "updated_at": journal.updated_at,
             "deleted_at": journal.deleted_at,
+            "origin": journal.origin or "manual",
             "tags": tag_list,
             "related_todo_ids": related_todo_ids or [],
             "related_activity_ids": related_activity_ids or [],
+            "related_todos": related_todos or [],
             "related_note_ids": related_note_ids or [],
         }
 
@@ -118,6 +126,26 @@ class JournalManager:
             .filter(col(JournalTodoRelation.deleted_at).is_(None))
             .all()
         ]
+
+    def _get_related_todos_with_role(self, session, journal_id: int) -> list[dict[str, Any]]:
+        """获取日记关联的待办（含名称和 role），用于 UI 展示关联待办标签。"""
+        rows = (
+            session.query(JournalTodoRelation, Todo)
+            .join(Todo, col(JournalTodoRelation.todo_id) == col(Todo.id))
+            .filter(col(JournalTodoRelation.journal_id) == journal_id)
+            .filter(col(JournalTodoRelation.deleted_at).is_(None))
+            .all()
+        )
+        result: list[dict[str, Any]] = []
+        seen: set[int] = set()
+        for rel, todo in rows:
+            if todo.id in seen:
+                continue
+            seen.add(todo.id)
+            result.append(
+                {"id": todo.id, "name": todo.name or todo.summary or f"#{todo.id}", "role": rel.role}
+            )
+        return result
 
     def _get_related_activity_ids(self, session, journal_id: int) -> list[int]:
         return [
@@ -188,6 +216,32 @@ class JournalManager:
         for todo_id in dict.fromkeys(todo_ids):
             session.add(JournalTodoRelation(journal_id=journal_id, todo_id=todo_id))
 
+    def _replace_related_todos_with_roles(
+        self, session, journal_id: int, todo_roles: list[tuple[int, str]]
+    ) -> None:
+        """仅供镜像笔记使用：建立带 role 的关联，不删除既有用户手动关联。
+
+        按 (todo_id, role) 去重，已存在相同 (journal_id, todo_id) 关联则更新 role。
+        """
+        seen: set[tuple[int, str]] = set()
+        for todo_id, role in todo_roles:
+            key = (todo_id, role)
+            if key in seen:
+                continue
+            seen.add(key)
+            existing = (
+                session.query(JournalTodoRelation)
+                .filter_by(journal_id=journal_id, todo_id=todo_id)
+                .filter(col(JournalTodoRelation.deleted_at).is_(None))
+                .first()
+            )
+            if existing:
+                existing.role = role
+            else:
+                session.add(
+                    JournalTodoRelation(journal_id=journal_id, todo_id=todo_id, role=role)
+                )
+
     def _replace_related_activities(
         self, session, journal_id: int, activity_ids: list[int] | None
     ) -> None:
@@ -214,6 +268,7 @@ class JournalManager:
             "mood": payload.mood,
             "energy": payload.energy,
             "day_bucket_start": payload.day_bucket_start,
+            "origin": payload.origin,
         }
 
         for attr, value in updates.items():
@@ -235,6 +290,7 @@ class JournalManager:
                     "mood": payload.mood,
                     "energy": payload.energy,
                     "day_bucket_start": payload.day_bucket_start,
+                    "origin": getattr(payload, "origin", None) or "manual",
                 }
                 if payload.uid:
                     journal_data["uid"] = payload.uid
@@ -246,7 +302,12 @@ class JournalManager:
 
                 # 处理标签与关联
                 self._replace_tags(session, journal.id, payload.tags)
-                self._replace_related_todos(session, journal.id, payload.related_todo_ids)
+                related_todo_roles = getattr(payload, "related_todo_roles", None)
+                if related_todo_roles:
+                    # 由 JournalSyncService 走的路径：建立带 role 的关联
+                    self._replace_related_todos_with_roles(session, journal.id, related_todo_roles)
+                else:
+                    self._replace_related_todos(session, journal.id, payload.related_todo_ids)
                 self._replace_related_activities(session, journal.id, payload.related_activity_ids)
 
                 logger.info(f"创建日记成功: {journal.id} - {payload.name}")
@@ -272,12 +333,14 @@ class JournalManager:
                 related_todo_ids = self._get_related_todo_ids(session, journal.id)
                 related_activity_ids = self._get_related_activity_ids(session, journal.id)
                 related_note_ids = self._get_related_note_ids(session, journal.id)
+                related_todos = self._get_related_todos_with_role(session, journal.id)
                 return self._serialize_journal(
                     journal,
                     tags,
                     related_todo_ids=related_todo_ids,
                     related_activity_ids=related_activity_ids,
                     related_note_ids=related_note_ids,
+                    related_todos=related_todos,
                 )
         except SQLAlchemyError as e:
             logger.error(f"获取日记失败: {e}")
@@ -291,6 +354,7 @@ class JournalManager:
         start_date=None,
         end_date=None,
         search: str | None = None,
+        origins: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """列出日记"""
         try:
@@ -301,6 +365,8 @@ class JournalManager:
                     query = query.filter(col(Journal.date) >= start_date)
                 if end_date is not None:
                     query = query.filter(col(Journal.date) <= end_date)
+                if origins:
+                    query = query.filter(col(Journal.origin).in_(origins))
                 if search:
                     pattern = f"%{search}%"
                     query = query.filter(
@@ -323,6 +389,7 @@ class JournalManager:
                     related_todo_ids = self._get_related_todo_ids(session, journal.id)
                     related_activity_ids = self._get_related_activity_ids(session, journal.id)
                     related_note_ids = self._get_related_note_ids(session, journal.id)
+                    related_todos = self._get_related_todos_with_role(session, journal.id)
                     results.append(
                         self._serialize_journal(
                             journal,
@@ -330,6 +397,7 @@ class JournalManager:
                             related_todo_ids=related_todo_ids,
                             related_activity_ids=related_activity_ids,
                             related_note_ids=related_note_ids,
+                            related_todos=related_todos,
                         )
                     )
                 return results
@@ -337,7 +405,13 @@ class JournalManager:
             logger.error(f"列出日记失败: {e}")
             return []
 
-    def count_journals(self, start_date=None, end_date=None, search: str | None = None) -> int:
+    def count_journals(
+        self,
+        start_date=None,
+        end_date=None,
+        search: str | None = None,
+        origins: list[str] | None = None,
+    ) -> int:
         """统计日记数量"""
         try:
             with self.db_base.get_session() as session:
@@ -346,6 +420,8 @@ class JournalManager:
                     query = query.filter(col(Journal.date) >= start_date)
                 if end_date is not None:
                     query = query.filter(col(Journal.date) <= end_date)
+                if origins:
+                    query = query.filter(col(Journal.origin).in_(origins))
                 if search:
                     pattern = f"%{search}%"
                     query = query.filter(

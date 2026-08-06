@@ -116,11 +116,21 @@ async def list_journals(
     start_date: datetime | None = Query(None, description="开始日期筛选"),
     end_date: datetime | None = Query(None, description="结束日期筛选"),
     search: str | None = Query(None, min_length=1, max_length=200, description="搜索关键词（匹配标题和笔记内容）"),
+    origin: str | None = Query(None, description="按来源精确过滤：manual/todo_background/todo_notes"),
+    origins: str | None = Query(None, description="按来源多选过滤，逗号分隔，例如 todo_background,todo_notes"),
     service: JournalService = Depends(get_journal_service),
 ):
     """获取日记列表"""
     try:
-        return service.list_journals(limit, offset, start_date, end_date, search=search)
+        return service.list_journals(
+            limit,
+            offset,
+            start_date,
+            end_date,
+            search=search,
+            origin=origin,
+            origins=origins,
+        )
     except Exception as e:
         logger.error(f"获取日记列表失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"获取日记列表失败: {e!s}") from e

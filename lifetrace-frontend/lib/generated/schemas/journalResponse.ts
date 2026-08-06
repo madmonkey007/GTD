@@ -5,6 +5,7 @@
  * FreeTodo API (part of FreeU Project)
  * OpenAPI spec version: 0.1.2
  */
+import type { JournalRelatedTodo } from './journalRelatedTodo';
 import type { JournalTag } from './journalTag';
 
 /**
@@ -39,12 +40,19 @@ export interface JournalResponse {
   updated_at: string;
   /** 删除时间 */
   deleted_at?: string | null;
+  /**
+   * 来源：manual/todo_background/todo_notes
+   * @maxLength 20
+   */
+  origin?: string;
   /** 关联标签列表 */
   tags?: JournalTag[];
   /** 关联待办ID列表 */
   related_todo_ids?: number[];
   /** 关联活动ID列表 */
   related_activity_ids?: number[];
-  /** 关联日记ID列表（批注） */
+  /** 关联待办列表（含名称） */
+  related_todos?: JournalRelatedTodo[];
+  /** 关联笔记ID列表（从 note_links 计算） */
   related_note_ids?: number[];
 }

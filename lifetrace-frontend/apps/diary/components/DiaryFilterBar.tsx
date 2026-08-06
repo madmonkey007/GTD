@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, List, Shuffle } from "lucide-react";
+import { Clock, List, Shuffle, CheckSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { DiaryFilterMode } from "@/apps/diary/hooks/useDiaryStats";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ const FILTERS: { key: DiaryFilterMode; disabled?: boolean; icon: React.FC<{ clas
 	{ key: "all", icon: List },
 	{ key: "last7", icon: Clock },
 	{ key: "random", icon: Shuffle },
+	{ key: "todo", icon: CheckSquare },
 ];
 
 export function DiaryFilterBar({ filterMode, onFilterModeChange }: DiaryFilterBarProps) {
@@ -28,7 +29,9 @@ export function DiaryFilterBar({ filterMode, onFilterModeChange }: DiaryFilterBa
 						? "sidebarFilterAll"
 						: key === "last7"
 							? "sidebarFilterLast7"
-							: "sidebarFilterRandom";
+							: key === "random"
+								? "sidebarFilterRandom"
+								: "sidebarFilterTodoNotes";
 				const tooltipKey =
 					key === "random" ? "sidebarFilterRandomTooltip" : undefined;
 

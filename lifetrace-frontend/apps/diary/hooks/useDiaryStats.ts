@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { formatDateInput, parseJournalDate } from "@/apps/diary/journal-utils";
 import { useJournals } from "@/lib/query";
 
-export type DiaryFilterMode = "all" | "last7" | "random";
+export type DiaryFilterMode = "all" | "last7" | "random" | "todo";
 
 const HEATMAP_DAYS = 77;
 

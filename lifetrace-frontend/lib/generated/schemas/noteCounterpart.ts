@@ -13,4 +13,6 @@ export interface NoteCounterpart {
   id: number;
   name?: string | null;
   date?: string | null;
+  /** 对端笔记正文预览（前若干字符） */
+  preview?: string;
 }

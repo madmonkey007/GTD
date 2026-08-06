@@ -30,6 +30,7 @@ import {
 	Link2,
 	List,
 	LayoutGrid,
+	CheckSquare,
 } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import type { JournalDraft } from "@/apps/diary/types";
@@ -60,7 +61,7 @@ import { ReferenceModal } from "./components/ReferenceModal";
 import { AddNoteLinkModal } from "./components/AddNoteLinkModal";
 import { useNoteChatStore } from "@/lib/store/note-chat-store";
 
-export type DiaryFilterMode = "all" | "last7" | "random";
+export type DiaryFilterMode = "all" | "last7" | "random" | "todo";
 
 function extractTagsFromContent(content: string): string[] {
 	const matches = content.match(/#([^\s#]+)(\s|$)/g);
@@ -271,7 +272,10 @@ export function DiaryEditor({
 
 		const journalQuery = useMemo(() => {
 		const params: Record<string, unknown> = { limit: PAGE_SIZE, offset: notesOffset };
-		if (filterMode === "last7") {
+		if (filterMode === "todo") {
+			// 待办笔记：背景镜像 + 备注镜像
+			params.origins = "todo_background,todo_notes";
+		} else if (filterMode === "last7") {
 			const now = new Date();
 			const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
 			const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
@@ -617,6 +621,11 @@ export function DiaryEditor({
 						</button>
 					</div>
 				)}
+				{filterMode === "todo" && (
+					<div className="flex items-center justify-between mb-2">
+						<span className="text-xs font-medium text-primary/70">{t("sidebarFilterTodoNotes")}</span>
+					</div>
+				)}
 				{tagFilter && (
 					<div className="flex items-center gap-2 mb-3 px-2">
 						<span className="inline-flex items-center rounded-full bg-primary/8 px-2.5 py-1 text-xs font-medium text-primary/80 border border-primary/10">
@@ -718,7 +727,13 @@ export function DiaryEditor({
 														{pinnedIds.includes(note.id) && (
 															<Pin className="w-3 h-3 inline-block mr-1 text-primary/60 -mt-0.5" />
 														)}
-														{note.name}
+														<span className="truncate">{note.name}</span>
+														{note.origin && note.origin !== "manual" && (
+															<span className="inline-flex items-center gap-0.5 ml-1 text-[9px] text-muted-foreground/60 shrink-0">
+																<CheckSquare className="w-2.5 h-2.5" />
+																{t("todoNoteBadge")}
+															</span>
+														)}
 													</div>
 												)}
 											</div>
@@ -790,6 +805,19 @@ export function DiaryEditor({
 												<span className="text-muted-foreground/40">{"\n"}...</span>
 											)}
 										</div>
+										{note.relatedTodos && note.relatedTodos.length > 0 && (
+											<div className="flex items-center flex-wrap gap-1 mt-2">
+												{note.relatedTodos.map((td) => (
+													<span
+														key={td.id}
+														className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/60"
+													>
+														<CheckSquare className="w-2.5 h-2.5" />
+														{t("linkedTodo")}{td.name}
+													</span>
+												))}
+											</div>
+										)}
 										{isLong && (
 											<button
 												type="button"

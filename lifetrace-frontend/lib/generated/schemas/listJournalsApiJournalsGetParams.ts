@@ -30,4 +30,12 @@ end_date?: string | null;
  * 搜索关键词（匹配标题和笔记内容）
  */
 search?: string | null;
+/**
+ * 按来源精确过滤：manual/todo_background/todo_notes
+ */
+origin?: string | null;
+/**
+ * 按来源多选过滤，逗号分隔，例如 todo_background,todo_notes
+ */
+origins?: string | null;
 };

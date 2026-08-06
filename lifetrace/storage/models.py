@@ -253,9 +253,11 @@ class Journal(TimestampMixin, table=True):
     mood: str | None = Field(default=None, max_length=50)  # 情绪
     energy: int | None = None  # 精力
     day_bucket_start: datetime | None = None  # 日记归属的刷新点时间
+    # 来源标记：manual=用户手动创建；todo_background=待办背景镜像；todo_notes=待办备注镜像
+    origin: str = Field(default="manual", max_length=20, index=True)
 
     def __repr__(self):
-        return f"<Journal(id={self.id}, name={self.name}, date={self.date})>"
+        return f"<Journal(id={self.id}, name={self.name}, date={self.date}, origin={self.origin})>"
 
 
 class JournalTagRelation(SQLModel, table=True):
@@ -281,11 +283,13 @@ class JournalTodoRelation(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     journal_id: int  # 关联的日记ID
     todo_id: int  # 关联的待办ID
+    # 关联角色：background=待办背景镜像；notes=待办备注镜像；null=用户手动关联
+    role: str | None = Field(default=None, max_length=20)
     created_at: datetime = Field(default_factory=get_utc_time)
     deleted_at: datetime | None = None
 
     def __repr__(self):
-        return f"<JournalTodoRelation(id={self.id}, journal_id={self.journal_id}, todo_id={self.todo_id})>"
+        return f"<JournalTodoRelation(id={self.id}, journal_id={self.journal_id}, todo_id={self.todo_id}, role={self.role})>"
 
 
 class JournalActivityRelation(SQLModel, table=True):

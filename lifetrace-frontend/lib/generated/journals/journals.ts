@@ -25,6 +25,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BodyUploadJournalImageApiJournalsUploadImagePost,
   HTTPValidationError,
   JournalAutoLinkRequest,
   JournalAutoLinkResponse,
@@ -45,6 +46,101 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 /**
+ * 上传笔记图片，落盘到 uploads/journal-images/，返回可在前端访问的相对 URL。
+
+返回结构: {url, filename, alt, size}
+url 形如 /uploads/journal-images/<uuid>.<ext>，前端经 next.config rewrite 代理到后端 StaticFiles。
+ * @summary Upload Journal Image
+ */
+export type uploadJournalImageApiJournalsUploadImagePostResponse201 = {
+  data: unknown
+  status: 201
+}
+
+export type uploadJournalImageApiJournalsUploadImagePostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+    
+export type uploadJournalImageApiJournalsUploadImagePostResponseSuccess = (uploadJournalImageApiJournalsUploadImagePostResponse201) & {
+  headers: Headers;
+};
+export type uploadJournalImageApiJournalsUploadImagePostResponseError = (uploadJournalImageApiJournalsUploadImagePostResponse422) & {
+  headers: Headers;
+};
+
+export type uploadJournalImageApiJournalsUploadImagePostResponse = (uploadJournalImageApiJournalsUploadImagePostResponseSuccess | uploadJournalImageApiJournalsUploadImagePostResponseError)
+
+export const getUploadJournalImageApiJournalsUploadImagePostUrl = () => {
+
+
+  
+
+  return `/api/journals/upload-image`
+}
+
+export const uploadJournalImageApiJournalsUploadImagePost = async (bodyUploadJournalImageApiJournalsUploadImagePost: BodyUploadJournalImageApiJournalsUploadImagePost, options?: RequestInit): Promise<uploadJournalImageApiJournalsUploadImagePostResponse> => {
+    const formData = new FormData();
+formData.append(`file`, bodyUploadJournalImageApiJournalsUploadImagePost.file);
+
+  return customFetcher<uploadJournalImageApiJournalsUploadImagePostResponse>(getUploadJournalImageApiJournalsUploadImagePostUrl(),
+  {      
+    ...options,
+    method: 'POST'
+    ,
+    body: 
+      formData,
+  }
+);}
+
+
+
+
+export const getUploadJournalImageApiJournalsUploadImagePostMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadJournalImageApiJournalsUploadImagePost>>, TError,{data: BodyUploadJournalImageApiJournalsUploadImagePost}, TContext>, request?: SecondParameter<typeof customFetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadJournalImageApiJournalsUploadImagePost>>, TError,{data: BodyUploadJournalImageApiJournalsUploadImagePost}, TContext> => {
+
+const mutationKey = ['uploadJournalImageApiJournalsUploadImagePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadJournalImageApiJournalsUploadImagePost>>, {data: BodyUploadJournalImageApiJournalsUploadImagePost}> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadJournalImageApiJournalsUploadImagePost(data,requestOptions)
+        }
+
+
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadJournalImageApiJournalsUploadImagePostMutationResult = NonNullable<Awaited<ReturnType<typeof uploadJournalImageApiJournalsUploadImagePost>>>
+    export type UploadJournalImageApiJournalsUploadImagePostMutationBody = BodyUploadJournalImageApiJournalsUploadImagePost
+    export type UploadJournalImageApiJournalsUploadImagePostMutationError = HTTPValidationError
+
+    /**
+ * @summary Upload Journal Image
+ */
+export const useUploadJournalImageApiJournalsUploadImagePost = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadJournalImageApiJournalsUploadImagePost>>, TError,{data: BodyUploadJournalImageApiJournalsUploadImagePost}, TContext>, request?: SecondParameter<typeof customFetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof uploadJournalImageApiJournalsUploadImagePost>>,
+        TError,
+        {data: BodyUploadJournalImageApiJournalsUploadImagePost},
+        TContext
+      > => {
+      return useMutation(getUploadJournalImageApiJournalsUploadImagePostMutationOptions(options), queryClient);
+    }
+    /**
  * 创建日记
  * @summary Create Journal
  */

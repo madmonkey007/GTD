@@ -25,8 +25,13 @@ from lifetrace.schemas.journal import (
     JournalListResponse,
     JournalResponse,
     JournalUpdate,
+    TODO_ORIGINS,
 )
-from lifetrace.storage.journal_manager import JournalCreatePayload, JournalUpdatePayload, _UNSET
+from lifetrace.services.journal_sync_service import (
+    _is_syncing_from_peer as _is_peer_sync,
+    _mark_syncing,
+)
+from lifetrace.storage.journal_manager import JournalCreatePayload, JournalManager, JournalUpdatePayload, _UNSET
 from lifetrace.storage.models import Activity, Todo
 from lifetrace.storage.sql_utils import col
 from lifetrace.util.logging_config import get_logger
@@ -45,13 +50,29 @@ _DEFAULT_BUCKET_START = time(hour=4, minute=0)
 class JournalService:
     """Journal 业务逻辑层"""
 
-    def __init__(self, repository: IJournalRepository, db_base: DatabaseBase):
+    def __init__(
+        self,
+        repository: IJournalRepository,
+        db_base: DatabaseBase,
+        todo_repository: "ITodoRepository | None" = None,
+    ):
         self.repository = repository
         self.db_base = db_base
+        self.journal_manager = JournalManager(db_base)
         # 向量库（用于笔记语义检索，可能为 None）
         self._vector_db = create_vector_db()
         if self._vector_db is None:
             logger.info("Journal 向量检索不可用（vector_db 未初始化）")
+        # 镜像笔记回写待办的同步服务（反向同步）
+        self._sync_service = None
+        if todo_repository is not None:
+            try:
+                from lifetrace.services.journal_sync_service import JournalSyncService
+
+                self._sync_service = JournalSyncService(db_base, todo_repository=todo_repository)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(f"JournalSyncService 初始化失败，反向同步禁用: {exc}")
+                self._sync_service = None
 
     def _normalize_name(self, name: str | None, fallback_time: datetime | None = None) -> str:
         cleaned = (name or "").strip()
@@ -376,10 +397,32 @@ class JournalService:
         start_date: datetime | None,
         end_date: datetime | None,
         search: str | None = None,
+        origin: str | None = None,
+        origins: str | None = None,
     ) -> JournalListResponse:
         """获取日记列表"""
-        journals = self.repository.list_journals(limit, offset, start_date, end_date, search=search)
-        total = self.repository.count(start_date, end_date, search=search)
+        # origin/origins 归一为 origins 列表
+        origins_list: list[str] | None = None
+        if origins:
+            origins_list = [s.strip() for s in origins.split(",") if s.strip()]
+        elif origin:
+            origins_list = [origin]
+
+        # 优先走 manager（支持 origins 过滤）；repository 抽象暂未透传 origins
+        journals = self.journal_manager.list_journals(
+            limit=limit,
+            offset=offset,
+            start_date=start_date,
+            end_date=end_date,
+            search=search,
+            origins=origins_list,
+        )
+        total = self.journal_manager.count_journals(
+            start_date=start_date,
+            end_date=end_date,
+            search=search,
+            origins=origins_list,
+        )
         return JournalListResponse(
             total=total,
             journals=[JournalResponse(**j) for j in journals],
@@ -423,6 +466,7 @@ class JournalService:
             tags=tags,
             related_todo_ids=data.related_todo_ids,
             related_activity_ids=data.related_activity_ids,
+            origin=data.origin or "manual",
         )
         journal_id = self.repository.create(payload)
         if not journal_id:
@@ -488,6 +532,19 @@ class JournalService:
             )
 
         logger.info(f"成功更新日记: {journal_id}")
+
+        # 反向同步：若该笔记是待办镜像，则把新内容回写到待办对应字段
+        if self._sync_service is not None and not _is_peer_sync():
+            current = self.repository.get_by_id(journal_id) or {}
+            if current.get("origin") in TODO_ORIGINS:
+                try:
+                    _mark_syncing(True)
+                    self._sync_service.sync_from_journal(journal_id)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(f"镜像笔记反向回写待办失败 journal={journal_id}: {exc}")
+                finally:
+                    _mark_syncing(False)
+
         return self.get_journal(journal_id)
 
     def delete_journal(self, journal_id: int) -> None:

@@ -9,7 +9,9 @@ from fastapi import HTTPException
 
 from lifetrace.jobs.deadline_reminder import refresh_todo_reminders, remove_todo_reminder_jobs
 from lifetrace.repositories.interfaces import ITodoRepository
+from lifetrace.schemas.journal import ORIGIN_TODO_BACKGROUND, ORIGIN_TODO_NOTES
 from lifetrace.schemas.todo import TodoAttachmentResponse, TodoCreate, TodoResponse, TodoUpdate
+from lifetrace.services.journal_sync_service import JournalSyncService, _is_syncing_from_peer as _is_peer_sync
 from lifetrace.storage.notification_storage import (
     clear_dismissed_mark,
     clear_notification_by_todo_id,
@@ -39,8 +41,35 @@ def _normalize_item_type(item_type: str | None) -> str:
 class TodoService:
     """Todo 业务逻辑层"""
 
-    def __init__(self, repository: ITodoRepository):
+    def __init__(self, repository: ITodoRepository, db_base: Any = None):
         self.repository = repository
+        self.db_base = db_base
+        self._sync_service: JournalSyncService | None = None
+        if db_base is not None:
+            try:
+                self._sync_service = JournalSyncService(db_base, todo_repository=repository)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"JournalSyncService 初始化失败，镜像同步禁用: {e}")
+                self._sync_service = None
+
+    def _sync_todo_to_journals(self, todo_id: int, fields_set: set[str]) -> None:
+        """待办字段变更后，把 description / user_notes 镜像到对应笔记。"""
+        if not self._sync_service:
+            return
+        if "description" not in fields_set and "user_notes" not in fields_set:
+            return
+        try:
+            latest = self.repository.get_by_id(todo_id) or {}
+            if "description" in fields_set:
+                self._sync_service.sync_from_todo(
+                    todo_id, origin=ORIGIN_TODO_BACKGROUND, content=latest.get("description")
+                )
+            if "user_notes" in fields_set:
+                self._sync_service.sync_from_todo(
+                    todo_id, origin=ORIGIN_TODO_NOTES, content=latest.get("user_notes")
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"镜像笔记同步失败 todo={todo_id}: {e}")
 
     def get_todo(self, todo_id: int) -> TodoResponse:
         """获取单个 Todo"""
@@ -248,6 +277,9 @@ class TodoService:
                 refresh_todo_reminders(todo)
             except Exception as e:
                 logger.warning(f"更新待办后同步提醒失败: {e}")
+        # 镜像同步：description / user_notes → 对应 Journal 笔记
+        if self._sync_service is not None and not _is_peer_sync():
+            self._sync_todo_to_journals(todo_id, fields_set)
         return todo
 
     def delete_todo(self, todo_id: int) -> None:
@@ -259,6 +291,12 @@ class TodoService:
         remove_todo_reminder_jobs(todo_id)
         clear_notification_by_todo_id(todo_id)
         clear_dismissed_mark(todo_id)
+        # 级联清理镜像笔记
+        if self._sync_service is not None and not _is_peer_sync():
+            try:
+                self._sync_service.cleanup_for_todo(todo_id)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"清理镜像笔记失败 todo={todo_id}: {e}")
 
     def reorder_todos(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         """批量重排序 Todo"""
