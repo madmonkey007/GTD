@@ -6,28 +6,22 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import MarkdownIt from "markdown-it";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import TurndownService from "turndown";
-import { SectionHeader } from "@/components/common/layout/SectionHeader";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 interface NotesEditorProps {
 	value: string;
-	show: boolean;
-	onToggle: () => void;
 	onChange: (value: string) => void;
 	onBlur?: () => void;
 }
 
 export function NotesEditor({
 	value,
-	show,
-	onToggle,
 	onChange,
 	onBlur,
 }: NotesEditorProps) {
 	const t = useTranslations("todoDetail");
-	const [isHovered, setIsHovered] = useState(false);
 	const lastValueRef = useRef(value);
 
 	const markdownParser = useMemo(
@@ -65,7 +59,7 @@ export function NotesEditor({
 		editorProps: {
 			attributes: {
 				class:
-					"min-h-[140px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary",
+					"min-h-[140px] w-full rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm text-foreground prose prose-sm max-w-none transition-colors focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
 			},
 		},
 	});
@@ -82,33 +76,20 @@ export function NotesEditor({
 	return (
 		<div
 			role="group"
-			className="mb-8"
-			onMouseEnter={() => setIsHovered(true)}
-			onMouseLeave={() => setIsHovered(false)}
+			className="mb-6"
 		>
-			<SectionHeader
-				title={t("notesLabel")}
-				show={show}
-				onToggle={onToggle}
-				headerClassName="mb-2"
-				isHovered={isHovered}
-			/>
-			{show && (
-				<>
-					<div className="flex items-center justify-end gap-1 px-1 py-1">
-						<VoiceInputButton
-							ownerId="notes-editor"
-							editorRef={{ current: editor }}
-							onTranscript={(text) => {
-								if (editor) editor.chain().focus().insertContent(` ${text}`).run();
-							}}
-						/>
-					</div>
-					<div className="prose prose-sm max-w-none">
-						<EditorContent editor={editor} />
-					</div>
-				</>
-			)}
+			<div className="relative">
+				<EditorContent editor={editor} />
+				<div className="absolute right-1.5 top-1.5">
+					<VoiceInputButton
+						ownerId="notes-editor"
+						editorRef={{ current: editor }}
+						onTranscript={(text) => {
+							if (editor) editor.chain().focus().insertContent(` ${text}`).run();
+						}}
+					/>
+				</div>
+			</div>
 		</div>
 	);
 }

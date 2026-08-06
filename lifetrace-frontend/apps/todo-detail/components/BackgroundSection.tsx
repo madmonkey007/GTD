@@ -7,19 +7,22 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SectionHeader } from "@/components/common/layout/SectionHeader";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
+import { cn } from "@/lib/utils";
 
 interface BackgroundSectionProps {
 	description?: string;
-	show: boolean;
-	onToggle: () => void;
+	show?: boolean;
+	onToggle?: () => void;
 	onDescriptionChange?: (description: string) => void;
+	className?: string;
 }
 
 export function BackgroundSection({
 	description,
-	show,
+	show = true,
 	onToggle,
 	onDescriptionChange,
+	className,
 }: BackgroundSectionProps) {
 	const t = useTranslations("todoDetail");
 	const [isEditing, setIsEditing] = useState(false);
@@ -102,7 +105,7 @@ export function BackgroundSection({
 	return (
 		<div
 			role="group"
-			className="mb-8"
+			className={cn("mb-8", className)}
 			onMouseEnter={() => setIsHovered(true)}
 			onMouseLeave={() => setIsHovered(false)}
 		>
@@ -112,6 +115,7 @@ export function BackgroundSection({
 				onToggle={onToggle}
 				headerClassName="mb-3"
 				isHovered={isHovered}
+				showToggleButton={!!onToggle}
 			/>
 			{show &&
 				(isEditing ? (
@@ -126,9 +130,9 @@ export function BackgroundSection({
 							onKeyDown={handleKeyDown}
 							onBlur={handleBlur}
 							placeholder={t("backgroundPlaceholder")}
-							className="w-full min-h-[80px] resize-none rounded-md border border-primary bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+							className="w-full min-h-[120px] resize-none rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm text-foreground placeholder:text-muted-foreground/60 transition-colors focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20"
 						/>
-						<div data-background-actions className="mt-2 flex justify-end gap-2">
+						<div className="absolute right-1.5 top-1.5">
 							<VoiceInputButton
 								ownerId="background"
 								onTranscript={(text) => {
@@ -136,10 +140,12 @@ export function BackgroundSection({
 									adjustTextareaHeight();
 								}}
 							/>
+						</div>
+						<div data-background-actions className="mt-1.5 flex justify-end gap-1">
 							<button
 								type="button"
 								onClick={handleCancel}
-								className="flex items-center gap-1 rounded px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+								className="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
 							>
 								<X className="h-3.5 w-3.5" />
 								{t("cancel")}
@@ -147,7 +153,7 @@ export function BackgroundSection({
 							<button
 								type="button"
 								onClick={handleSave}
-								className="flex items-center gap-1 rounded bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 transition-colors"
+								className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground hover:bg-primary/90 transition-colors"
 							>
 								<Check className="h-3.5 w-3.5" />
 								{t("save")}
@@ -165,16 +171,16 @@ export function BackgroundSection({
 								handleStartEdit();
 							}
 						}}
-						className="w-full text-left group cursor-pointer rounded-md border border-border bg-muted/20 px-4 py-3 hover:border-primary/50 hover:bg-muted/40 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+						className="w-full text-left group cursor-pointer rounded-md border border-transparent px-3 py-2 hover:border-border/50 hover:bg-muted/30 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/30"
 					>
 						{displayValue ? (
-							<div className="markdown-content">
+							<div className="markdown-content text-sm leading-relaxed">
 								<ReactMarkdown remarkPlugins={[remarkGfm]}>
 									{displayValue}
 								</ReactMarkdown>
 							</div>
 						) : (
-							<span className="text-sm text-muted-foreground">
+							<span className="text-sm text-muted-foreground/70">
 								{t("backgroundEmptyPlaceholder")}
 							</span>
 						)}

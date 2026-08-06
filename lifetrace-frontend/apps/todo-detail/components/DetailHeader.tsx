@@ -36,14 +36,14 @@ export function DetailHeader({
 							<ArrowLeft className="h-4.5 w-4.5" />
 						</button>
 					)}
-					<div className="flex items-center rounded-full border border-border bg-muted/40 p-0.5 text-xs">
+					<div className="flex items-center gap-0.5 rounded-md bg-muted/40 p-0.5 text-xs">
 						<button
 							type="button"
 							onClick={() => onViewChange("detail")}
 							className={cn(
-								"rounded-full px-2.5 py-1 font-medium transition-colors",
+								"rounded-[5px] px-2.5 py-1 font-medium transition-all",
 								activeView === "detail"
-									? "bg-foreground text-background"
+									? "bg-background text-foreground shadow-sm"
 									: "text-muted-foreground hover:text-foreground",
 							)}
 						>
@@ -53,9 +53,9 @@ export function DetailHeader({
 							type="button"
 							onClick={() => onViewChange("artifacts")}
 							className={cn(
-								"rounded-full px-2.5 py-1 font-medium transition-colors",
+								"rounded-[5px] px-2.5 py-1 font-medium transition-all",
 								activeView === "artifacts"
-									? "bg-foreground text-background"
+									? "bg-background text-foreground shadow-sm"
 									: "text-muted-foreground hover:text-foreground",
 							)}
 						>

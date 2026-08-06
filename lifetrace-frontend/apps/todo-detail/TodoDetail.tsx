@@ -1,6 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { ChevronRight, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,6 @@ import type { Todo, TodoAttachment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ArtifactsView } from "./components/ArtifactsView";
 import { AttachmentPreviewPanel } from "./components/AttachmentPreviewPanel";
-import { BackgroundSection } from "./components/BackgroundSection";
 import { ChildTodoSection } from "./components/ChildTodoSection";
 import { DetailHeader } from "./components/DetailHeader";
 import { DetailTitle } from "./components/DetailTitle";
@@ -50,9 +50,7 @@ export function TodoDetail() {
 	const { panelFeatureMap, isPanelAOpen, isPanelBOpen } = useUiStore();
 	const isMobile = useIsMobile();
 
-	// 各 section 的折叠状态
-	const [showDescription, setShowDescription] = useState(false);
-	const [showNotes, setShowNotes] = useState(true);
+	// 子待办折叠状态
 	const [showChildTodos, setShowChildTodos] = useState(false);
 	const [activeView, setActiveView] = useState<"detail" | "artifacts">(
 		"detail",
@@ -363,17 +361,8 @@ export function TodoDetail() {
 							onScheduleChange={(input) => updateTodo(todo.id, input)}
 						/>
 
-						<BackgroundSection
-							description={todo.description}
-							show={showDescription}
-							onToggle={() => setShowDescription((prev) => !prev)}
-							onDescriptionChange={handleDescriptionChange}
-						/>
-
 						<NotesEditor
 							value={localUserNotes}
-							show={showNotes}
-							onToggle={() => setShowNotes((prev) => !prev)}
 							onChange={handleNotesChange}
 							onBlur={handleNotesBlur}
 						/>
@@ -388,6 +377,25 @@ export function TodoDetail() {
 							onToggleStatus={toggleTodoStatus}
 							onUpdateTodo={updateTodo}
 						/>
+
+						{(todo.attachments?.length ?? 0) > 0 && (
+							<button
+								type="button"
+								onClick={() => setActiveView("artifacts")}
+								className="group mt-2 flex w-full items-center justify-between rounded-md border border-transparent px-3 py-2 text-left transition-colors hover:border-border/50 hover:bg-muted/30"
+							>
+								<div className="flex items-center gap-2.5">
+									<FileText className="h-3.5 w-3.5 text-muted-foreground" />
+									<span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+										{t("artifactsViewLabel")}
+									</span>
+								</div>
+								<div className="flex items-center gap-2 text-xs text-muted-foreground">
+									<span className="tabular-nums">{todo.attachments?.length ?? 0}</span>
+									<ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+								</div>
+							</button>
+						)}
 					</>
 				) : (
 					<div className={cn("flex h-full min-h-0", isMobile ? "flex-col gap-4" : "gap-4")}>
@@ -403,7 +411,7 @@ export function TodoDetail() {
 							onUpload={handleUploadAttachments}
 							onRemove={handleRemoveAttachment}
 							onSelectAttachment={handleSelectAttachment}
-							onShowDetail={() => setActiveView("detail")}
+							onDescriptionChange={handleDescriptionChange}
 						/>
 						{previewPlacement === "right" && selectedAttachment && (
 							<AttachmentPreviewPanel

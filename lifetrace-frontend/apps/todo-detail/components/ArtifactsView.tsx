@@ -18,6 +18,7 @@ import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { toastError } from "@/lib/toast";
 import type { Todo, TodoAttachment } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { BackgroundSection } from "./BackgroundSection";
 
 interface ArtifactsViewProps {
 	todo: Todo;
@@ -25,7 +26,7 @@ interface ArtifactsViewProps {
 	onUpload: (files: File[]) => void;
 	onRemove: (attachmentId: number) => void;
 	onSelectAttachment: (attachment: TodoAttachment) => void;
-	onShowDetail: () => void;
+	onDescriptionChange?: (description: string) => void;
 }
 
 const formatBytes = (value?: number) => {
@@ -46,7 +47,7 @@ export function ArtifactsView({
 	onUpload,
 	onRemove,
 	onSelectAttachment,
-	onShowDetail,
+	onDescriptionChange,
 }: ArtifactsViewProps) {
 	const t = useTranslations("todoDetail");
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -175,31 +176,15 @@ export function ArtifactsView({
 						<NotebookText className="h-4 w-4" />
 						<span>{t("contextLabel")}</span>
 					</div>
-					<button
-						type="button"
-						onClick={onShowDetail}
-						className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-					>
-						{t("editContext")}
-					</button>
 				</div>
 
 				<div className="mt-4 grid gap-4">
 					<div className="rounded-lg border border-border bg-muted/20 px-3 py-3">
-						<div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-							{t("backgroundLabel")}
-						</div>
-						{todo.description ? (
-							<div className="text-sm text-foreground markdown-content">
-								<ReactMarkdown remarkPlugins={[remarkGfm]}>
-									{todo.description}
-								</ReactMarkdown>
-							</div>
-						) : (
-							<p className="text-sm text-muted-foreground">
-								{t("backgroundEmptyPlaceholder")}
-							</p>
-						)}
+						<BackgroundSection
+							description={todo.description}
+							onDescriptionChange={onDescriptionChange}
+							className="mb-0"
+						/>
 					</div>
 					<div className="rounded-lg border border-border bg-muted/20 px-3 py-3">
 						<div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
