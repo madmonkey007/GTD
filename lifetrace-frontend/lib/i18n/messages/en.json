@@ -974,6 +974,8 @@
     "addDeadline": "Add date",
     "addTags": "Add tags",
     "tagsPlaceholder": "Separate multiple tags with commas",
+    "tagInputPlaceholder": "Type a tag, press Enter to add",
+    "noTags": "No tags yet",
     "save": "Save",
     "cancel": "Cancel",
     "clear": "Clear",

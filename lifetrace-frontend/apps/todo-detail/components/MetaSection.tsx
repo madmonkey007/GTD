@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Flag, Tag as TagIcon } from "lucide-react";
+import { Calendar, Check, Flag, Tag as TagIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import type { Todo, TodoPriority, TodoStatus, UpdateTodoInput } from "@/lib/types";
@@ -16,6 +16,7 @@ import { DatePickerPopover } from "./DatePickerPopover";
 
 interface MetaSectionProps {
 	todo: Todo;
+	allTags: string[];
 	onStatusChange: (status: TodoStatus) => void;
 	onPriorityChange: (priority: TodoPriority) => void;
 	onTagsChange: (tags: string[]) => void;
@@ -24,6 +25,7 @@ interface MetaSectionProps {
 
 export function MetaSection({
 	todo,
+	allTags,
 	onStatusChange,
 	onPriorityChange,
 	onTagsChange,
@@ -34,12 +36,13 @@ export function MetaSection({
 	const statusMenuRef = useRef<HTMLDivElement | null>(null);
 	const priorityMenuRef = useRef<HTMLDivElement | null>(null);
 	const scheduleButtonRef = useRef<HTMLButtonElement | null>(null);
+	const tagMenuRef = useRef<HTMLDivElement | null>(null);
 
 	const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
 	const [isPriorityMenuOpen, setIsPriorityMenuOpen] = useState(false);
 	const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 	const [isEditingTags, setIsEditingTags] = useState(false);
-	const [tagsInput, setTagsInput] = useState(todo.tags?.join(", ") ?? "");
+	const [tagInput, setTagInput] = useState("");
 
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
@@ -52,6 +55,9 @@ export function MetaSection({
 				!priorityMenuRef.current.contains(target)
 			) {
 				setIsPriorityMenuOpen(false);
+			}
+			if (tagMenuRef.current && !tagMenuRef.current.contains(target)) {
+				setIsEditingTags(false);
 			}
 		};
 
@@ -76,22 +82,23 @@ export function MetaSection({
 		setIsPriorityMenuOpen(false);
 		setIsDatePickerOpen(false);
 		setIsEditingTags(false);
-		setTagsInput(todo.tags?.join(", ") ?? "");
-	}, [todo.tags]);
+		setTagInput("");
+	}, [todo.id]);
 
-	const handleTagsSave = () => {
-		const parsedTags = tagsInput
-			.split(",")
-			.map((t) => t.trim())
-			.filter(Boolean);
-		onTagsChange(parsedTags);
-		setIsEditingTags(false);
+	const currentTags = todo.tags ?? [];
+	const toggleTag = (tag: string) => {
+		const next = currentTags.includes(tag)
+			? currentTags.filter((t) => t !== tag)
+			: [...currentTags, tag];
+		onTagsChange(next);
 	};
-
-	const handleTagsClear = () => {
-		onTagsChange([]);
-		setTagsInput("");
-		setIsEditingTags(false);
+	const addTagFromInput = () => {
+		const tag = tagInput.trim();
+		if (!tag) return;
+		if (!currentTags.includes(tag)) {
+			onTagsChange([...currentTags, tag]);
+		}
+		setTagInput("");
 	};
 
 	const scheduleSummary =
@@ -238,59 +245,76 @@ export function MetaSection({
 					)}
 				</div>
 
-				<button
-					type="button"
-					onClick={() => {
-						setTagsInput(todo.tags?.join(", ") ?? "");
-						setIsEditingTags(true);
-					}}
-					className="flex items-center gap-1 rounded-md border border-transparent px-2 py-1 text-xs transition-colors hover:border-border hover:bg-muted/40"
-				>
-					<TagIcon className="h-3 w-3" />
-					<span className="truncate">
-						{todo.tags && todo.tags.length > 0
-							? todo.tags.join(", ")
-							: tTodoDetail("addTags")}
-					</span>
-				</button>
+				<div className="relative flex items-center" ref={tagMenuRef}>
+					<button
+						type="button"
+						onClick={() => setIsEditingTags((prev) => !prev)}
+						className="flex items-center gap-1 rounded-md border border-transparent px-2 py-1 text-xs transition-colors hover:border-border hover:bg-muted/40"
+						aria-expanded={isEditingTags}
+						aria-haspopup="listbox"
+					>
+						<TagIcon className="h-3 w-3" />
+						<span className="truncate">
+							{currentTags.length > 0
+								? currentTags.join(", ")
+								: tTodoDetail("addTags")}
+						</span>
+					</button>
+					{isEditingTags && (
+						<div className="pointer-events-auto absolute left-0 top-full z-120 mt-2 w-56 rounded-md border border-border bg-background shadow-lg">
+							{/* 顶部输入框：回车提交新标签 */}
+							<div className="border-b border-border/40 p-2">
+								<input
+									type="text"
+									value={tagInput}
+									onChange={(e) => setTagInput(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") {
+											e.preventDefault();
+											addTagFromInput();
+										}
+									}}
+									placeholder={tTodoDetail("tagInputPlaceholder")}
+									className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+								/>
+							</div>
+							{/* 已有标签列表：点击勾选/取消 */}
+							<div className="max-h-48 overflow-y-auto py-1" role="listbox">
+								{allTags.length === 0 && (
+									<div className="px-3 py-2 text-xs text-muted-foreground">
+										{tTodoDetail("noTags")}
+									</div>
+								)}
+								{allTags.map((tag) => {
+									const selected = currentTags.includes(tag);
+									return (
+										<button
+											key={tag}
+											type="button"
+											onClick={() => toggleTag(tag)}
+											role="option"
+											aria-selected={selected}
+											className={cn(
+												"flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors",
+												selected
+													? "bg-primary/10 text-primary"
+													: "text-foreground hover:bg-muted/70",
+											)}
+										>
+											<span className="flex items-center gap-1.5 truncate">
+												<TagIcon className="h-3 w-3 shrink-0" />
+												<span className="truncate">{tag}</span>
+											</span>
+											{selected && <Check className="h-3 w-3 shrink-0" />}
+										</button>
+									);
+								})}
+							</div>
+						</div>
+					)}
+				</div>
 
 			</div>
-
-			{isEditingTags && (
-				<div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-foreground">
-					<input
-						type="text"
-						value={tagsInput}
-						onChange={(e) => setTagsInput(e.target.value)}
-						placeholder={tTodoDetail("tagsPlaceholder")}
-						className="min-w-[120px] flex-1 basis-40 rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-					/>
-					<button
-						type="button"
-						onClick={handleTagsSave}
-						className="rounded-md bg-primary px-2 py-1 text-sm text-primary-foreground transition-colors hover:bg-primary/90"
-					>
-						{tTodoDetail("save")}
-					</button>
-					<button
-						type="button"
-						onClick={() => {
-							setIsEditingTags(false);
-							setTagsInput(todo.tags?.join(", ") ?? "");
-						}}
-						className="rounded-md border border-border px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted/40"
-					>
-						{tTodoDetail("cancel")}
-					</button>
-					<button
-						type="button"
-						onClick={handleTagsClear}
-						className="rounded-md border border-destructive/40 px-2 py-1 text-sm text-destructive transition-colors hover:bg-destructive/10"
-					>
-						{tTodoDetail("clear")}
-					</button>
-				</div>
-			)}
 		</div>
 	);
 }

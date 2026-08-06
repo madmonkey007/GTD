@@ -98,6 +98,15 @@ export function TodoDetail() {
 		[todo?.id, todos],
 	);
 
+	// 所有用过的标签，供详情面板的标签选择列表使用
+	const allTags = useMemo(
+		() =>
+			Array.from(
+				new Set(todos.flatMap((t: Todo) => t.tags ?? [])),
+			).sort() as string[],
+		[todos],
+	);
+
 	useEffect(() => {
 		if (todo?.id == null) {
 			setSelectedAttachment(null);
@@ -355,6 +364,7 @@ export function TodoDetail() {
 
 						<MetaSection
 							todo={todo}
+							allTags={allTags}
 							onStatusChange={(status) => updateTodo(todo.id, { status })}
 							onPriorityChange={(priority) => updateTodo(todo.id, { priority })}
 							onTagsChange={(tags) => updateTodo(todo.id, { tags })}

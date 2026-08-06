@@ -974,6 +974,8 @@
     "addDeadline": "添加日期",
     "addTags": "添加标签",
     "tagsPlaceholder": "使用逗号分隔多个标签",
+    "tagInputPlaceholder": "输入标签，回车添加",
+    "noTags": "暂无标签",
     "save": "保存",
     "cancel": "取消",
     "clear": "清空",
