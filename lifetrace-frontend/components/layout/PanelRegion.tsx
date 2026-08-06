@@ -73,8 +73,12 @@ function ListPanels({
 
 	useWindowAdaptivePanels(containerRef);
 
-	const PANEL_DUAL_THRESHOLD = 800;
-	const PANEL_TRIPLE_THRESHOLD = 1200;
+	// 面板挂载门槛，与 useWindowAdaptivePanels 的 MIN_PANEL_WIDTH_PX(300) 对齐：
+	// 2 个面板需 ≥2*300=600，3 个面板需 ≥3*300=900。之前 Panel C 门槛是 1200，
+	// 远高于自适应规则，导致拉宽窗口时代办详情(800)先出现并被拉得很宽，
+	// 而 chat 要到 1476px 窗口才出现，多数屏幕够不到。
+	const PANEL_DUAL_THRESHOLD = 600;
+	const PANEL_TRIPLE_THRESHOLD = 900;
 	const shouldShowPanelB = mounted ? width >= PANEL_DUAL_THRESHOLD : false;
 	const shouldShowPanelC = mounted ? width >= PANEL_TRIPLE_THRESHOLD : false;
 
