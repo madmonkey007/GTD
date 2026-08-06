@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Play, RotateCcw, Settings, Square, Minus, Plus } from "lucide-react";
 import { StatsChart } from "./components/StatsChart";
 import { useTimer } from "./hooks/useTimer";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 interface PomodoroConfig {
 	workMinutes: number;
@@ -61,21 +62,24 @@ function formatTime(seconds: number): string {
 function CircularProgress({
 	progress,
 	phase,
+	size = 396,
 }: {
 	progress: number;
 	phase: "work" | "break";
+	size?: number;
 }) {
 	const strokeWidth = 6;
-	const radius = 162;
+	const center = size / 2;
+	const radius = center - strokeWidth - 4;
 	const circumference = 2 * Math.PI * radius;
 	const offset = circumference * (1 - progress);
 	const color = phase === "work" ? "stroke-primary" : "stroke-emerald-500";
 
 	return (
-		<svg width="396" height="396" className="-rotate-90">
+		<svg width={size} height={size} className="-rotate-90">
 			<circle
-				cx="198"
-				cy="198"
+				cx={center}
+				cy={center}
 				r={radius}
 				fill="none"
 				stroke="currentColor"
@@ -83,8 +87,8 @@ function CircularProgress({
 				className="text-muted/30"
 			/>
 			<circle
-				cx="198"
-				cy="198"
+				cx={center}
+				cy={center}
 				r={radius}
 				fill="none"
 				strokeWidth={strokeWidth}
@@ -166,6 +170,8 @@ export function PomodoroView() {
 		setSessionCounter((c) => c + 1);
 	});
 	const stats = useMemo(() => getStats(), [sessionCounter]);
+	const isMobile = useIsMobile();
+	const circleSize = isMobile ? 260 : 396;
 
 	const updateConfig = (patch: Partial<PomodoroConfig>) => {
 		const next = { ...config, ...patch };
@@ -174,9 +180,9 @@ export function PomodoroView() {
 	};
 
 	return (
-		<div className="flex h-full">
+		<div className={`flex h-full ${isMobile ? "flex-col overflow-y-auto" : ""}`}>
 			{/* Left: Timer */}
-			<div className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
+			<div className={`flex flex-1 flex-col items-center justify-center gap-6 ${isMobile ? "p-4" : "p-8"}`}>
 				{/* Phase label */}
 				<span
 					className={`text-sm font-medium tracking-wider ${
@@ -188,9 +194,9 @@ export function PomodoroView() {
 
 				{/* Circular progress */}
 				<div className="relative flex items-center justify-center">
-					<CircularProgress progress={timer.progress} phase={timer.phase} />
+					<CircularProgress progress={timer.progress} phase={timer.phase} size={circleSize} />
 					<div className="absolute flex flex-col items-center">
-						<span className="text-5xl font-light tracking-tight tabular-nums">
+						<span className={`font-light tracking-tight tabular-nums ${isMobile ? "text-4xl" : "text-5xl"}`}>
 							{formatTime(timer.timeLeft)}
 						</span>
 					</div>
@@ -231,7 +237,7 @@ export function PomodoroView() {
 
 				{/* Settings panel */}
 				{showSettings && (
-					<div className="flex flex-col gap-3 rounded-xl border border-border/40 bg-muted/10 p-4">
+					<div className="flex w-full max-w-xs flex-col gap-3 rounded-xl border border-border/40 bg-muted/10 p-4">
 						<DurationControl
 							label="工作时长"
 							value={config.workMinutes}
@@ -247,7 +253,13 @@ export function PomodoroView() {
 			</div>
 
 			{/* Right: Stats */}
-			<div className="flex w-80 flex-col gap-4 border-l border-border/40 p-5">
+			<div
+				className={`flex flex-col gap-4 p-5 ${
+					isMobile
+						? "w-full border-t border-border/40"
+						: "w-80 border-l border-border/40"
+				}`}
+			>
 				<h3 className="text-sm font-semibold">今日概览</h3>
 
 				<div className="grid grid-cols-2 gap-2">
