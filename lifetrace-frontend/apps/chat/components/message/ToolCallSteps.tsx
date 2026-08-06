@@ -67,9 +67,9 @@ function ToolCallStepItem({ step, t }: ToolCallStepItemProps) {
 			className={cn(
 				"flex items-start gap-2 p-2 rounded-lg border transition-all duration-200",
 				status === "running"
-					? "border-border/60 bg-muted/30"
+					? "border-border/50 bg-muted/20"
 					: status === "completed"
-						? "border-border/60 bg-muted/30"
+						? "border-border/50 bg-muted/20"
 						: "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20",
 			)}
 		>

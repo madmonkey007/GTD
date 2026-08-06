@@ -27,7 +27,7 @@ export function HistoryDrawer({
 	onSelectSession,
 }: HistoryDrawerProps) {
 	return (
-		<div className="border-b border-border bg-muted/40 px-4 py-3">
+		<div className="border-b border-border bg-muted/20 px-4 py-3">
 			<div className="mb-2 flex items-center justify-between">
 				<p className="text-sm font-medium text-foreground">
 					{labels.recentSessions}
@@ -62,7 +62,7 @@ export function HistoryDrawer({
 									"transition-colors hover:bg-foreground/5",
 									"disabled:cursor-not-allowed disabled:opacity-60",
 									session.sessionId === conversationId
-										? "ring-2 ring-ring"
+										? "ring-1 ring-primary/30"
 										: "",
 								)}
 							>

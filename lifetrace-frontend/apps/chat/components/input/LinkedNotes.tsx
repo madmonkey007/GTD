@@ -17,7 +17,7 @@ export function LinkedNotes({ locale }: LinkedNotesProps) {
 			{linkedNotes.map((note) => (
 				<div
 					key={note.id}
-					className="relative group inline-flex items-center gap-1 rounded-full border border-border/70 bg-card/80 pl-3 pr-2 py-1"
+					className="relative group inline-flex items-center gap-1 rounded-full border border-border/50 bg-muted/20 pl-3 pr-2 py-1"
 				>
 					<span className="text-xs text-foreground truncate max-w-[150px]">
 						{note.name || (locale === "zh" ? "未命名笔记" : "Untitled note")}

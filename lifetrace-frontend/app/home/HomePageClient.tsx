@@ -237,7 +237,7 @@ export default function HomePageClient() {
 					}}
 				>
 					<div
-						className="flex-1 min-h-0 overflow-hidden bg-zinc-300 dark:bg-zinc-800"
+						className="flex-1 min-h-0 overflow-hidden bg-background"
 						>
 						<PanelRegion
 							width={mounted ? window.innerWidth : 1920}

@@ -62,13 +62,11 @@ export function TodoToolbar({
 	}, [isSearchOpen, searchQuery]);
 
 	return (
-		<div className="flex-shrink-0 px-4 pt-3 pb-2 border-b border-border/30">
+		<div className="flex-shrink-0 px-4 pt-3 pb-2 border-b border-border/40">
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
-					<div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
-						<ListTodo className="w-3.5 h-3.5 text-primary/60" />
-					</div>
-					<span className="text-sm font-semibold tracking-tight text-foreground/80">
+					<ListTodo className="w-4 h-4 text-primary/70" />
+					<span className="text-sm font-semibold tracking-tight text-foreground">
 						{tPage("todoListTitle")}
 					</span>
 				</div>

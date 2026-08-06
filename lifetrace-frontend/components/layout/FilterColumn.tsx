@@ -96,7 +96,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 			style={{ width: widthOverride ?? sidebarWidth }}
 		>
 			{/* 头部 */}
-			<div className="flex h-10 items-center justify-between px-3 border-b border-border/20">
+			<div className="flex h-10 items-center justify-between px-3 border-b border-border/40">
 				<span className="text-xs font-medium text-muted-foreground">筛选</span>
 				{isFilterActive && (
 					<button
@@ -131,7 +131,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 						>
 							<Icon className="h-3.5 w-3.5 shrink-0" />
 							<span className="flex-1 text-left">{item.label}</span>
-							<span className="rounded-full bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+							<span className="text-[10px] font-medium tabular-nums text-muted-foreground/70">
 								{count}
 							</span>
 						</button>
@@ -160,7 +160,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 						>
 							<Tag className="h-3 w-3 shrink-0" />
 							<span className="flex-1 truncate text-left">{tag}</span>
-							<span className="rounded-full bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+							<span className="text-[10px] font-medium tabular-nums text-muted-foreground/70">
 								{counts.tags[tag] ?? 0}
 							</span>
 						</button>

@@ -159,15 +159,20 @@ export function TodoCard({
 				}
 			}}
 			className={cn(
-				"todo-card group relative flex max-h-32 flex-col justify-start gap-1 rounded-xl px-3 py-2.5 cursor-pointer",
-				"border transition-all duration-200",
-				"bg-card dark:bg-background",
+				"todo-card group relative flex max-h-32 flex-col justify-start gap-1 rounded-lg px-3 py-2 cursor-pointer",
+				"transition-[background-color,box-shadow] duration-150",
+				"bg-transparent",
 				"select-none",
 				selected
-					? "bg-primary/[0.03] border-primary/20 dark:border-primary/25"
-					: "border-transparent hover:border-border/30 hover:bg-muted/[0.02]",
-				isDragging && "ring-2 ring-primary/20",
+					? "bg-primary/[0.05] dark:bg-primary/[0.08]"
+					: "hover:bg-muted/50",
+				isDragging && "ring-1 ring-primary/30",
 			)}
+			style={
+				selected
+					? { boxShadow: "inset 2px 0 0 0 oklch(var(--primary))" }
+					: undefined
+			}
 		>
 			<div className="flex items-start gap-1.5">
 				<TodoCardExpandButton
@@ -227,13 +232,13 @@ export function TodoCard({
 								aria-label={tTodoDetail("getAdvice")}
 								title={tTodoDetail("getAdviceTitle")}
 							>
-								<Sparkles className="h-3.5 w-3.5 text-amber-500/70" />
+								<Sparkles className="h-3.5 w-3.5 text-primary/60" />
 							</button>
 						</div>
 
 						<div className="flex items-center gap-2 shrink-0">
 							{todo.attachments && todo.attachments.length > 0 && (
-								<span className="flex items-center gap-1 rounded-md border border-border/30 px-1.5 py-0.5 text-[10px] text-muted-foreground/60 bg-muted/20">
+								<span className="flex items-center gap-0.5 text-[10px] tabular-nums text-muted-foreground/60">
 									<Paperclip className="h-3 w-3" />
 									{todo.attachments.length}
 								</span>

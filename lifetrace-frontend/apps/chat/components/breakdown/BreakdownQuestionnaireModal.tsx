@@ -175,7 +175,7 @@ export function BreakdownQuestionnaireModal({
 			</div>
 
 			{/* ── Question card ── */}
-			<div className="rounded-xl border bg-card shadow-lg">
+			<div className="rounded-lg border border-border/40 bg-background shadow-sm">
 				<div className="p-5">
 					{/* Question header */}
 					<div className="mb-4">

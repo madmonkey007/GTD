@@ -149,9 +149,9 @@ export function InputBox({
 		return (
 			<div
 				className={cn(
-					"flex flex-col rounded-xl border border-border/40",
-					"bg-background px-3.5 py-2.5 transition-all duration-200",
-					"focus-within:border-primary/30 focus-within:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)]",
+					"flex flex-col rounded-md border border-border",
+					"bg-background px-3 py-2 transition-colors duration-150",
+					"focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20",
 				)}
 			>
 				{/* 关联待办区域 */}
@@ -181,7 +181,7 @@ export function InputBox({
 						rows={SINGLE_LINE_ROWS}
 						style={{ maxHeight, minHeight: `${MIN_TEXTAREA_HEIGHT}px` }}
 						className={cn(
-							"flex-1 resize-none bg-transparent text-sm text-foreground/80 placeholder:text-muted-foreground/40",
+							"flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40",
 							"focus-visible:outline-none overflow-y-auto leading-relaxed",
 						)}
 					/>

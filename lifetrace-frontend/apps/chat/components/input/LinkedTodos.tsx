@@ -31,7 +31,7 @@ export function LinkedTodos({
 			{previewTodos.map((todo) => (
 				<div
 					key={todo.id}
-					className="relative group inline-flex items-center gap-1 rounded-full border border-border/70 bg-card/80 pl-3 pr-2 py-1"
+					className="relative group inline-flex items-center gap-1 rounded-full border border-border/50 bg-muted/20 pl-3 pr-2 py-1"
 				>
 					<span className="text-xs text-foreground">{todo.name}</span>
 					<button

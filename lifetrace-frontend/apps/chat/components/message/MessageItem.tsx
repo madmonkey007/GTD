@@ -115,9 +115,9 @@ export function MessageItem({
 							ref={handleMessageBoxRef}
 							role="group"
 							className={cn(
-								"relative rounded-2xl px-4 py-3 text-sm",
+								"relative rounded-xl px-4 py-3 text-sm",
 								message.role === "assistant"
-									? "bg-muted/25 text-foreground border border-border/30"
+									? "bg-muted/15 text-foreground border border-border/30"
 									: "bg-primary/8 text-foreground border border-primary/10",
 							)}
 							onMouseEnter={() => {

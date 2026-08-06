@@ -28,13 +28,8 @@ export function WelcomeGreetings({
 			)}
 		>
 			<div className="flex flex-col items-center gap-5 text-center">
-				<div className="relative">
-					<div className="w-16 h-16 rounded-2xl bg-primary/8 flex items-center justify-center ring-1 ring-primary/10">
-						<Sparkles className="w-7 h-7 text-primary/60" />
-					</div>
-					<div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary/15 flex items-center justify-center">
-						<div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-					</div>
+				<div className="w-12 h-12 rounded-xl bg-primary/5 flex items-center justify-center">
+					<Sparkles className="w-5.5 h-5.5 text-primary/60" />
 				</div>
 
 				<div className="space-y-1.5">
