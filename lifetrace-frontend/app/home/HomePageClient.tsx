@@ -19,6 +19,18 @@ export default function HomePageClient() {
 
 	// 使用 mounted 状态来避免 SSR 水合不匹配
 	const [mounted, setMounted] = useState(false);
+
+	// 响应式窗口宽度：传给 PanelRegion 的 width 必须随窗口 resize 实时更新，
+	// 否则 ListPanels 的面板挂载门槛（800/1200）会用到滞后值，导致缩窄后再拉宽时
+	// 已卸载的面板（如 chat）不会被重新挂载。
+	const [winWidth, setWinWidth] = useState(1920);
+	useEffect(() => {
+		const update = () => setWinWidth(window.innerWidth);
+		update();
+		window.addEventListener("resize", update);
+		return () => window.removeEventListener("resize", update);
+	}, []);
+
 	useEffect(() => {
 		setMounted(true);
 
@@ -240,7 +252,7 @@ export default function HomePageClient() {
 						className="flex-1 min-h-0 overflow-hidden bg-background"
 						>
 						<PanelRegion
-							width={mounted ? window.innerWidth : 1920}
+							width={mounted ? winWidth : 1920}
 							isMaximizeMode={true}
 							isInPanelMode={false}
 							isDraggingPanelA={isDraggingPanelA}
