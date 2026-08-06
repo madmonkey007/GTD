@@ -18,7 +18,7 @@ import type { PanelFeature } from "@/lib/config/panel-config";
 import { GlobalDndProvider } from "@/lib/dnd";
 import { usePanelResize } from "@/lib/hooks/usePanelResize";
 import { IslandMode } from "@/lib/island/types";
-import { type DockDisplayMode, useUiStore } from "@/lib/store/ui-store";
+import { useUiStore } from "@/lib/store/ui-store";
 
 interface IslandSidebarContentProps {
   onModeChange: (mode: IslandMode) => void;
@@ -93,14 +93,10 @@ export function IslandSidebarContent({ onModeChange, onHeaderDragStart, isDraggi
     panelCWidth,
     setPanelAWidth,
     setPanelCWidth,
-    dockDisplayMode,
-    setDockDisplayMode,
     setPanelFeature,
     getAvailableFeatures,
     panelFeatureMap,
   } = useUiStore();
-
-  const previousDockModeRef = useRef<DockDisplayMode | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -136,22 +132,6 @@ export function IslandSidebarContent({ onModeChange, onHeaderDragStart, isDraggi
     }
   }, [mounted]);
 
-
-  useEffect(() => {
-    // Save current dock mode only on first mount (when ref is null)
-    if (previousDockModeRef.current === null) {
-      previousDockModeRef.current = dockDisplayMode;
-    }
-    // Force dock to be always visible in Island sidebar mode
-    setDockDisplayMode("fixed");
-
-    // Restore previous dock mode on unmount
-    return () => {
-      if (previousDockModeRef.current !== null) {
-        setDockDisplayMode(previousDockModeRef.current);
-      }
-    };
-  }, [dockDisplayMode, setDockDisplayMode]);
 
   // 设置全局调整大小光标
   const setGlobalResizeCursor = useCallback((enabled: boolean) => {

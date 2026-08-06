@@ -30,8 +30,6 @@ export const useUiStore = create<UiStoreState>()(
 			backendDisabledFeatures: DEFAULT_PANEL_STATE.backendDisabledFeatures,
 			// 自动关闭的panel栈
 			autoClosedPanels: DEFAULT_PANEL_STATE.autoClosedPanels,
-			// Dock 显示模式
-			dockDisplayMode: DEFAULT_PANEL_STATE.dockDisplayMode,
 			// 是否显示 Agno 工具选择器
 			showAgnoToolSelector: DEFAULT_PANEL_STATE.showAgnoToolSelector,
 			// Agno 模式下选中的 GTD 工具
@@ -426,12 +424,6 @@ export const useUiStore = create<UiStoreState>()(
 			clearAutoClosedPanels: () =>
 				set(() => ({
 					autoClosedPanels: [],
-				})),
-
-			// Dock 显示模式设置方法
-			setDockDisplayMode: (mode) =>
-				set(() => ({
-					dockDisplayMode: mode,
 				})),
 
 			// 设置是否显示 Agno 工具选择器

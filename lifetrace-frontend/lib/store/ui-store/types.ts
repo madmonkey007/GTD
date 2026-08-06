@@ -1,8 +1,5 @@
 import type { PanelFeature, PanelPosition } from "@/lib/config/panel-config";
 
-// Dock 显示模式类型
-export type DockDisplayMode = "fixed" | "auto-hide";
-
 // 侧边栏模式类型
 export type SidebarMode = "today" | "last7days" | "list" | null;
 
@@ -43,8 +40,6 @@ export interface UiStoreState {
 	backendDisabledFeatures: PanelFeature[];
 	// 自动关闭的panel栈（记录因窗口缩小而自动关闭的panel，从右到左的顺序）
 	autoClosedPanels: PanelPosition[];
-	// Dock 显示模式：固定显示或鼠标离开时自动隐藏
-	dockDisplayMode: DockDisplayMode;
 	// 是否显示 Agno 模式的工具选择器（默认关闭）
 	showAgnoToolSelector: boolean;
 	// Agno 模式下选中的 GTD 工具列表（空数组表示不使用任何工具）
@@ -97,7 +92,6 @@ export interface UiStoreState {
 	restoreAutoClosedPanel: () => void;
 	clearAutoClosedPanels: () => void;
 	// Dock 显示模式设置方法
-	setDockDisplayMode: (mode: DockDisplayMode) => void;
 	// 设置是否显示 Agno 工具选择器
 	setShowAgnoToolSelector: (show: boolean) => void;
 	// 设置 Agno 模式下选中的 GTD 工具

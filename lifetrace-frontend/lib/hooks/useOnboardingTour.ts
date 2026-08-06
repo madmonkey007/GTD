@@ -4,7 +4,6 @@ import { type Driver, driver } from "driver.js";
 import { useTranslations } from "next-intl";
 import { useCallback, useRef } from "react";
 import { useOnboardingStore } from "@/lib/store/onboarding-store";
-import { useUiStore } from "@/lib/store/ui-store";
 import { useOpenSettings } from "./useOpenSettings";
 
 /**
@@ -39,7 +38,6 @@ function selectSettingsCategory(category: string): void {
 export function useOnboardingTour() {
 	const { hasCompletedTour, completeTour, setCurrentStep } =
 		useOnboardingStore();
-	const { setDockDisplayMode } = useUiStore();
 	const { openSettings } = useOpenSettings();
 	const t = useTranslations("onboarding");
 	const driverRef = useRef<Driver | null>(null);
@@ -48,9 +46,6 @@ export function useOnboardingTour() {
 	 * Create and start the driver tour
 	 */
 	const createAndStartTour = useCallback(() => {
-		// 引导期间保持 dock 固定显示
-		setDockDisplayMode("fixed");
-
 		const driverObj = driver({
 			showProgress: true,
 			progressText: "{{current}} / {{total}}",
@@ -78,8 +73,6 @@ export function useOnboardingTour() {
 			onDestroyed: () => {
 				completeTour();
 				setCurrentStep(null);
-				// 引导结束后保持 dock 固定显示并隐藏触发区域
-				setDockDisplayMode("fixed");
 				window.dispatchEvent(new Event("onboarding:hide-dock-trigger-zone"));
 			},
 
@@ -130,8 +123,6 @@ export function useOnboardingTour() {
 						align: "center" as const,
 					},
 					onHighlightStarted: () => {
-						// 固定显示 dock
-						setDockDisplayMode("fixed");
 						// 恢复 overlay 的点击阻止功能
 						const overlay = document.querySelector(".driver-overlay");
 						if (overlay) {
@@ -298,7 +289,7 @@ export function useOnboardingTour() {
 
 		driverRef.current = driverObj;
 		driverObj.drive();
-	}, [completeTour, setCurrentStep, setDockDisplayMode, openSettings, t]);
+	}, [completeTour, setCurrentStep, openSettings, t]);
 
 	/**
 	 * Start the onboarding tour (only if not completed)

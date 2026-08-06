@@ -15,7 +15,6 @@ import {
 	AutoTodoDetectionSection,
 	// DifyConfigSection,
 	DevToolsPreferencesSection,
-	DockDisplayModeSection,
 	JournalSettingsSection,
 	LlmConfigSection,
 	NotificationPermissionSection,
@@ -134,7 +133,6 @@ export function SettingsPanel() {
 				return (
 					<>
 						<AppearanceSection />
-						<DockDisplayModeSection loading={loading} />
 						<PanelSwitchesSection loading={loading} />
 						<NotificationPermissionSection loading={loading} />
 					</>

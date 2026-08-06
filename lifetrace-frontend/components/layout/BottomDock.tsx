@@ -207,7 +207,6 @@ export function BottomDock({
 		togglePanelB,
 		togglePanelC,
 		setPanelFeature,
-		dockDisplayMode,
 		panelFeatureMap, // ✅ 直接订阅 panelFeatureMap，确保交换位置后能触发重新渲染
 		disabledFeatures, // ✅ 也需要订阅 disabledFeatures，确保禁用功能被正确处理
 		backendDisabledFeatures,
@@ -376,27 +375,15 @@ export function BottomDock({
 		}
 	}, []);
 
-	// 全局鼠标位置监听 - 当鼠标接近屏幕底部时展开 dock（仅在自动隐藏模式下生效）
+	// 始终展开（"底部 Dock 显示模式"设置已移除，dock 固定为可见）
 	useEffect(() => {
 		if (!mounted) return;
-
-		// 固定模式：始终展开，不需要监听鼠标事件
-		if (dockDisplayMode === "fixed") {
-			setIsExpanded(true);
-			if (hideTimeoutRef.current) {
-				clearTimeout(hideTimeoutRef.current);
-				hideTimeoutRef.current = null;
-			}
-			return;
-		}
-
-		// 自动隐藏模式：始终保持隐藏，不响应鼠标触底
-		setIsExpanded(false);
+		setIsExpanded(true);
 		if (hideTimeoutRef.current) {
 			clearTimeout(hideTimeoutRef.current);
 			hideTimeoutRef.current = null;
 		}
-	}, [mounted, dockDisplayMode]);
+	}, [mounted]);
 
 	// 计算收起时的 translateY 值
 	// 收起时，dock 完全隐藏到屏幕底部外

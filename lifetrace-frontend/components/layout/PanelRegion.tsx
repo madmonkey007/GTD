@@ -14,7 +14,6 @@ import { useWindowAdaptivePanels } from "@/lib/hooks/useWindowAdaptivePanels";
 import { useUiStore } from "@/lib/store/ui-store";
 import type { SidebarView } from "@/lib/store/ui-store/types";
 import { cn } from "@/lib/utils";
-import { BottomDock } from "./BottomDock";
 import { FilterColumn } from "./FilterColumn";
 import { MobileDetailOverlay } from "./MobileDetailOverlay";
 import { MobileTopBar } from "./MobileTopBar";
@@ -25,8 +24,6 @@ import { ResizeHandle } from "./ResizeHandle";
 import { SidebarNav } from "./SidebarNav";
 
 // ========== 布局常量 ==========
-const BOTTOM_DOCK_HEIGHT = 60;
-const DOCK_MARGIN_TOP = 0;
 const SIDEBAR_WIDTH = 56; // 固定 w-14
 
 interface PanelRegionProps {
@@ -72,7 +69,6 @@ function ListPanels({
 		isPanelCOpen,
 		panelAWidth,
 		panelCWidth,
-		dockDisplayMode,
 	} = useUiStore();
 
 	useWindowAdaptivePanels(containerRef);
@@ -92,12 +88,6 @@ function ListPanels({
 	const showPanelAHandle = showPanelA && showPanelB;
 	const showPanelCHandle = showPanelC && (showPanelB || showPanelA);
 	const isACOnly = showPanelA && showPanelC && !showPanelB;
-
-	const visiblePanelCount = useMemo(() => {
-		if (shouldShowPanelC) return 3;
-		if (shouldShowPanelB) return 2;
-		return 1;
-	}, [shouldShowPanelB, shouldShowPanelC]);
 
 	const layoutState = useMemo(() => {
 		if (!mounted) {
@@ -223,36 +213,6 @@ function ListPanels({
 				)}
 			</div>
 
-			{/* BottomDock */}
-			{dockDisplayMode !== "auto-hide" && (
-			<div
-				ref={(el) => {
-					(bottomDockContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-					if (el) {
-						requestAnimationFrame(() => {
-							if (el) {
-								el.style.setProperty("height", `${BOTTOM_DOCK_HEIGHT}px`, "important");
-								el.style.setProperty("min-height", `${BOTTOM_DOCK_HEIGHT}px`, "important");
-								el.style.setProperty("max-height", `${BOTTOM_DOCK_HEIGHT}px`, "important");
-							}
-						});
-					}
-				}}
-				className="relative flex shrink-0 items-center justify-center"
-				style={{
-					pointerEvents: "auto",
-					height: BOTTOM_DOCK_HEIGHT,
-					marginTop: DOCK_MARGIN_TOP,
-				}}
-			>
-				<BottomDock
-					className={isInPanelMode ? "!relative !bottom-auto !left-auto !translate-x-0" : undefined}
-					isInPanelMode={isInPanelMode}
-					panelContainerRef={bottomDockContainerRef as React.RefObject<HTMLElement | null>}
-					visiblePanelCount={visiblePanelCount}
-				/>
-			</div>
-			)}
 			<SettingsModal />
 			<MobileDetailOverlay />
 		</div>

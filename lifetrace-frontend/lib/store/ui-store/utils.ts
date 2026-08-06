@@ -3,7 +3,6 @@ import {
 	ALL_PANEL_FEATURES,
 	DEV_IN_PROGRESS_FEATURES,
 } from "@/lib/config/panel-config";
-import type { DockDisplayMode } from "./types";
 
 // 宽度限制常量
 export const MIN_PANEL_WIDTH = 0.2;
@@ -58,7 +57,6 @@ export const DEFAULT_PANEL_STATE = {
 		panelC: false,
 	},
 	autoClosedPanels: [] as PanelPosition[],
-	dockDisplayMode: "auto-hide" as DockDisplayMode,
 	sidebarWidth: 220,
 	sidebarMode: null,
 	sidebarTag: null,

@@ -1,7 +1,7 @@
 import { createJSONStorage } from "zustand/middleware";
 import type { PanelFeature, PanelPosition } from "@/lib/config/panel-config";
 import { ALL_PANEL_FEATURES } from "@/lib/config/panel-config";
-import type { DockDisplayMode, LayoutPreset, SidebarView, UiStoreState } from "./types";
+import type { LayoutPreset, SidebarView, UiStoreState } from "./types";
 import { clampWidth, DEFAULT_PANEL_STATE, validatePanelFeatureMap } from "./utils";
 
 type PersistedState = Partial<UiStoreState> & {
@@ -11,7 +11,6 @@ type PersistedState = Partial<UiStoreState> & {
 };
 
 const VALID_POSITIONS: PanelPosition[] = ["panelA", "panelB", "panelC"];
-const VALID_DOCK_MODES: DockDisplayMode[] = ["fixed", "auto-hide"];
 const VALID_VIEWS: SidebarView[] = ["list", "calendar", "quadrants", "pomodoro", "habits"];
 const VALID_EXTERNAL_TOOL_IDS = new Set(DEFAULT_PANEL_STATE.selectedExternalTools);
 
@@ -114,14 +113,6 @@ export const createUiStoreStorage = () =>
 						);
 					} else {
 						state.autoClosedPanels = DEFAULT_PANEL_STATE.autoClosedPanels;
-					}
-
-					// 校验 dock 显示模式
-					if (
-						!state.dockDisplayMode ||
-						!VALID_DOCK_MODES.includes(state.dockDisplayMode)
-					) {
-						state.dockDisplayMode = DEFAULT_PANEL_STATE.dockDisplayMode;
 					}
 
 					// 校验 activeView

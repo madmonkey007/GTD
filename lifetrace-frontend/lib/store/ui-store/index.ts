@@ -4,7 +4,7 @@
 export { LAYOUT_PRESETS } from "./layout-presets";
 // Store 导出
 export { useUiStore } from "./store";
-export type { DockDisplayMode, LayoutPreset, UiStoreState } from "./types";
+export type { LayoutPreset, UiStoreState } from "./types";
 // 工具函数导出
 export {
 	clampWidth,
