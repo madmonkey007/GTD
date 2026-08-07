@@ -32,7 +32,7 @@ dependencies = [
     # "funasr>=1.0.0",  # 注释掉，作为可选依赖
     # Data processing
     "pyyaml>=6.0",
-    "chromadb>=1.4.1",              # 向量数据库
+    "chromadb>=1.5.9",              # 向量数据库
     "scipy>=1.9.0",                 # 科学计算（用于余弦距离，不依赖 torch）
     "hdbscan>=0.8.0",               # 文本聚类算法（不依赖 torch）
     # Scheduler
