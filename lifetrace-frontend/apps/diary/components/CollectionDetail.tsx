@@ -8,6 +8,7 @@ import { compressImageIfNeeded } from "@/lib/imageCompress";
 import { useCollection, useCollectionMutations } from "@/lib/query";
 import { toastError } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { CoverGeneratorModal } from "./CoverGeneratorModal";
 import { CollectionNoteManager } from "./CollectionNoteManager";
 import { CollectionListView } from "./CollectionListView";
 import { CollectionPlayView } from "./CollectionPlayView";
@@ -43,6 +44,8 @@ export function CollectionDetail({
 	const [viewMode, setViewMode] = useState<"list" | "swipe">("list");
 	const [swipeStart, setSwipeStart] = useState(0);
 	const [menuOpen, setMenuOpen] = useState(false);
+	const [coverMenuOpen, setCoverMenuOpen] = useState(false);
+	const [showGenerator, setShowGenerator] = useState(false);
 	const [showManager, setShowManager] = useState(false);
 	const [summary, setSummary] = useState<string | null>(null);
 	const [recommendItems, setRecommendItems] = useState<
@@ -219,39 +222,84 @@ export function CollectionDetail({
 				</div>
 			</div>
 
-			{/* 头部：封面 + 标题 + 描述 + 元信息 */}
-			<div className="shrink-0">
-				<div className="relative h-40 w-full bg-muted/40">
-					{collection.coverImageUrl ? (
-						// eslint-disable-next-line @next/next/no-img-element
-						<img
-							src={collection.coverImageUrl}
-							alt=""
-							className="h-full w-full object-cover"
+			{/* 头部：海报式（左封面 + 右名称/描述/元信息） */}
+			<div className="shrink-0 px-4 pt-4">
+				<div className="flex gap-4">
+					{/* 左：封面海报 */}
+					<div className="relative shrink-0">
+						<button
+							type="button"
+							onClick={() => setCoverMenuOpen((v) => !v)}
+							className="block h-40 w-32 overflow-hidden rounded-(--radius) bg-muted/40 shadow-[0_4px_16px_0_rgba(0,0,0,0.12)]"
+							aria-label={t("changeCover")}
+						>
+							{collection.coverImageUrl ? (
+								// eslint-disable-next-line @next/next/no-img-element
+								<img
+									src={collection.coverImageUrl}
+									alt=""
+									className="h-full w-full object-cover"
+								/>
+							) : (
+								<div className="flex h-full w-full items-center justify-center text-muted-foreground/40">
+									<Library className="h-8 w-8" />
+								</div>
+							)}
+						</button>
+						<button
+							type="button"
+							onClick={() => setCoverMenuOpen((v) => !v)}
+							className="mt-1.5 flex w-full items-center justify-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40"
+						>
+							<ImagePlus className="h-3.5 w-3.5" />
+							{t("changeCover")}
+						</button>
+						<input
+							ref={fileInputRef}
+							type="file"
+							accept="image/*"
+							className="hidden"
+							onChange={handleCoverPick}
 						/>
-					) : (
-						<div className="flex h-full w-full items-center justify-center text-muted-foreground/40">
-							<Library className="h-8 w-8" />
-						</div>
-					)}
-					<button
-						type="button"
-						onClick={() => fileInputRef.current?.click()}
-						aria-label={t("changeCover")}
-						className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm transition-transform hover:bg-background active:scale-[0.95]"
-					>
-						<ImagePlus className="h-4 w-4" />
-					</button>
-					<input
-						ref={fileInputRef}
-						type="file"
-						accept="image/*"
-						className="hidden"
-						onChange={handleCoverPick}
-					/>
-				</div>
+						{coverMenuOpen && (
+							<>
+								<button
+									type="button"
+									aria-hidden
+									tabIndex={-1}
+									onClick={() => setCoverMenuOpen(false)}
+									className="fixed inset-0 z-40 cursor-default"
+								/>
+								<div className="absolute left-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-md border border-border/50 bg-background shadow-lg">
+									<button
+										type="button"
+										onClick={() => {
+											setCoverMenuOpen(false);
+											setShowGenerator(true);
+										}}
+										className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/40"
+									>
+										<Sparkles className="h-3.5 w-3.5 text-[#d97757]" />
+										{t("generateCover")}
+									</button>
+									<button
+										type="button"
+										onClick={() => {
+											setCoverMenuOpen(false);
+											fileInputRef.current?.click();
+										}}
+										className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/40"
+									>
+										<ImagePlus className="h-3.5 w-3.5" />
+										{t("uploadImage")}
+									</button>
+								</div>
+							</>
+						)}
+					</div>
 
-				<div className="px-4 pt-3 pb-1">
+					{/* 右：标题/描述/元信息 */}
+					<div className="min-w-0 flex-1 pt-1">
 					{/* 可编辑标题 */}
 					{editingName ? (
 						<div className="mb-2 flex items-center gap-2">
@@ -351,6 +399,7 @@ export function CollectionDetail({
 							{t("manageNotes")}
 						</button>
 					</div>
+					</div>
 				</div>
 			</div>
 
@@ -369,6 +418,21 @@ export function CollectionDetail({
 					/>
 				)}
 			</div>
+
+			{/* 封面生成器弹层 */}
+			{showGenerator && (
+				<CoverGeneratorModal
+					collectionName={collection.name}
+					onCancel={() => setShowGenerator(false)}
+					onGenerated={async (url) => {
+						setShowGenerator(false);
+						await updateCollectionAsync({
+							id: collectionId,
+							input: { coverImageUrl: url },
+						});
+					}}
+				/>
+			)}
 
 			{/* 管理笔记弹层 */}
 			{showManager && (
