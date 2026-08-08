@@ -275,6 +275,41 @@ class JournalTagRelation(SQLModel, table=True):
         return f"<JournalTagRelation(id={self.id}, journal_id={self.journal_id}, tag_id={self.tag_id})>"
 
 
+class Collection(TimestampMixin, table=True):
+    """笔记集合（Collection）—— 用户主动创建的意义集合，类似音乐歌单。
+
+    与笔记（Journal）为多对多关系，通过 CollectionNoteRelation 关联。
+    """
+
+    __tablename__: ClassVar[str] = "collections"
+
+    id: int | None = Field(default=None, primary_key=True)
+    uid: str = Field(
+        default_factory=lambda: str(uuid4()), max_length=64, index=True
+    )
+    name: str = Field(max_length=200)  # 集合名称
+    description: str | None = Field(default=None, sa_column=Column(Text))  # 集合描述
+    cover_image_url: str | None = Field(default=None, max_length=500)  # 封面图地址
+
+    def __repr__(self):
+        return f"<Collection(id={self.id}, name={self.name})>"
+
+
+class CollectionNoteRelation(SQLModel, table=True):
+    """集合与笔记的多对多关联关系（一条笔记可属多个集合，也可不属于任何集合）。"""
+
+    __tablename__: ClassVar[str] = "collection_note_relations"
+
+    id: int | None = Field(default=None, primary_key=True)
+    collection_id: int  # 关联的集合ID
+    journal_id: int  # 关联的笔记ID
+    created_at: datetime = Field(default_factory=get_utc_time)
+    deleted_at: datetime | None = None
+
+    def __repr__(self):
+        return f"<CollectionNoteRelation(id={self.id}, collection_id={self.collection_id}, journal_id={self.journal_id})>"
+
+
 class JournalTodoRelation(SQLModel, table=True):
     """日记与待办的关联关系"""
 
