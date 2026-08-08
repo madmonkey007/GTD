@@ -128,6 +128,18 @@ export const queryKeys = {
 		candidates: (noteId: number) =>
 			["noteLinks", "candidates", noteId] as const,
 	},
+
+	/**
+	 * Collection（笔记集合）相关查询键
+	 */
+	collections: {
+		/** 所有 collection 相关查询的根键 */
+		all: ["collections"] as const,
+		/** 集合列表 */
+		list: ["collections", "list"] as const,
+		/** 单个集合详情（含 notes） */
+		detail: (id: number) => ["collections", "detail", id] as const,
+	},
 } as const;
 
 /**

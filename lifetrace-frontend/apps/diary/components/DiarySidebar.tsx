@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { DiaryFilterMode, DiaryStatsData } from "@/apps/diary/hooks/useDiaryStats";
+import { CollectionList } from "./CollectionList";
 import { DiaryFilterBar } from "./DiaryFilterBar";
 import { DiaryHeatmap } from "./DiaryHeatmap";
 import { DiaryStats } from "./DiaryStats";
@@ -18,6 +19,9 @@ interface DiarySidebarProps {
 	onShowTrash?: () => void;
 	selectedTag?: string | null;
 	onSelectTag?: (tagName: string | null) => void;
+	selectedCollectionId?: number | null;
+	onSelectCollection?: (id: number) => void;
+	onOpenGallery?: () => void;
 }
 
 export function DiarySidebar({
@@ -29,6 +33,9 @@ export function DiarySidebar({
 	onShowTrash,
 	selectedTag,
 	onSelectTag,
+	selectedCollectionId,
+	onSelectCollection,
+	onOpenGallery,
 }: DiarySidebarProps) {
 	const t = useTranslations("journalPanel");
 
@@ -57,6 +64,13 @@ export function DiarySidebar({
 			<DiaryFilterBar
 				filterMode={filterMode}
 				onFilterModeChange={onFilterModeChange}
+			/>
+
+			{/* Collections（集合入口，位于标签上方） */}
+			<CollectionList
+				selectedCollectionId={selectedCollectionId}
+				onSelectCollection={onSelectCollection}
+				onOpenGallery={onOpenGallery}
 			/>
 
 			{/* Tags */}

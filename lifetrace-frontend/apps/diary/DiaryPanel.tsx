@@ -28,6 +28,7 @@ import { useJournalStore } from "@/lib/store/journal-store";
 import { useFocusTarget } from "@/lib/store/focus-target-store";
 import { usePinStore } from "@/lib/store/pin-store";
 import { useLocaleStore } from "@/lib/store/locale";
+import { cn } from "@/lib/utils";
 import type { JournalDraft } from "@/apps/diary/types";
 import type { TrashEntry } from "@/apps/diary/hooks/useJournalTrash";
 import { useJournalTrash } from "@/apps/diary/hooks/useJournalTrash";
@@ -35,6 +36,8 @@ import { DiaryTrashView } from "@/apps/diary/components/DiaryTrashView";
 import { DiaryChatPanel } from "@/apps/diary/components/DiaryChatPanel";
 import { AnnotationModal } from "@/apps/diary/components/AnnotationModal";
 import { CompareNotesModal } from "@/apps/diary/components/CompareNotesModal";
+import { CollectionDetail } from "@/apps/diary/components/CollectionDetail";
+import { CollectionGallery } from "@/apps/diary/components/CollectionGallery";
 const emptyDraft = (date: Date): JournalDraft => ({
 	id: null,
 	name: "",
@@ -114,6 +117,19 @@ export function DiaryPanel() {
 	const showRightInline = containerWidth >= 900 || containerWidth === 0;
 	const [showTrash, setShowTrash] = useState(false);
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
+	// 集合视图：none=正常笔记编辑；gallery=集合画廊；detail=单个集合详情
+	const [collectionView, setCollectionView] = useState<"none" | "gallery" | "detail">("none");
+	const [selectedCollectionId, setSelectedCollectionId] = useState<number | null>(null);
+
+	const openGallery = useCallback(() => {
+		setShowTrash(false);
+		setSelectedTag(null);
+		setCollectionView("gallery");
+	}, []);
+	const selectCollection = useCallback((id: number) => {
+		setSelectedCollectionId(id);
+		setCollectionView("detail");
+	}, []);
 	const { stats, filterMode, setFilterMode, refetchStats } = useDiaryStats();
 		const { addToTrash, trashEntries, clearTrash, restoreFromTrash } = useJournalTrash();
 	const { pinnedIds, toggle: togglePin } = usePinStore();
@@ -666,9 +682,16 @@ const handleSaveCardEdit = async (
 			<div className="flex h-full flex-col overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20">
 			<div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-2 relative h-screen">
 				{/* Left sidebar — inline when wide, otherwise hidden (drawer overlay) */}
-				{showLeftInline && <DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} onFilterModeChange={(mode) => { setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => setShowTrash(true)} selectedTag={selectedTag} onSelectTag={(tag) => { setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} />}
-				<div className="flex-1 min-w-0 max-w-[800px] flex flex-col">
-					{showTrash ? (
+				{showLeftInline && <DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} onFilterModeChange={(mode) => { setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => setShowTrash(true)} selectedTag={selectedTag} onSelectTag={(tag) => { setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} onOpenGallery={openGallery} />}
+				<div className={cn("flex-1 min-w-0 flex flex-col", collectionView === "none" && "max-w-[800px]")}>
+					{collectionView === "gallery" ? (
+						<CollectionGallery onSelectCollection={selectCollection} />
+					) : collectionView === "detail" && selectedCollectionId ? (
+						<CollectionDetail
+							collectionId={selectedCollectionId}
+							onBack={() => setCollectionView("gallery")}
+						/>
+					) : showTrash ? (
 						<DiaryTrashView
 							trashEntries={trashEntries}
 							onRestore={(entry) => {
@@ -726,7 +749,7 @@ const handleSaveCardEdit = async (
 					)}
 				</div>
 		{/* Right-side chat panel for AI analysis — inline when wide, otherwise hidden (drawer overlay) */}
-		{showRightInline && (
+		{showRightInline && collectionView === "none" && (
 			<div className="w-[380px] flex-shrink min-w-[280px] flex flex-col rounded-(--radius) bg-[oklch(var(--card))] shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_1px_3px_0_rgba(0,0,0,0.06)] overflow-hidden">
 				<DiaryChatPanel noteContent={noteContent} currentJournalId={activeJournal?.id ?? null} onNoteMutated={handleNoteMutated} />
 			</div>
@@ -746,7 +769,7 @@ const handleSaveCardEdit = async (
 						transition={{ type: "spring", damping: 30, stiffness: 300 }}
 						className="absolute left-0 top-0 z-40 h-full w-72 shadow-xl"
 					>
-						<DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} onFilterModeChange={(mode) => { setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => setShowTrash(true)} selectedTag={selectedTag} onSelectTag={(tag) => { setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} />
+						<DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} onFilterModeChange={(mode) => { setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => setShowTrash(true)} selectedTag={selectedTag} onSelectTag={(tag) => { setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} onOpenGallery={openGallery} />
 					</motion.div>
 				</>
 			)}
