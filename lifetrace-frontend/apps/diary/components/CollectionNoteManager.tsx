@@ -20,6 +20,7 @@ export function CollectionNoteManager({
 }: CollectionNoteManagerProps) {
 	const t = useTranslations("collection");
 	const [search, setSearch] = useState("");
+	const [filter, setFilter] = useState<"all" | "member" | "other">("all");
 	const { data } = useJournals({ limit: 200, search: search || undefined });
 	const { addNotesAsync, removeNote, isPending } = useCollectionMutations();
 
@@ -27,6 +28,12 @@ export function CollectionNoteManager({
 	const [selected, setSelected] = useState<Set<number>>(() => new Set(memberIds));
 
 	const journals = data?.journals ?? [];
+	const memberSet = useMemo(() => new Set(memberIds), [memberIds]);
+	const memberCount = memberIds.length;
+
+	const filtered = journals.filter((j) =>
+		filter === "all" ? true : filter === "member" ? memberSet.has(j.id) : !memberSet.has(j.id),
+	);
 
 	const counts = useMemo(() => {
 		let added = 0;
@@ -78,7 +85,7 @@ export function CollectionNoteManager({
 					</button>
 				</div>
 
-				<div className="border-b border-border/40 p-3">
+				<div className="border-b border-border/40 p-3 pb-2">
 					<div className="relative">
 						<Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
 						<input
@@ -88,15 +95,37 @@ export function CollectionNoteManager({
 							className="h-8 w-full rounded-md border border-border/40 bg-background pl-7 pr-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
 						/>
 					</div>
+					{/* 筛选：全部 / 已加入 / 未加入 */}
+					<div className="mt-2 flex items-center gap-0.5 rounded-md border border-border/40 p-0.5 text-xs">
+						{([
+							["all", t("filterAll")],
+							["member", `${t("filterMember")} (${memberCount})`],
+							["other", t("filterOther")],
+						] as const).map(([key, label]) => (
+							<button
+								key={key}
+								type="button"
+								onClick={() => setFilter(key)}
+								className={cn(
+									"flex-1 rounded px-2 py-1 font-medium transition-colors",
+									filter === key
+										? "bg-primary/10 text-primary"
+										: "text-muted-foreground hover:bg-muted/40",
+								)}
+							>
+								{label}
+							</button>
+						))}
+					</div>
 				</div>
 
 				<div className="flex-1 overflow-y-auto p-2">
-					{journals.length === 0 ? (
+					{filtered.length === 0 ? (
 						<p className="px-3 py-6 text-center text-xs text-muted-foreground">
 							{t("noCandidates")}
 						</p>
 					) : (
-						journals.map((j) => {
+						filtered.map((j) => {
 							const isMember = selected.has(j.id);
 							return (
 								<button

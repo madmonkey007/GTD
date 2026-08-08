@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 
 interface CollectionPlayViewProps {
 	notes: CollectionNoteView[];
+	/** 列表点进来时定位到的初始索引 */
+	initialIndex?: number;
 	onOpenNote?: (id: number) => void;
 }
 
@@ -16,10 +18,20 @@ interface CollectionPlayViewProps {
  * 卡片滑动视图（iPod 歌单封面式）：竖向长条卡片居中，点击左右两侧切换
  * 上一条/下一条。是集合详情的展示视图之一（默认仍是卡片列表）。
  */
-export function CollectionPlayView({ notes, onOpenNote }: CollectionPlayViewProps) {
+export function CollectionPlayView({
+	notes,
+	initialIndex = 0,
+	onOpenNote,
+}: CollectionPlayViewProps) {
 	const t = useTranslations("collection");
-	const [index, setIndex] = useState(0);
+	const reduce = useReducedMotion();
+	const [index, setIndex] = useState(initialIndex);
 	const [direction, setDirection] = useState(0);
+
+	// 外部传入的 initialIndex 变化时（例如从列表点进来）同步定位
+	useEffect(() => {
+		setIndex(initialIndex);
+	}, [initialIndex]);
 
 	const safeIndex = notes.length === 0 ? 0 : Math.min(index, notes.length - 1);
 
@@ -60,7 +72,7 @@ export function CollectionPlayView({ notes, onOpenNote }: CollectionPlayViewProp
 					onClick={() => go(-1)}
 					disabled={safeIndex === 0}
 					className={cn(
-						"group flex w-16 shrink-0 items-center justify-center sm:w-24",
+						"group flex w-16 shrink-0 items-center justify-center transition-transform active:scale-95 sm:w-24",
 						safeIndex === 0
 							? "cursor-not-allowed opacity-30"
 							: "hover:bg-muted/30",
@@ -76,10 +88,10 @@ export function CollectionPlayView({ notes, onOpenNote }: CollectionPlayViewProp
 						<motion.div
 							key={current.id}
 							custom={direction}
-							initial={{ opacity: 0, x: direction >= 0 ? 80 : -80, scale: 0.9 }}
-							animate={{ opacity: 1, x: 0, scale: 1 }}
-							exit={{ opacity: 0, x: direction >= 0 ? -80 : 80, scale: 0.9 }}
-							transition={{ type: "spring", stiffness: 280, damping: 30 }}
+							initial={reduce ? { opacity: 0 } : { opacity: 0, x: direction >= 0 ? 80 : -80, scale: 0.9 }}
+							animate={reduce ? { opacity: 1 } : { opacity: 1, x: 0, scale: 1 }}
+							exit={reduce ? { opacity: 0 } : { opacity: 0, x: direction >= 0 ? -80 : 80, scale: 0.9 }}
+							transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 280, damping: 30 }}
 							className="flex h-full max-h-[560px] w-full max-w-[360px] flex-col overflow-hidden rounded-(--radius) bg-[oklch(var(--card))] shadow-[0_8px_30px_0_rgba(0,0,0,0.12)]"
 						>
 							{/* 卡片内容 */}
@@ -117,7 +129,7 @@ export function CollectionPlayView({ notes, onOpenNote }: CollectionPlayViewProp
 					onClick={() => go(1)}
 					disabled={safeIndex === notes.length - 1}
 					className={cn(
-						"group flex w-16 shrink-0 items-center justify-center sm:w-24",
+						"group flex w-16 shrink-0 items-center justify-center transition-transform active:scale-95 sm:w-24",
 						safeIndex === notes.length - 1
 							? "cursor-not-allowed opacity-30"
 							: "hover:bg-muted/30",
