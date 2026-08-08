@@ -9,6 +9,7 @@ import { useCollection, useCollectionMutations } from "@/lib/query";
 import { toastError } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { CollectionNoteManager } from "./CollectionNoteManager";
+import { CollectionListView } from "./CollectionListView";
 import { CollectionPlayView } from "./CollectionPlayView";
 
 interface CollectionDetailProps {
@@ -37,6 +38,7 @@ export function CollectionDetail({
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [editingDesc, setEditingDesc] = useState(false);
 	const [descDraft, setDescDraft] = useState("");
+	const [viewMode, setViewMode] = useState<"list" | "swipe">("list");
 	const [showManager, setShowManager] = useState(false);
 	const [summary, setSummary] = useState<string | null>(null);
 	const [recommendItems, setRecommendItems] = useState<
@@ -110,11 +112,30 @@ export function CollectionDetail({
 					<span className="truncate text-sm font-semibold">{collection.name}</span>
 				</div>
 				<div className="flex items-center gap-1">
-					{/* 视图切换器（可扩展，当前仅卡片滑动） */}
-					<div className="mr-1 flex items-center gap-1 rounded-md border border-border/50 p-0.5">
+					{/* 视图切换器：列表(默认) / 卡片滑动 */}
+					<div className="mr-1 flex items-center gap-0.5 rounded-md border border-border/50 p-0.5">
 						<button
 							type="button"
-							className="flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-primary"
+							onClick={() => setViewMode("list")}
+							className={cn(
+								"rounded px-2 py-0.5 text-xs font-medium transition-colors",
+								viewMode === "list"
+									? "bg-primary/10 text-primary"
+									: "text-muted-foreground hover:bg-muted/40",
+							)}
+							title={t("viewList")}
+						>
+							{t("viewList")}
+						</button>
+						<button
+							type="button"
+							onClick={() => setViewMode("swipe")}
+							className={cn(
+								"flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors",
+								viewMode === "swipe"
+									? "bg-primary/10 text-primary"
+									: "text-muted-foreground hover:bg-muted/40",
+							)}
 							title={t("viewSwipe")}
 						>
 							<Library className="h-3 w-3" />
@@ -248,12 +269,19 @@ export function CollectionDetail({
 						</div>
 					</div>
 
-					{/* 卡片滑动视图 */}
+					{/* 笔记视图：列表(默认) / 卡片滑动 */}
 					<div className="h-[calc(100vh-380px)] min-h-[260px]">
-						<CollectionPlayView
-							notes={collection.notes ?? []}
-							onOpenNote={onOpenNote}
-						/>
+						{viewMode === "list" ? (
+							<CollectionListView
+								notes={collection.notes ?? []}
+								onOpenNote={onOpenNote}
+							/>
+						) : (
+							<CollectionPlayView
+								notes={collection.notes ?? []}
+								onOpenNote={onOpenNote}
+							/>
+						)}
 					</div>
 				</div>
 			</div>

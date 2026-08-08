@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CollectionNoteView } from "@/lib/query";
 import { cn } from "@/lib/utils";
 
@@ -12,28 +12,16 @@ interface CollectionPlayViewProps {
 	onOpenNote?: (id: number) => void;
 }
 
-const SWIPE_THRESHOLD = 80;
-
 /**
- * 卡片滑动视图（沉浸式逐条翻阅）—— 可扩展「播放模板」的首个模式。
- * 一条笔记一张卡，左右拖拽（或点箭头）切换上一条/下一条。
- * 后续书页/列表模式可实现同一接口插入右侧视图切换器。
+ * 卡片滑动视图（iPod 歌单封面式）：竖向长条卡片居中，点击左右两侧切换
+ * 上一条/下一条。是集合详情的展示视图之一（默认仍是卡片列表）。
  */
 export function CollectionPlayView({ notes, onOpenNote }: CollectionPlayViewProps) {
 	const t = useTranslations("collection");
 	const [index, setIndex] = useState(0);
 	const [direction, setDirection] = useState(0);
 
-	if (notes.length === 0) {
-		return (
-			<div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-				<p>{t("noNotes")}</p>
-			</div>
-		);
-	}
-
-	const safeIndex = Math.min(index, notes.length - 1);
-	const current = notes[safeIndex];
+	const safeIndex = notes.length === 0 ? 0 : Math.min(index, notes.length - 1);
 
 	const go = (delta: number) => {
 		const next = safeIndex + delta;
@@ -42,84 +30,121 @@ export function CollectionPlayView({ notes, onOpenNote }: CollectionPlayViewProp
 		setIndex(next);
 	};
 
-	const handleDragEnd = (_: unknown, info: { offset: { x: number } }) => {
-		if (info.offset.x < -SWIPE_THRESHOLD) go(1);
-		else if (info.offset.x > SWIPE_THRESHOLD) go(-1);
-	};
+	// 键盘左右切换
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "ArrowLeft") go(-1);
+			else if (e.key === "ArrowRight") go(1);
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	});
+
+	if (notes.length === 0) {
+		return (
+			<div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+				{t("noNotes")}
+			</div>
+		);
+	}
+
+	const current = notes[safeIndex];
 
 	return (
 		<div className="flex h-full flex-col">
-			{/* 卡片舞台 */}
-			<div className="relative flex flex-1 items-center justify-center overflow-hidden px-4">
-				<AnimatePresence initial={false} custom={direction} mode="popLayout">
-					<motion.div
-						key={current.id}
-						custom={direction}
-						drag="x"
-						dragConstraints={{ left: 0, right: 0 }}
-						dragElastic={0.6}
-						onDragEnd={handleDragEnd}
-						initial={{ opacity: 0, x: direction >= 0 ? 120 : -120, scale: 0.96 }}
-						animate={{ opacity: 1, x: 0, scale: 1 }}
-						exit={{ opacity: 0, x: direction >= 0 ? -120 : 120, scale: 0.96 }}
-						transition={{ type: "spring", stiffness: 300, damping: 30 }}
-						className="max-h-full w-full max-w-[640px] cursor-grab select-none overflow-y-auto rounded-(--radius) bg-[oklch(var(--card))] p-6 shadow-[0_2px_12px_0_rgba(0,0,0,0.08)] active:cursor-grabbing"
-					>
-						<div className="mb-2 flex items-center justify-between gap-3">
-							<h3 className="text-base font-semibold text-foreground">
-								{current.name || t("untitledNote")}
-							</h3>
-							{onOpenNote && (
-								<button
-									type="button"
-									onClick={() => onOpenNote(current.id)}
-									className="shrink-0 text-xs text-primary hover:underline"
-								>
-									{t("openNote")}
-								</button>
-							)}
-						</div>
-						{current.date && (
-							<p className="mb-3 text-[11px] text-muted-foreground/70">
-								{new Date(current.date).toLocaleString()}
-							</p>
-						)}
-						<p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
-							{current.preview || t("emptyNote")}
-						</p>
-					</motion.div>
-				</AnimatePresence>
-			</div>
-
-			{/* 控制条 */}
-			<div className="flex items-center justify-center gap-4 py-3">
+			{/* 舞台：左右两侧点击区 + 中间竖向卡片 */}
+			<div className="relative flex flex-1 items-stretch overflow-hidden">
+				{/* 左侧点击区 */}
 				<button
 					type="button"
 					onClick={() => go(-1)}
 					disabled={safeIndex === 0}
 					className={cn(
-						"flex h-8 w-8 items-center justify-center rounded-full border border-border/50 text-muted-foreground transition-colors hover:bg-muted/40",
-						safeIndex === 0 && "cursor-not-allowed opacity-40",
+						"group flex w-16 shrink-0 items-center justify-center sm:w-24",
+						safeIndex === 0
+							? "cursor-not-allowed opacity-30"
+							: "hover:bg-muted/30",
 					)}
 					aria-label={t("prev")}
 				>
-					<ChevronLeft className="h-4 w-4" />
+					<ChevronLeft className="h-7 w-7 text-muted-foreground transition-transform group-hover:-translate-x-0.5" />
 				</button>
-				<span className="min-w-[60px] text-center text-xs tabular-nums text-muted-foreground">
-					{safeIndex + 1} / {notes.length}
-				</span>
+
+				{/* 中间竖向卡片 */}
+				<div className="relative flex flex-1 items-center justify-center px-2">
+					<AnimatePresence initial={false} custom={direction} mode="popLayout">
+						<motion.div
+							key={current.id}
+							custom={direction}
+							initial={{ opacity: 0, x: direction >= 0 ? 80 : -80, scale: 0.9 }}
+							animate={{ opacity: 1, x: 0, scale: 1 }}
+							exit={{ opacity: 0, x: direction >= 0 ? -80 : 80, scale: 0.9 }}
+							transition={{ type: "spring", stiffness: 280, damping: 30 }}
+							className="flex h-full max-h-[560px] w-full max-w-[360px] flex-col overflow-hidden rounded-(--radius) bg-[oklch(var(--card))] shadow-[0_8px_30px_0_rgba(0,0,0,0.12)]"
+						>
+							{/* 卡片内容 */}
+							<div className="flex-1 overflow-y-auto p-5">
+								<div className="mb-2 flex items-center justify-between gap-2">
+									<h3 className="text-base font-semibold text-foreground">
+										{current.name || t("untitledNote")}
+									</h3>
+									{onOpenNote && (
+										<button
+											type="button"
+											onClick={() => onOpenNote(current.id)}
+											className="shrink-0 text-xs text-primary hover:underline"
+										>
+											{t("openNote")}
+										</button>
+									)}
+								</div>
+								{current.date && (
+									<p className="mb-3 text-[11px] text-muted-foreground/70">
+										{new Date(current.date).toLocaleString()}
+									</p>
+								)}
+								<p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
+									{current.preview || t("emptyNote")}
+								</p>
+							</div>
+						</motion.div>
+					</AnimatePresence>
+				</div>
+
+				{/* 右侧点击区 */}
 				<button
 					type="button"
 					onClick={() => go(1)}
 					disabled={safeIndex === notes.length - 1}
 					className={cn(
-						"flex h-8 w-8 items-center justify-center rounded-full border border-border/50 text-muted-foreground transition-colors hover:bg-muted/40",
-						safeIndex === notes.length - 1 && "cursor-not-allowed opacity-40",
+						"group flex w-16 shrink-0 items-center justify-center sm:w-24",
+						safeIndex === notes.length - 1
+							? "cursor-not-allowed opacity-30"
+							: "hover:bg-muted/30",
 					)}
 					aria-label={t("next")}
 				>
-					<ChevronRight className="h-4 w-4" />
+					<ChevronRight className="h-7 w-7 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
 				</button>
+			</div>
+
+			{/* 指示器 */}
+			<div className="flex items-center justify-center gap-1.5 py-3">
+				{notes.map((n, i) => (
+					<button
+						key={n.id}
+						type="button"
+						onClick={() => {
+							setDirection(i > safeIndex ? 1 : -1);
+							setIndex(i);
+						}}
+						className={cn(
+							"h-1.5 rounded-full transition-all",
+							i === safeIndex ? "w-5 bg-primary" : "w-1.5 bg-muted-foreground/30",
+						)}
+						aria-label={`${i + 1}`}
+					/>
+				))}
 			</div>
 		</div>
 	);

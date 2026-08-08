@@ -121,8 +121,12 @@ export function CollectionNoteManager({
 										{isMember && <span className="text-[10px]">✓</span>}
 									</span>
 									<span className="min-w-0 flex-1">
+										<span className="block truncate text-[11px] text-muted-foreground/60">
+											{j.name}
+										</span>
 										<span className="block truncate font-medium">
-											{j.name || t("untitledNote")}
+											{(j.userNotes || "").replace(/[#\n]/g, " ").trim() ||
+												t("emptyNote")}
 										</span>
 									</span>
 								</button>
