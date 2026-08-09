@@ -588,6 +588,11 @@ export function DiaryTiptapEditor({
 				.ProseMirror.is-editor-empty:first-child::before { content: attr(data-placeholder); color: rgb(var(--muted-foreground) / 0.7); float: left; pointer-events: none; height: 0; }
 				.ProseMirror :focus { outline: none; }
 				.ProseMarkup-p { margin: 0; }
+				/* Tailwind Preflight 会清掉 list-style，这里显式补回有序/无序列表的编号与符号 */
+				.ProseMirror ol { list-style-type: decimal; padding-left: 1.4rem; margin: 0; }
+				.ProseMirror ul { list-style-type: disc; padding-left: 1.4rem; margin: 0; }
+				.ProseMirror li { margin: 0; }
+				.ProseMirror li::marker { color: rgb(var(--muted-foreground) / 0.8); }
 			`}</style>
 			<div className="DiaryTiptapEditor-toolbar flex items-center justify-between px-2 pb-2 pt-1">
 				<div className="flex items-center gap-0.5">

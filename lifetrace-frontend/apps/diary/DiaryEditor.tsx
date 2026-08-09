@@ -174,12 +174,23 @@ function TextBlock({ text }: { text: string }) {
 	);
 }
 
-const IMG_LINE_RE = /^\s*!\[([^\]]*)\]\(([^)]+)\)\s*$/;
+const IMG_TOKEN_RE = /!\[([^\]]*)\]\(([^)]+)\)/g;
 const GRID_MAX = 9;
 
 type Segment =
 	| { type: "text"; text: string }
 	| { type: "images"; images: { src: string; alt: string }[] };
+
+/** 提取一行中的全部图片；仅当该行除图片与空白外无其它内容时返回非空数组。
+ *  兼容「一张图独占一行」与「多张图用空格分隔在同一行」两种写法。 */
+function extractLineImages(line: string): { src: string; alt: string }[] | null {
+	const matches = [...line.matchAll(IMG_TOKEN_RE)];
+	if (matches.length === 0) return null;
+	// 移除全部图片 token 后若仍有非空白内容，则视为普通文本行
+	const stripped = line.replace(IMG_TOKEN_RE, "").trim();
+	if (stripped !== "") return null;
+	return matches.map((m) => ({ alt: m[1], src: m[2] }));
+}
 
 /** 切分：连续 ≥2 张图片行 → images 段；其余累积为 text 段 */
 function segmentContent(content: string): Segment[] {
@@ -205,11 +216,11 @@ function segmentContent(content: string): Segment[] {
 	};
 
 	for (const line of lines) {
-		const m = line.match(IMG_LINE_RE);
-		if (m) {
+		const lineImgs = extractLineImages(line);
+		if (lineImgs) {
 			// 先把已累积的文本冲出去，保证「文字在图片上方」的顺序
 			flushText();
-			imgBuf.push({ alt: m[1], src: m[2] });
+			imgBuf.push(...lineImgs);
 		} else {
 			// 遇到非图片行，先把图片组冲出去
 			flushImages();

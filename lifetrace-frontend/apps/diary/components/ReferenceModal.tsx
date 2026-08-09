@@ -22,7 +22,7 @@ import {
 	type RelationType,
 } from "@/lib/query/note-links";
 import { AddNoteLinkModal } from "./AddNoteLinkModal";
-import { formatTime, renderContentWithTags } from "./shared";
+import { renderContentWithTags } from "./shared";
 
 interface ReferenceModalProps {
 	isOpen: boolean;
@@ -51,6 +51,14 @@ function extractImages(text: string): string[] {
 		urls.push(m[1]);
 	}
 	return urls;
+}
+
+/** 去除 markdown 图片语法：图片由 NoteImageStrip 单独渲染，避免正文里出现原始 ![]() 文本 */
+function stripImages(text: string): string {
+	return text
+		.replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+		.replace(/\n[ \t]*\n[ \t]*\n/g, "\n\n")
+		.trim();
 }
 
 /** 同一目标的多条链接按 counterpart 去重合并成一张卡 */
@@ -122,16 +130,14 @@ function NoteImageStrip({ images }: { images: string[] }) {
 	);
 }
 
-/** 一张合并后的链接卡：方向链 + 内容 + 图片 + 关系标签组 + 说明 + 删除 */
+/** 一张合并后的链接卡：对端标题 + 内容 + 图片 + 关系标签组 + 说明（按钮触发）+ 删除 */
 function LinkCard({
 	links,
-	side,
 	allNotes,
 	onChangeType,
 	onDeleteAll,
 }: {
 	links: NoteLinkView[];
-	side: "out" | "in";
 	allNotes: JournalView[];
 	onChangeType: (linkId: number, type: RelationType) => void;
 	onDeleteAll: (links: NoteLinkView[]) => void;
@@ -147,6 +153,8 @@ function LinkCard({
 	const fullNote = cpId != null ? allNotes.find((n) => n.id === cpId) : undefined;
 	const fullContent = fullNote?.userNotes ?? cp?.preview ?? "";
 	const images = useMemo(() => extractImages(fullContent), [fullContent]);
+	const noteText = useMemo(() => stripImages(fullContent), [fullContent]);
+	const hasNote = links.some((l) => l.userNote);
 
 	const commitNote = () => {
 		setEditing(false);
@@ -157,49 +165,34 @@ function LinkCard({
 	};
 
 	return (
-		<div className="rounded-lg border border-border/50 bg-card/40 px-3 py-3 transition-colors hover:border-border/80 hover:bg-card">
-			{/* 方向链：当前笔记 → 目标 / 来源 → 当前笔记 */}
-			<div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-				{side === "out" ? (
-					<>
-						<span className="max-w-[40%] truncate font-medium text-foreground/80">当前笔记</span>
-						<ArrowUpRight className="h-3 w-3 shrink-0 text-primary/60" />
-						<span className="max-w-[45%] truncate font-medium text-foreground/90">
-							{cp?.name || "无标题"}
-						</span>
-					</>
-				) : (
-					<>
-						<span className="max-w-[45%] truncate font-medium text-foreground/90">
-							{cp?.name || "无标题"}
-						</span>
-						<ArrowDownLeft className="h-3 w-3 shrink-0 text-primary/60" />
-						<span className="max-w-[40%] truncate font-medium text-foreground/80">当前笔记</span>
-					</>
-				)}
+		<div className="group rounded-lg border border-border/50 bg-card/40 px-3 py-2.5 transition-colors hover:border-border/80 hover:bg-card">
+			{/* 标题：对端笔记名（仅一次；方向由所在分组标题承载，不再重复箭头） */}
+			<div className="truncate text-xs font-medium text-foreground/90">
+				{cp?.name || "无标题"}
 			</div>
 
-			{/* 内容预览 + 图片 */}
-			{cp && fullContent && (
-				<div className="mt-1.5 text-xs leading-relaxed text-foreground/80">
-					{cp.name && (
-						<span className="mb-1 block truncate text-[11px] font-medium text-muted-foreground">
-							{cp.name}
-						</span>
-					)}
-					{renderContentWithTags(fullContent)}
+			{/* 内容预览（已剔除图片语法，图片由下方缩略图承载） */}
+			{noteText && (
+				<div className="mt-1 text-xs leading-relaxed text-foreground/70">
+					{renderContentWithTags(noteText)}
 				</div>
 			)}
 			<NoteImageStrip images={images} />
 
-			{/* meta 行：关系标签组 + 时间 + 删除 */}
-			<div className="mt-2.5 flex items-center gap-1.5 border-t border-border/40 pt-2">
+			{/* meta 行：关系标签组 + 说明按钮 + 删除 */}
+			<div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-1.5">
 				{links.map((l) => (
 					<RelationChip key={l.id} link={l} onChange={onChangeType} />
 				))}
-				<span className="ml-auto text-[11px] text-muted-foreground/60 tabular-nums">
-					{formatTime(cp?.date ?? links[0].createdAt)}
-				</span>
+				<button
+					type="button"
+					onClick={() => setEditing((v) => !v)}
+					title={hasNote ? "编辑说明" : "添加说明"}
+					className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] text-muted-foreground/70 transition-colors hover:bg-muted/50 hover:text-foreground active:scale-[0.97]"
+				>
+					{hasNote ? <Check className="h-3 w-3 text-primary/60" /> : <Pencil className="h-3 w-3" />}
+					说明
+				</button>
 				<button
 					type="button"
 					onClick={() => onDeleteAll(links)}
@@ -210,8 +203,8 @@ function LinkCard({
 				</button>
 			</div>
 
-			{/* 说明编辑 */}
-			{editing ? (
+			{/* 说明输入：点击「说明」按钮后才展开，而非默认显示输入框 */}
+			{editing && (
 				<div className="mt-2 flex items-start gap-1">
 					<input
 						autoFocus
@@ -221,7 +214,7 @@ function LinkCard({
 						onKeyDown={(e) => {
 							if (e.key === "Enter") commitNote();
 							if (e.key === "Escape") {
-								setDraft(links[0].userNote ?? "");
+								setDraft(links.find((l) => l.userNote)?.userNote ?? links[0].userNote ?? "");
 								setEditing(false);
 							}
 						}}
@@ -230,29 +223,13 @@ function LinkCard({
 					/>
 					<button
 						type="button"
+						onMouseDown={(e) => e.preventDefault()}
 						onClick={commitNote}
 						className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:text-primary active:scale-90"
 					>
 						<Check className="w-3.5 h-3.5" />
 					</button>
 				</div>
-			) : (
-				<button
-					type="button"
-					onClick={() => setEditing(true)}
-					className="mt-1.5 block w-full text-left"
-				>
-					{links.some((l) => l.userNote) ? (
-						<div className="text-xs leading-relaxed text-foreground/70 transition-colors group-hover:text-foreground">
-							{links.find((l) => l.userNote)?.userNote}
-						</div>
-					) : (
-						<div className="flex items-center gap-1 text-[11px] text-muted-foreground/40 italic transition-colors group-hover:text-muted-foreground/70">
-							<Pencil className="h-2.5 w-2.5" />
-							添加说明
-						</div>
-					)}
-				</button>
 			)}
 		</div>
 	);
@@ -341,8 +318,7 @@ export function ReferenceModal({ isOpen, onClose, note, noteName, allNotes }: Re
 								{noteName}
 							</h4>
 							<div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground/60">
-								<span>{formatTime(note.createdAt)}</span>
-								{note.origin !== "manual" && <span>· {note.origin}</span>}
+								<span>{note.origin !== "manual" ? `· ${note.origin}` : ""}</span>
 							</div>
 							{currentTags.length > 0 && (
 								<div className="mt-2 flex flex-wrap gap-1">
@@ -360,7 +336,7 @@ export function ReferenceModal({ isOpen, onClose, note, noteName, allNotes }: Re
 						</div>
 						<div className="min-h-0 flex-1 overflow-y-auto border-t border-border/30 px-5 pb-5 pt-3">
 							<div className="text-xs leading-relaxed text-muted-foreground">
-								{renderContentWithTags((note.userNotes ?? "").split("\n").join("\n"))}
+								{renderContentWithTags(stripImages(note.userNotes ?? ""))}
 							</div>
 						</div>
 					</div>
@@ -420,7 +396,6 @@ export function ReferenceModal({ isOpen, onClose, note, noteName, allNotes }: Re
 													<LinkCard
 														key={group[0].counterpart?.id ?? group[0].id}
 														links={group}
-														side="out"
 														allNotes={allNotes}
 														onChangeType={handleChangeType}
 														onDeleteAll={handleDeleteAll}
@@ -441,8 +416,7 @@ export function ReferenceModal({ isOpen, onClose, note, noteName, allNotes }: Re
 													<LinkCard
 														key={group[0].counterpart?.id ?? group[0].id}
 														links={group}
-														side="in"
-														allNotes={allNotes}
+																												allNotes={allNotes}
 														onChangeType={handleChangeType}
 														onDeleteAll={handleDeleteAll}
 													/>
