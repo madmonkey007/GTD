@@ -207,8 +207,11 @@ function segmentContent(content: string): Segment[] {
 	for (const line of lines) {
 		const m = line.match(IMG_LINE_RE);
 		if (m) {
+			// 先把已累积的文本冲出去，保证「文字在图片上方」的顺序
+			flushText();
 			imgBuf.push({ alt: m[1], src: m[2] });
 		} else {
+			// 遇到非图片行，先把图片组冲出去
 			flushImages();
 			textBuf.push(line);
 		}

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Editor } from "@tiptap/core";
+import { Node } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import Highlight from "@tiptap/extension-highlight";
 import Mention from "@tiptap/extension-mention";
@@ -11,7 +12,6 @@ import { Bold, Highlighter, Underline, ListOrdered, List, Hash, AtSign, Search a
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import TurndownService from "turndown";
-import Image from "@tiptap/extension-image";
 import { uploadJournalImage } from "@/lib/api";
 import { compressImageIfNeeded } from "@/lib/imageCompress";
 import { toast } from "@/lib/toast";
@@ -173,34 +173,117 @@ function buildSuggestion(getTags: () => string[]) {
 	};
 }
 
-const ImageNodeView = ({ node, deleteNode }: { node: any; deleteNode: () => void }) => {
-	const { src, alt } = node.attrs as { src: string; alt?: string };
+/**
+ * markdown-it 把连续的 ![](url) 渲染成「仅含图片的 <p>」。
+ * 这里把它们改写成 <div data-image-group>（收集其中所有 <img>），供 ImageGroup 节点解析。
+ * 单张图片也会被包成 1 元素 group。失败回退原 HTML，保护既有数据。
+ */
+function wrapImageGroups(html: string): string {
+	// 注意：本文件顶部 import { Node } from "@tiptap/core" 遮蔽了全局 Node，
+	// 因此不能用 Node.TEXT_NODE，改用 nodeName === "#text"。
+	if (typeof window === "undefined" || typeof DOMParser === "undefined") return html;
+	try {
+		const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
+		const root = doc.body.firstChild as HTMLElement;
+		root.querySelectorAll("p").forEach((p) => {
+			const imgs = Array.from(p.querySelectorAll("img"));
+			if (imgs.length === 0) return;
+			// 段落里除了 img / <br> / 空白文本外不能有其它内容
+			const hasOther = Array.from(p.childNodes).some((c) => {
+				const nn = c.nodeName;
+				if (nn === "#text") return (c.textContent || "").trim() !== "";
+				return nn !== "IMG" && nn !== "BR";
+			});
+			if (hasOther) return;
+			const div = doc.createElement("div");
+			div.setAttribute("data-image-group", "");
+			imgs.forEach((img) => div.appendChild(img));
+			p.replaceWith(div);
+		});
+		return root.innerHTML;
+	} catch {
+		return html;
+	}
+}
+
+const ImageGroupNodeView = ({
+	node,
+	deleteNode,
+	updateAttributes,
+}: {
+	node: any;
+	deleteNode: () => void;
+	updateAttributes: (attrs: Record<string, any>) => void;
+}) => {
+	const images = (node.attrs.images ?? []) as { src: string; alt?: string }[];
+	const removeAt = (i: number) => {
+		const next = images.filter((_, idx) => idx !== i);
+		if (next.length === 0) deleteNode();
+		else updateAttributes({ images: next });
+	};
 	return (
-		<NodeViewWrapper className="inline-block relative my-1 align-top" style={{ width: 80, height: 80 }}>
-			<img
-				src={src}
-				alt={alt || ""}
-				className="w-full h-full object-cover rounded border border-border/40 bg-muted/20"
-				draggable={false}
-			/>
-			<button
-				type="button"
-				onClick={deleteNode}
-				title="移除图片"
-				className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-500 text-white text-[11px] leading-none flex items-center justify-center shadow hover:bg-zinc-600 hover:scale-110 transition"
-			>
-				✕
-			</button>
+		<NodeViewWrapper className="my-1">
+			<div className="flex flex-wrap gap-1.5">
+				{images.map((im, i) => (
+					<div key={`${im.src}-${i}`} className="relative" style={{ width: 80, height: 80 }}>
+						<img
+							src={im.src}
+							alt={im.alt || ""}
+							className="w-full h-full object-cover rounded border border-border/40 bg-muted/20"
+							draggable={false}
+						/>
+						<button
+							type="button"
+							onClick={() => removeAt(i)}
+							title="移除图片"
+							className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-500 text-white text-[11px] leading-none flex items-center justify-center shadow hover:bg-zinc-600 hover:scale-110 transition"
+						>
+							✕
+						</button>
+					</div>
+				))}
+			</div>
 		</NodeViewWrapper>
 	);
 };
 
-// 自定义图片节点：block 模式 + React NodeView（缩略图 + ✕ 删除）
-const ImageBlock = Image.extend({
-	inline: false,
+// 多图节点：atom 块，attrs.images 数组；NodeView 横向紧凑排列（flex-wrap）
+const ImageGroup = Node.create({
+	name: "imageGroup",
 	group: "block",
+	atom: true,
+	draggable: false,
+	selectable: true,
+	addAttributes() {
+		return {
+			images: {
+				default: [] as { src: string; alt?: string }[],
+				parseHTML: (el: HTMLElement) => {
+					if (el.tagName === "IMG") {
+						return [{ src: el.getAttribute("src") || "", alt: el.getAttribute("alt") || "" }];
+					}
+					return Array.from(el.querySelectorAll("img")).map((img) => ({
+						src: img.getAttribute("src") || "",
+						alt: img.getAttribute("alt") || "",
+					}));
+				},
+				renderHTML: () => ({}),
+			},
+		};
+	},
+	parseHTML() {
+		return [{ tag: "div[data-image-group]" }];
+	},
+	renderHTML({ node }: { node: any }) {
+		const imgs = (node.attrs.images ?? []) as { src: string; alt?: string }[];
+		return [
+			"div",
+			{ "data-image-group": "" },
+			...imgs.map((im) => ["img", { src: im.src, alt: im.alt || "" }]),
+		] as any;
+	},
 	addNodeView() {
-		return ReactNodeViewRenderer(ImageNodeView);
+		return ReactNodeViewRenderer(ImageGroupNodeView);
 	},
 });
 
@@ -290,6 +373,15 @@ export function DiaryTiptapEditor({
 			replacement: (_content: string, node: any) =>
 				"#" + (node.getAttribute("data-label") || node.textContent || "").replace(/^#/, ""),
 		});
+		// imageGroup 节点 → 每张图一行 ![](url)（与多图存储格式一致）
+		service.addRule("imageGroup", {
+			filter: (node: any) =>
+				node.nodeName === "DIV" && node.getAttribute("data-image-group") !== null,
+			replacement: (_content: string, node: any) =>
+				Array.from(node.querySelectorAll("img"))
+					.map((img: any) => `![${img.getAttribute("alt") || ""}](${img.getAttribute("src") || ""})`)
+					.join("\n"),
+		});
 		return service;
 	}, []);
 
@@ -300,8 +392,7 @@ export function DiaryTiptapEditor({
 		const ed = editorRef.current;
 		if (!ed || items.length === 0) return;
 		const end = ed.state.doc.content.size;
-		const nodes = items.map((it) => ({ type: "image", attrs: { src: it.src, alt: it.alt } }));
-		ed.chain().focus().insertContentAt(end, nodes).run();
+		ed.chain().focus().insertContentAt(end, { type: "imageGroup", attrs: { images: items } }).run();
 	}, []);
 
 	// 单张仍保留（网络图片 URL 等场景）
@@ -397,12 +488,9 @@ export function DiaryTiptapEditor({
 				placeholder: placeholder ?? "",
 				emptyEditorClass: "is-editor-empty",
 			}),
-			ImageBlock.configure({
-				inline: false,
-				allowBase64: false,
-			}),
+			ImageGroup,
 		],
-		content: value ? md.render(wrapTagsAsMentions(value)) : "",
+		content: value ? wrapImageGroups(md.render(wrapTagsAsMentions(value))) : "",
 		editorProps: {
 			attributes: {
 				class: variant === "create"
