@@ -14,6 +14,7 @@ import TurndownService from "turndown";
 import Image from "@tiptap/extension-image";
 import { uploadJournalImage } from "@/lib/api";
 import { compressImageIfNeeded } from "@/lib/imageCompress";
+import { toast } from "@/lib/toast";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 type Variant = "create" | "edit";
@@ -295,73 +296,89 @@ export function DiaryTiptapEditor({
 	const editorRef = useRef<Editor | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	const insertImage = useCallback((src: string, alt: string) => {
+	const insertImages = useCallback((items: { src: string; alt: string }[]) => {
 		const ed = editorRef.current;
-		if (!ed) return;
+		if (!ed || items.length === 0) return;
 		const end = ed.state.doc.content.size;
-		ed.chain().focus().insertContentAt(end, { type: "image", attrs: { src, alt } }).run();
+		const nodes = items.map((it) => ({ type: "image", attrs: { src: it.src, alt: it.alt } }));
+		ed.chain().focus().insertContentAt(end, nodes).run();
 	}, []);
 
-	const handleImageFile = useCallback(async (file: File): Promise<boolean> => {
-		if (!file.type.startsWith("image/")) return false;
-		try {
-			const compressed = await compressImageIfNeeded(file);
-			const r = await uploadJournalImage(compressed);
-			insertImage(r.url, r.alt);
-			return true;
-		} catch (e) {
-			console.error("[DiaryTiptapEditor] 图片上传失败:", e);
-			return false;
+	// 单张仍保留（网络图片 URL 等场景）
+	const insertImage = useCallback((src: string, alt: string) => {
+		insertImages([{ src, alt }]);
+	}, [insertImages]);
+
+	// 批量上传：最多 9 张，并发压缩+上传，全部完成后一次性插入
+	const MAX_IMAGES = 9;
+	const handleImageFiles = useCallback(async (files: File[]) => {
+		const imgs = files.filter((f) => f.type.startsWith("image/"));
+		if (imgs.length === 0) return;
+		if (imgs.length > MAX_IMAGES) {
+			toast(`最多添加 ${MAX_IMAGES} 张图片`, { type: "warning" });
 		}
-	}, [insertImage]);
+		const capped = imgs.slice(0, MAX_IMAGES);
+		const results = await Promise.all(
+			capped.map(async (file) => {
+				try {
+					const compressed = await compressImageIfNeeded(file);
+					return await uploadJournalImage(compressed);
+				} catch (e) {
+					console.error("[DiaryTiptapEditor] 图片上传失败:", e);
+					return null;
+				}
+			}),
+		);
+		const ok = results
+			.filter((r): r is { url: string; alt?: string } => r !== null)
+			.map((r) => ({ src: r.url, alt: r.alt ?? "" }));
+		if (ok.length > 0) insertImages(ok);
+	}, [insertImages]);
 
 	const onPickFile = useCallback(() => {
 		fileInputRef.current?.click();
 	}, []);
 
 	const onFileChange = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
-		const f = e.target.files?.[0];
-		if (f) await handleImageFile(f);
+		const files = Array.from(e.target.files ?? []);
+		if (files.length > 0) await handleImageFiles(files);
 		e.target.value = "";
-	}, [handleImageFile]);
+	}, [handleImageFiles]);
 
 	const onUrlImage = useCallback(() => {
 		const url = window.prompt("输入图片 URL");
 		if (url && url.trim()) insertImage(url.trim(), "");
 	}, [insertImage]);
 
-	// 粘贴图片：只取 image/* 项，忽略 text/html 内的 base64，避免 user_notes 字段暴涨
+	// 粘贴图片：收集所有 image/* 项，忽略 text/html 内的 base64，避免 user_notes 字段暴涨
 	const handlePasteImage = useCallback((_view: any, event: ClipboardEvent): boolean => {
 		const items = event.clipboardData?.items;
 		if (!items) return false;
-		let img: File | null = null;
+		const imgs: File[] = [];
 		for (let i = 0; i < items.length; i++) {
 			if (items[i].type.startsWith("image/")) {
-				img = items[i].getAsFile();
-				if (img) break;
+				const f = items[i].getAsFile();
+				if (f) imgs.push(f);
 			}
 		}
-		if (!img) return false;
+		if (imgs.length === 0) return false;
 		event.preventDefault();
-		void handleImageFile(img);
+		void handleImageFiles(imgs);
 		return true;
-	}, [handleImageFile]);
+	}, [handleImageFiles]);
 
 	const handleDropImage = useCallback((_view: any, event: DragEvent): boolean => {
 		const files = event.dataTransfer?.files;
 		if (!files || files.length === 0) return false;
-		let img: File | null = null;
+		const imgs: File[] = [];
 		for (let i = 0; i < files.length; i++) {
-			if (files[i].type.startsWith("image/")) {
-				img = files[i];
-				break;
-			}
+			if (files[i].type.startsWith("image/")) imgs.push(files[i]);
 		}
-		if (!img) return false;
+		if (imgs.length === 0) return false;
 		event.preventDefault();
-		void handleImageFile(img);
+		void handleImageFiles(imgs);
 		return true;
-	}, [handleImageFile]);
+	}, [handleImageFiles]);
 
 	const editor = useEditor({
 		immediatelyRender: false,
@@ -532,7 +549,7 @@ export function DiaryTiptapEditor({
 					>
 						<LinkIcon className="w-4 h-4" />
 					</button>
-					<input ref={fileInputRef} type="file" accept="image/*" onChange={onFileChange} className="hidden" />
+					<input ref={fileInputRef} type="file" accept="image/*" multiple onChange={onFileChange} className="hidden" />
 				</div>
 				<div className="flex items-center gap-1">
 					{/* 字数统计 */}
