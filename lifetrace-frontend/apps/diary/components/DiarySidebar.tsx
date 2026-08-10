@@ -25,6 +25,7 @@ interface DiarySidebarProps {
 	onOpenGallery?: () => void;
 	selectedProjectId?: number | null;
 	onSelectProject?: (id: number) => void;
+	onCloseProject?: () => void;
 }
 
 export function DiarySidebar({
@@ -41,6 +42,7 @@ export function DiarySidebar({
 	onOpenGallery,
 	selectedProjectId,
 	onSelectProject,
+	onCloseProject,
 }: DiarySidebarProps) {
 	const t = useTranslations("journalPanel");
 
@@ -80,8 +82,10 @@ export function DiarySidebar({
 
 			{/* Projects（项目入口：待办+笔记共享容器） */}
 			<ProjectList
+				feature="note"
 				selectedProjectId={selectedProjectId}
 				onSelectProject={onSelectProject}
+				onCloseProject={onCloseProject}
 			/>
 
 			{/* Tags */}

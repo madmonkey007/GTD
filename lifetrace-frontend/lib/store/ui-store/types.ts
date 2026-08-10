@@ -114,4 +114,10 @@ export interface UiStoreState {
 	// 当前选中的项目 ID（运行时态，用于 projectDetail 面板）
 	selectedProjectId: number | null;
 	setSelectedProjectId: (id: number | null) => void;
+	// 项目详情面板展示哪一类内容：从待办窗口进入只看待办，从笔记窗口进入只看笔记（运行时态）
+	projectDetailFeature: "note" | "todo";
+	setProjectDetailFeature: (feature: "note" | "todo") => void;
+	// 待办侧「按项目筛选」：非空时待办列表只展示该项目的待办（运行时态，不持久化）
+	todoProjectFilter: number | null;
+	setTodoProjectFilter: (id: number | null) => void;
 }

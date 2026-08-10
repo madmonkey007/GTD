@@ -142,7 +142,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 
 			{/* 项目入口（待办+笔记共享容器），位于标签之上 */}
 			<div className="flex flex-col gap-0.5 border-t border-border/20 px-2 pt-2 mt-1">
-				<ProjectList />
+				<ProjectList feature="todo" />
 			</div>
 
 			{/* 标签区域 */}

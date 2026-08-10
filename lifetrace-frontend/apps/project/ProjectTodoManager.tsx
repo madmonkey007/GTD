@@ -33,6 +33,12 @@ export function ProjectTodoManager({
 	const { data: todos = [] } = useTodos({ limit: 500 });
 	const { addTodosAsync, removeTodo, isPending } = useProjectMutations();
 
+	// 项目只关联父代办：候选拦截子代办，避免把子代办加入项目
+	const rootTodos = useMemo(
+		() => todos.filter((td) => td.parentTodoId == null),
+		[todos],
+	);
+
 	const [selected, setSelected] = useState<Set<number>>(
 		() => new Set(memberIds),
 	);
@@ -40,7 +46,7 @@ export function ProjectTodoManager({
 	const memberSet = useMemo(() => new Set(memberIds), [memberIds]);
 	const memberCount = memberIds.length;
 
-	const filtered = todos.filter((td) => {
+	const filtered = rootTodos.filter((td) => {
 		const matchesSearch =
 			!search ||
 			(td.name || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -56,14 +62,14 @@ export function ProjectTodoManager({
 	const counts = useMemo(() => {
 		let added = 0;
 		let removed = 0;
-		for (const td of todos) {
+		for (const td of rootTodos) {
 			const was = memberIds.includes(td.id);
 			const now = selected.has(td.id);
 			if (!was && now) added++;
 			if (was && !now) removed++;
 		}
 		return { added, removed };
-	}, [todos, selected, memberIds]);
+	}, [rootTodos, selected, memberIds]);
 
 	const toggle = (id: number) => {
 		setSelected((prev) => {
@@ -77,7 +83,7 @@ export function ProjectTodoManager({
 	const handleSave = async () => {
 		const toAdd: number[] = [];
 		const toRemove: number[] = [];
-		for (const td of todos) {
+		for (const td of rootTodos) {
 			const was = memberIds.includes(td.id);
 			const now = selected.has(td.id);
 			if (!was && now) toAdd.push(td.id);

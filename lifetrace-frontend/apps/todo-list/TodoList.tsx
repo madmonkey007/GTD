@@ -7,14 +7,14 @@
 
 import { type DragEndEvent, useDndMonitor } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, FolderKanban } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { MultiTodoContextMenu } from "@/components/common/context-menu/MultiTodoContextMenu";
 import type { DragData } from "@/lib/dnd";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
-import { useTodoMutations, useTodos } from "@/lib/query";
+import { useProject, useProjectMutations, useTodoMutations, useTodos } from "@/lib/query";
 import type { ReorderTodoItem } from "@/lib/query/todos";
 import { useTodoStore } from "@/lib/store/todo-store";
 import { useUiStore } from "@/lib/store/ui-store";
@@ -34,6 +34,21 @@ export function TodoList() {
 
 	// 从 TanStack Query 获取 mutation 操作
 	const { createTodo, reorderTodos } = useTodoMutations();
+
+	// 项目筛选（待办侧点项目后）：只展示该项目的待办成员
+	const todoProjectFilter = useUiStore((s) => s.todoProjectFilter);
+	const setTodoProjectFilter = useUiStore((s) => s.setTodoProjectFilter);
+	const { data: filterProject } = useProject(todoProjectFilter);
+	const { addTodosAsync: addTodosToProjectAsync } = useProjectMutations();
+	const projectMemberIds = useMemo(() => {
+		if (!todoProjectFilter || !filterProject?.todos) return null;
+		return new Set(filterProject.todos.map((t) => t.id));
+	}, [todoProjectFilter, filterProject]);
+	// 筛选态下只保留项目成员（成员均为父代办），非筛选态展示全部
+	const visibleTodos = useMemo(
+		() => (projectMemberIds ? todos.filter((t) => projectMemberIds.has(t.id)) : todos),
+		[todos, projectMemberIds],
+	);
 
 	// 从 Zustand 获取 UI 状态
 	const {
@@ -84,7 +99,7 @@ export function TodoList() {
 		completedOrderedTodos,
 		completedRootCount,
 	} = useOrderedTodos(
-		todos,
+		visibleTodos,
 		searchQuery,
 		collapsedTodoIds,
 		effectiveFilter,
@@ -340,8 +355,19 @@ export function TodoList() {
 		};
 
 		try {
-			await createTodo(input);
+			const created = await createTodo(input);
 			setNewTodoName("");
+			// 处于项目筛选态时，新代办自动归入该项目（父代办）
+			if (todoProjectFilter && created?.id) {
+				try {
+					await addTodosToProjectAsync({
+						id: todoProjectFilter,
+						todoIds: [created.id],
+					});
+				} catch (attachErr) {
+					console.error("Failed to attach todo to project:", attachErr);
+				}
+			}
 		} catch (err) {
 			console.error("Failed to create todo:", err);
 		}
@@ -390,6 +416,33 @@ export function TodoList() {
 				filter={filter}
 				onFilterChange={setFilter}
 			/>
+
+			{todoProjectFilter && filterProject && (
+				<div className="flex items-center gap-2 border-b border-border/40 px-6 py-2">
+					<span
+						className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+						style={
+							filterProject.color ? { backgroundColor: filterProject.color } : undefined
+						}
+					>
+						<FolderKanban
+							className="h-3 w-3"
+							style={{ color: filterProject.color ? "white" : undefined }}
+						/>
+					</span>
+					<span className="flex-1 truncate text-sm font-semibold text-foreground">
+						{filterProject.name}
+					</span>
+					<button
+						type="button"
+						onClick={() => setTodoProjectFilter(null)}
+						title={tTodoList("clearProjectFilter")}
+						className="rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+					>
+						{tTodoList("clearProjectFilter")}
+					</button>
+				</div>
+			)}
 
 			<MultiTodoContextMenu selectedTodoIds={selectedTodoIds}>
 				<div className="flex-1 overflow-y-auto">
