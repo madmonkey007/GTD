@@ -111,4 +111,7 @@ export interface UiStoreState {
 		// 设置弹窗状态
 		isSettingsOpen: boolean;
 		setSettingsOpen: (open: boolean) => void;
+	// 当前选中的项目 ID（运行时态，用于 projectDetail 面板）
+	selectedProjectId: number | null;
+	setSelectedProjectId: (id: number | null) => void;
 }

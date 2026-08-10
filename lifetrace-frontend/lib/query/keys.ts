@@ -140,6 +140,18 @@ export const queryKeys = {
 		/** 单个集合详情（含 notes） */
 		detail: (id: number) => ["collections", "detail", id] as const,
 	},
+
+	/**
+	 * Project（待办+笔记共享容器）相关查询键
+	 */
+	projects: {
+		/** 所有 project 相关查询的根键 */
+		all: ["projects"] as const,
+		/** 项目列表 */
+		list: ["projects", "list"] as const,
+		/** 单个项目详情（含 todos + notes） */
+		detail: (id: number) => ["projects", "detail", id] as const,
+	},
 } as const;
 
 /**

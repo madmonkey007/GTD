@@ -33,6 +33,7 @@ backend_modules:
     - todo_extraction
     - journal
     - collection
+    - project
     - vision
     - notification
     - floating_capture

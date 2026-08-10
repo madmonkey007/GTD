@@ -10,6 +10,7 @@ import {
 	Camera,
 	DollarSign,
 	FileText,
+	FolderKanban,
 	ListTodo,
 	type LucideIcon,
 	MessageSquare,
@@ -23,6 +24,7 @@ export type PanelFeature =
 	| "todos"
 	| "chat"
 	| "todoDetail"
+	| "projectDetail"
 	| "costTracking"
 	| "debugShots"
 	| "audio";
@@ -47,6 +49,7 @@ export const ALL_PANEL_FEATURES: PanelFeature[] = [
 	"todos",
 	"chat",
 	"todoDetail",
+	"projectDetail",
 	"costTracking",
 	"debugShots",
 	"audio",
@@ -61,6 +64,7 @@ export const FEATURE_ICON_MAP: Record<PanelFeature, LucideIcon> = {
 	todos: ListTodo,
 	chat: MessageSquare,
 	todoDetail: FileText,
+	projectDetail: FolderKanban,
 	costTracking: DollarSign,
 	debugShots: Camera,
 	audio: Mic,

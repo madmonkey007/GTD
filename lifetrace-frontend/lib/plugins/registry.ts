@@ -68,6 +68,17 @@ const panelRegistry: Record<PanelFeature, PanelPlugin> = {
 				default: mod.TodoDetail,
 			})),
 	},
+	projectDetail: {
+		id: "projectDetail",
+		labelKey: "projectDetailLabel",
+		placeholderKey: "projectDetailPlaceholder",
+		icon: FEATURE_ICON_MAP.projectDetail,
+		backendModules: ["project"],
+		loader: () =>
+			import("@/apps/project").then((mod) => ({
+				default: mod.ProjectDetail,
+			})),
+	},
 
 	costTracking: {
 		id: "costTracking",

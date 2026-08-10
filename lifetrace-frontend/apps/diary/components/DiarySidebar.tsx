@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { DiaryFilterMode, DiaryStatsData } from "@/apps/diary/hooks/useDiaryStats";
+import { ProjectList } from "@/apps/project";
 import { CollectionList } from "./CollectionList";
 import { DiaryFilterBar } from "./DiaryFilterBar";
 import { DiaryHeatmap } from "./DiaryHeatmap";
@@ -22,6 +23,8 @@ interface DiarySidebarProps {
 	selectedCollectionId?: number | null;
 	onSelectCollection?: (id: number) => void;
 	onOpenGallery?: () => void;
+	selectedProjectId?: number | null;
+	onSelectProject?: (id: number) => void;
 }
 
 export function DiarySidebar({
@@ -36,6 +39,8 @@ export function DiarySidebar({
 	selectedCollectionId,
 	onSelectCollection,
 	onOpenGallery,
+	selectedProjectId,
+	onSelectProject,
 }: DiarySidebarProps) {
 	const t = useTranslations("journalPanel");
 
@@ -71,6 +76,12 @@ export function DiarySidebar({
 				selectedCollectionId={selectedCollectionId}
 				onSelectCollection={onSelectCollection}
 				onOpenGallery={onOpenGallery}
+			/>
+
+			{/* Projects（项目入口：待办+笔记共享容器） */}
+			<ProjectList
+				selectedProjectId={selectedProjectId}
+				onSelectProject={onSelectProject}
 			/>
 
 			{/* Tags */}

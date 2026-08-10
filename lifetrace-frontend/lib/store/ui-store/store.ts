@@ -43,6 +43,7 @@ export const useUiStore = create<UiStoreState>()(
 			sidebarTag: DEFAULT_PANEL_STATE.sidebarTag,
 			activeView: DEFAULT_PANEL_STATE.activeView as SidebarView,
 			isSettingsOpen: DEFAULT_PANEL_STATE.isSettingsOpen,
+			selectedProjectId: null,
 
 			// 位置槽位 toggle 方法
 			togglePanelA: () =>
@@ -466,6 +467,11 @@ export const useUiStore = create<UiStoreState>()(
 			setSettingsOpen: (open) =>
 				set(() => ({
 					isSettingsOpen: open,
+				})),
+
+			setSelectedProjectId: (id) =>
+				set(() => ({
+					selectedProjectId: id,
 				})),
 
 			setBackendDisabledFeatures: (features) =>

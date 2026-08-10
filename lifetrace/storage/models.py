@@ -310,6 +310,59 @@ class CollectionNoteRelation(SQLModel, table=True):
         return f"<CollectionNoteRelation(id={self.id}, collection_id={self.collection_id}, journal_id={self.journal_id})>"
 
 
+class Project(TimestampMixin, table=True):
+    """项目（Project）—— 待办与笔记共享的统一容器，类似文件夹。
+
+    同一实体在待办侧和笔记侧双视图可见。
+    与待办（Todo）多对多（ProjectTodoRelation），与笔记（Journal）多对多（ProjectNoteRelation）。
+    独立于 Collection，不复用 JournalTodoRelation（避免被 origin/role 同步逻辑误触发）。
+    """
+
+    __tablename__: ClassVar[str] = "projects"
+
+    id: int | None = Field(default=None, primary_key=True)
+    uid: str = Field(
+        default_factory=lambda: str(uuid4()), max_length=64, index=True
+    )
+    name: str = Field(max_length=200)
+    description: str | None = Field(default=None, sa_column=Column(Text))
+    cover_image_url: str | None = Field(default=None, max_length=500)
+    color: str | None = Field(default=None, max_length=20)  # 侧边栏区分用
+
+    def __repr__(self):
+        return f"<Project(id={self.id}, name={self.name})>"
+
+
+class ProjectTodoRelation(SQLModel, table=True):
+    """项目与待办的多对多关联（一个待办可属多个项目，也可不属于任何项目）。"""
+
+    __tablename__: ClassVar[str] = "project_todo_relations"
+
+    id: int | None = Field(default=None, primary_key=True)
+    project_id: int
+    todo_id: int
+    created_at: datetime = Field(default_factory=get_utc_time)
+    deleted_at: datetime | None = None
+
+    def __repr__(self):
+        return f"<ProjectTodoRelation(id={self.id}, project_id={self.project_id}, todo_id={self.todo_id})>"
+
+
+class ProjectNoteRelation(SQLModel, table=True):
+    """项目与笔记的多对多关联。"""
+
+    __tablename__: ClassVar[str] = "project_note_relations"
+
+    id: int | None = Field(default=None, primary_key=True)
+    project_id: int
+    journal_id: int
+    created_at: datetime = Field(default_factory=get_utc_time)
+    deleted_at: datetime | None = None
+
+    def __repr__(self):
+        return f"<ProjectNoteRelation(id={self.id}, project_id={self.project_id}, journal_id={self.journal_id})>"
+
+
 class JournalTodoRelation(SQLModel, table=True):
     """日记与待办的关联关系"""
 

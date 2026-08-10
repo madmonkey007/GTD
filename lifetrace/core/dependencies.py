@@ -31,6 +31,7 @@ from lifetrace.repositories.sql_todo_repository import SqlTodoRepository
 from lifetrace.repositories.sql_habit_repository import SqlHabitRepository
 from lifetrace.repositories.sql_note_link_repository import SqlNoteLinkRepository
 from lifetrace.repositories.sql_collection_repository import SqlCollectionRepository
+from lifetrace.repositories.sql_project_repository import SqlProjectRepository
 from lifetrace.services.activity_service import ActivityService
 from lifetrace.services.chat_service import ChatService
 from lifetrace.services.event_service import EventService
@@ -38,6 +39,7 @@ from lifetrace.services.habit_service import HabitService
 from lifetrace.services.journal_service import JournalService
 from lifetrace.services.note_link_service import NoteLinkService
 from lifetrace.services.collection_service import CollectionService
+from lifetrace.services.project_service import ProjectService
 from lifetrace.services.todo_service import TodoService
 from lifetrace.services.zero_think_service import ZeroThinkService
 from lifetrace.storage.database_base import DatabaseBase
@@ -159,6 +161,25 @@ def get_collection_service(
 ) -> CollectionService:
     """获取 Collection 服务实例"""
     return CollectionService(repo, journal_repo)
+
+
+# ========== Project 模块依赖注入 ==========
+
+
+def get_project_repository(
+    db_base: DatabaseBase = Depends(get_db_base),
+) -> SqlProjectRepository:
+    """获取 Project 仓库实例"""
+    return SqlProjectRepository(db_base)
+
+
+def get_project_service(
+    repo: SqlProjectRepository = Depends(get_project_repository),
+    todo_repo: ITodoRepository = Depends(get_todo_repository),
+    journal_repo: IJournalRepository = Depends(get_journal_repository),
+) -> ProjectService:
+    """获取 Project 服务实例"""
+    return ProjectService(repo, todo_repo, journal_repo)
 
 
 # ========== Event 模块依赖注入 ==========

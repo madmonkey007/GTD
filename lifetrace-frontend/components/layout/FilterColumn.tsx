@@ -2,6 +2,7 @@
 
 import { Calendar, CalendarDays, ListTodo, Tag, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { ProjectList } from "@/apps/project";
 import { useTodos } from "@/lib/query";
 import { useUiStore } from "@/lib/store/ui-store";
 import { cn } from "@/lib/utils";
@@ -137,6 +138,11 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 						</button>
 					);
 				})}
+			</div>
+
+			{/* 项目入口（待办+笔记共享容器），位于标签之上 */}
+			<div className="flex flex-col gap-0.5 border-t border-border/20 px-2 pt-2 mt-1">
+				<ProjectList />
 			</div>
 
 			{/* 标签区域 */}

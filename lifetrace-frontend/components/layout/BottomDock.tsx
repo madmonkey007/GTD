@@ -55,6 +55,7 @@ const FEATURE_LABEL_MAP: Partial<Record<PanelFeature, string>> = {
 	todos: "todos",
 	chat: "chat",
 	todoDetail: "todoDetail",
+	projectDetail: "projectDetail",
 	costTracking: "costTracking",
 	debugShots: "debugShots",
 	audio: "audio",
