@@ -129,3 +129,8 @@ yarn.lock
 # GitHub Actions workflows (need workflow scope token to push)
 .github/workflows/
 handover.md
+
+# Local dev config & stray backups
+.claude/launch.json
+lifetrace-frontend/notes_after_2026-07-17.zip
+lifetrace-frontend/start_backend.sh
