@@ -8,7 +8,7 @@ import Mention from "@tiptap/extension-mention";
 import { EditorContent, useEditor, ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import MarkdownIt from "markdown-it";
-import { Bold, Highlighter, Underline, ListOrdered, List, Hash, AtSign, Search as SearchIcon, ImagePlus, Link as LinkIcon  } from "lucide-react";
+import { Bold, Highlighter, Underline, ListOrdered, List, Hash, AtSign, Search as SearchIcon, ImagePlus  } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import TurndownService from "turndown";
@@ -396,10 +396,6 @@ export function DiaryTiptapEditor({
 	}, []);
 
 	// 单张仍保留（网络图片 URL 等场景）
-	const insertImage = useCallback((src: string, alt: string) => {
-		insertImages([{ src, alt }]);
-	}, [insertImages]);
-
 	// 批量上传：最多 9 张，并发压缩+上传，全部完成后一次性插入
 	const MAX_IMAGES = 9;
 	const handleImageFiles = useCallback(async (files: File[]) => {
@@ -435,11 +431,6 @@ export function DiaryTiptapEditor({
 		if (files.length > 0) await handleImageFiles(files);
 		e.target.value = "";
 	}, [handleImageFiles]);
-
-	const onUrlImage = useCallback(() => {
-		const url = window.prompt("输入图片 URL");
-		if (url && url.trim()) insertImage(url.trim(), "");
-	}, [insertImage]);
 
 	// 粘贴图片：收集所有 image/* 项，忽略 text/html 内的 base64，避免 user_notes 字段暴涨
 	const handlePasteImage = useCallback((_view: any, event: ClipboardEvent): boolean => {
@@ -633,15 +624,6 @@ export function DiaryTiptapEditor({
 							<AtSign className="w-4 h-4" />
 						</button>
 					)}
-					{/* 网络图片（URL） */}
-					<button
-						type="button"
-						title="网络图片链接"
-						onClick={onUrlImage}
-						className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
-					>
-						<LinkIcon className="w-4 h-4" />
-					</button>
 					<input ref={fileInputRef} type="file" accept="image/*" multiple onChange={onFileChange} className="hidden" />
 				</div>
 				<div className="flex items-center gap-1">
