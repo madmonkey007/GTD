@@ -15,6 +15,8 @@ interface DiarySidebarProps {
 	stats: DiaryStatsData;
 	filterMode: DiaryFilterMode;
 	onFilterModeChange: (mode: DiaryFilterMode) => void;
+	/** 项目视图等场景下隐藏筛选高亮 */
+	hideFilterActive?: boolean;
 	onSelectDate?: (date: Date) => void;
 	onRestore?: (entry: TrashEntry) => void;
 	onShowTrash?: () => void;
@@ -22,7 +24,6 @@ interface DiarySidebarProps {
 	onSelectTag?: (tagName: string | null) => void;
 	selectedCollectionId?: number | null;
 	onSelectCollection?: (id: number) => void;
-	onOpenGallery?: () => void;
 	selectedProjectId?: number | null;
 	onSelectProject?: (id: number) => void;
 	onCloseProject?: () => void;
@@ -32,6 +33,7 @@ export function DiarySidebar({
 	stats,
 	filterMode,
 	onFilterModeChange,
+	hideFilterActive,
 	onSelectDate,
 	onRestore,
 	onShowTrash,
@@ -39,7 +41,6 @@ export function DiarySidebar({
 	onSelectTag,
 	selectedCollectionId,
 	onSelectCollection,
-	onOpenGallery,
 	selectedProjectId,
 	onSelectProject,
 	onCloseProject,
@@ -71,13 +72,7 @@ export function DiarySidebar({
 			<DiaryFilterBar
 				filterMode={filterMode}
 				onFilterModeChange={onFilterModeChange}
-			/>
-
-			{/* Collections（集合入口，位于标签上方） */}
-			<CollectionList
-				selectedCollectionId={selectedCollectionId}
-				onSelectCollection={onSelectCollection}
-				onOpenGallery={onOpenGallery}
+				hideActive={hideFilterActive}
 			/>
 
 			{/* Projects（项目入口：待办+笔记共享容器） */}
@@ -86,6 +81,12 @@ export function DiarySidebar({
 				selectedProjectId={selectedProjectId}
 				onSelectProject={onSelectProject}
 				onCloseProject={onCloseProject}
+			/>
+
+			{/* Collections（集合入口，位于项目下方） */}
+			<CollectionList
+				selectedCollectionId={selectedCollectionId}
+				onSelectCollection={onSelectCollection}
 			/>
 
 			{/* Tags */}

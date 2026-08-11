@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 interface DiaryFilterBarProps {
 	filterMode: DiaryFilterMode;
 	onFilterModeChange: (mode: DiaryFilterMode) => void;
+	/** 处于项目视图等无筛选语义的场景时，隐藏所有选项的高亮态 */
+	hideActive?: boolean;
 }
 
 const FILTERS: { key: DiaryFilterMode; disabled?: boolean; icon: React.FC<{ className?: string }> }[] = [
@@ -17,13 +19,13 @@ const FILTERS: { key: DiaryFilterMode; disabled?: boolean; icon: React.FC<{ clas
 	{ key: "todo", icon: CheckSquare },
 ];
 
-export function DiaryFilterBar({ filterMode, onFilterModeChange }: DiaryFilterBarProps) {
+export function DiaryFilterBar({ filterMode, onFilterModeChange, hideActive }: DiaryFilterBarProps) {
 	const t = useTranslations("journalPanel");
 
 	return (
 		<div className="flex flex-col gap-0.5">
 		{FILTERS.map(({ key, disabled, icon: Icon }) => {
-				const isActive = filterMode === key;
+				const isActive = !hideActive && filterMode === key;
 				const labelKey =
 					key === "all"
 						? "sidebarFilterAll"

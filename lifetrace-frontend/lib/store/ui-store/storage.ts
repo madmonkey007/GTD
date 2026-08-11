@@ -29,7 +29,14 @@ export const createUiStoreStorage = () =>
 
 					// 验证并修复 panelFeatureMap
 					if (state.panelFeatureMap) {
-						state.panelFeatureMap = validatePanelFeatureMap(state.panelFeatureMap);
+						state.panelFeatureMap = validatePanelFeatureMap(
+							state.panelFeatureMap,
+						);
+						// 某位置功能为空（如被移除的 projectDetail 经 validate 过滤为 null）时，
+						// 关闭对应面板避免空白栏占位
+						if (!state.panelFeatureMap.panelA) state.isPanelAOpen = false;
+						if (!state.panelFeatureMap.panelB) state.isPanelBOpen = false;
+						if (!state.panelFeatureMap.panelC) state.isPanelCOpen = false;
 					}
 
 					// 校验 panelPinMap

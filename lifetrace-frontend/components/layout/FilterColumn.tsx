@@ -14,7 +14,7 @@ const FILTER_ITEMS = [
 ] as const;
 
 export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
-	const { sidebarMode, sidebarTag, setSidebarMode, setSidebarTag, sidebarWidth, setSidebarWidth } = useUiStore();
+	const { sidebarMode, sidebarTag, setSidebarMode, setSidebarTag, sidebarWidth, setSidebarWidth, todoProjectFilter, setTodoProjectFilter } = useUiStore();
 	const { data: allTodos } = useTodos({ limit: 2000 });
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [isResizing, setIsResizing] = useState(false);
@@ -115,13 +115,16 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 			<div className="flex flex-col gap-0.5 p-2">
 				{FILTER_ITEMS.map((item) => {
 					const Icon = item.icon;
-					const isActive = sidebarMode === item.id || (item.id === "list" && sidebarMode === null);
+					// 全部清单：无模式筛选且未进入项目筛选时才高亮（避免与项目选中态并存）
+					const isActive =
+						sidebarMode === item.id ||
+						(item.id === "list" && sidebarMode === null && !todoProjectFilter);
 					const count = counts[item.id];
 					return (
 						<button
 							key={item.id}
 							type="button"
-							onClick={() => setSidebarMode(sidebarMode === item.id ? null : item.id)}
+							onClick={() => { setTodoProjectFilter(null); setSidebarMode(sidebarMode === item.id ? null : item.id); }}
 							className={cn(
 								"flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs transition-colors",
 								"hover:bg-muted/40",
@@ -155,7 +158,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 						<button
 							key={tag}
 							type="button"
-							onClick={() => setSidebarTag(sidebarTag === tag ? null : tag)}
+							onClick={() => { setTodoProjectFilter(null); setSidebarTag(sidebarTag === tag ? null : tag); }}
 							className={cn(
 								"flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors",
 								"hover:bg-muted/40",

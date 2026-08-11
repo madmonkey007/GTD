@@ -1,35 +1,36 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Library } from "lucide-react";
+import { ChevronDown, ChevronRight, Library, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { useCollections } from "@/lib/query";
+import { useCollectionMutations, useCollections } from "@/lib/query";
 import { cn } from "@/lib/utils";
+import { CreateCollectionDialog } from "./CreateCollectionDialog";
 
 interface CollectionListProps {
 	selectedCollectionId?: number | null;
 	onSelectCollection?: (id: number) => void;
-	onOpenGallery?: () => void;
 }
 
-/** 侧边栏的「集合」入口：位于标签上方，列出集合并支持进入画廊页。 */
+/** 侧边栏的「集合」入口：位于项目下方，列出集合并支持 + 新建。 */
 export function CollectionList({
 	selectedCollectionId,
 	onSelectCollection,
-	onOpenGallery,
 }: CollectionListProps) {
 	const t = useTranslations("collection");
 	const { data: collections = [], isLoading } = useCollections();
+	const { createCollectionAsync, isPending } = useCollectionMutations();
 	const [collapsed, setCollapsed] = useState(true);
+	const [showCreate, setShowCreate] = useState(false);
 	const Chevron = collapsed ? ChevronRight : ChevronDown;
 
 	return (
 		<div className="flex flex-col gap-1">
-			<div className="flex items-center justify-between px-1">
+			<div className="flex items-center justify-between px-0">
 				<button
 					type="button"
 					onClick={() => setCollapsed((v) => !v)}
-					className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
+					className="flex items-center gap-1.5 px-2.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
 					title={collapsed ? t("expand") : t("collapse")}
 				>
 					{t("entryTitle")}
@@ -42,24 +43,20 @@ export function CollectionList({
 				</button>
 				<button
 					type="button"
-					onClick={onOpenGallery}
+					onClick={() => setShowCreate(true)}
 					className="text-[10px] text-muted-foreground/50 transition-colors hover:text-foreground"
-					title={t("openGallery")}
+					title={t("createTitle")}
 				>
-					{t("viewAll")}
+					<Plus className="h-3 w-3" />
 				</button>
 			</div>
 
 			{!collapsed &&
 				(isLoading ? null : collections.length === 0 ? (
-					<button
-						type="button"
-						onClick={onOpenGallery}
-						className="flex items-center gap-2 rounded-lg border border-dashed border-border/50 px-2.5 py-1.5 text-xs text-muted-foreground/70 transition-colors hover:border-border hover:bg-muted/30"
-					>
-						<Library className="h-3 w-3" />
-						{t("emptyEntry")}
-					</button>
+					// 空状态：只给一行文案，不用可点击按钮（创建走 + 号弹窗）
+					<p className="px-0 py-1 text-xs text-muted-foreground/50">
+						{t("empty")}
+					</p>
 				) : (
 					<div className="space-y-0.5">
 						{collections.slice(0, 8).map((c) => {
@@ -106,6 +103,19 @@ export function CollectionList({
 						})}
 					</div>
 				))}
+
+			{showCreate && (
+				<CreateCollectionDialog
+					onClose={() => setShowCreate(false)}
+					onCreated={(id) => {
+						setShowCreate(false);
+						setCollapsed(false);
+						onSelectCollection?.(id);
+					}}
+					createAsync={createCollectionAsync}
+					pending={isPending}
+				/>
+			)}
 		</div>
 	);
 }

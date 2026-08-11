@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo, useEffect } from "react";
+import { useRef, useState, useMemo, useEffect, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -100,6 +100,10 @@ interface DiaryEditorProps {
 	onToggleRight?: () => void;
 	/** 提交成功后自增的信号，重置分页到第一页（新建笔记出现在列表顶部） */
 	notesResetSignal?: number;
+	/** 项目过滤模式：仅展示属于这些笔记 ID 的笔记（卡片渲染与全部笔记完全一致） */
+	filterJournalIds?: number[] | null;
+	/** 渲染在笔记区顶部（输入区上方）的自定义头部，如项目标题栏 */
+	headerSlot?: ReactNode;
 }
 
 export function DiaryEditor({
@@ -135,6 +139,8 @@ export function DiaryEditor({
 	onToggleLeft,
 	onToggleRight,
 	notesResetSignal = 0,
+	filterJournalIds,
+	headerSlot,
 }: DiaryEditorProps) {
 	const t = useTranslations("journalPanel");
 	const locale = useLocale();
@@ -177,7 +183,9 @@ export function DiaryEditor({
 
 
 		const journalQuery = useMemo(() => {
-		const params: Record<string, unknown> = { limit: PAGE_SIZE, offset: notesOffset };
+		const params: Record<string, unknown> = filterJournalIds
+			? { limit: 500, offset: 0 }
+			: { limit: PAGE_SIZE, offset: notesOffset };
 		if (filterMode === "todo") {
 			// 待办笔记：背景镜像 + 备注镜像
 			params.origins = "todo_background,todo_notes";
@@ -199,7 +207,7 @@ export function DiaryEditor({
 			params.search = debouncedSearch.trim();
 		}
 		return params;
-	}, [filterMode, heatmapFilterDate, debouncedSearch, notesOffset]);
+	}, [filterMode, heatmapFilterDate, debouncedSearch, notesOffset, filterJournalIds]);
 
 		const { data: notesData, isLoading: _isNotesLoading, isFetching: isNotesFetching } = useJournals(journalQuery);
 		// 分页累计：当新数据返回时追加到 allNotes。
@@ -244,22 +252,23 @@ export function DiaryEditor({
 	// 用 ref 比较真实变化，避免挂载时（含开发环境 StrictMode 对 effect 的二次触发）误清空 allNotes：
 	// 挂载时上面的合并 effect 已从缓存填充 allNotes，此处再清空会因 notesData 引用稳定、
 	// 合并 effect 不再触发而无法回填，导致切走再切回笔记面板时列表变空。
-	const prevFiltersRef = useRef({ filterMode, heatmapFilterDate, debouncedSearch });
+	const prevFiltersRef = useRef({ filterMode, heatmapFilterDate, debouncedSearch, filterJournalIds });
 	useEffect(() => {
 		const prev = prevFiltersRef.current;
 		if (
 			prev.filterMode === filterMode &&
 			prev.heatmapFilterDate === heatmapFilterDate &&
-			prev.debouncedSearch === debouncedSearch
+			prev.debouncedSearch === debouncedSearch &&
+			prev.filterJournalIds === filterJournalIds
 		) {
 			return;
 		}
-		prevFiltersRef.current = { filterMode, heatmapFilterDate, debouncedSearch };
+		prevFiltersRef.current = { filterMode, heatmapFilterDate, debouncedSearch, filterJournalIds };
 		setNotesOffset(0);
 		setAllNotes([]);
 		setHasMore(true);
 		loadedPagesRef.current = 0;
-	}, [filterMode, heatmapFilterDate, debouncedSearch]);
+	}, [filterMode, heatmapFilterDate, debouncedSearch, filterJournalIds]);
 
 	// 笔记提交成功后（父组件自增 signal），重置分页到第一页，
 	// 让新建的笔记出现在列表顶部（否则滚动加载后新笔记被合并逻辑丢弃）
@@ -336,6 +345,12 @@ export function DiaryEditor({
 	const sortedNotes = useMemo(() => {
 		let filtered = notesList;
 
+		// 项目过滤：仅展示属于该项目的笔记
+		if (filterJournalIds) {
+			const idSet = new Set(filterJournalIds);
+			filtered = filtered.filter((j) => idSet.has(j.id));
+		}
+
 		// Filter by similar notes: show only notes sharing tags with the target
 		if (similarToNoteId) {
 			const targetNote = notesList.find((j) => j.id === similarToNoteId);
@@ -365,7 +380,7 @@ export function DiaryEditor({
 			return shuffled.slice(0, 3);
 		}
 		return sorted;
-	}, [notesList, pinnedIds, filterMode, tagFilter, similarToNoteId, randomShuffle]);
+	}, [notesList, pinnedIds, filterMode, tagFilter, similarToNoteId, randomShuffle, filterJournalIds]);
 
 	const formatTime = (dateStr: string) => {
 		const d = new Date(dateStr);
@@ -374,6 +389,7 @@ export function DiaryEditor({
 
 	return (
 		<div className="flex h-full flex-col">
+			{headerSlot}
 			<div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>
 			{/* Input area - auto-expanding (hidden when searching or filtering) */}
 			{/* Search bar */}

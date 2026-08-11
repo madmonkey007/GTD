@@ -63,7 +63,8 @@ export type DropTargetType =
 	| "TODO_CARD_SLOT"
 	| "TODO_DROP_ZONE"
 	| "CHAT_WINDOW"
-	| "PANEL_HEADER";
+	| "PANEL_HEADER"
+	| "PROJECT";
 
 /**
  * 类型安全的放置区数据 - 使用可辨识联合类型
@@ -116,6 +117,12 @@ export type DropData =
 			type: "PANEL_HEADER";
 			metadata: {
 				position: "panelA" | "panelB" | "panelC";
+			};
+	  }
+	| {
+			type: "PROJECT";
+			metadata: {
+				projectId: number;
 			};
 	  };
 

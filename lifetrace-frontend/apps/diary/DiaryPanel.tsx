@@ -22,6 +22,7 @@ import {
 	type JournalView,
 	useJournalMutations,
 	useJournals,
+	useProjectMutations,
 } from "@/lib/query";
 import { useNoteLinkMutations } from "@/lib/query/note-links";
 import { useJournalStore } from "@/lib/store/journal-store";
@@ -38,7 +39,9 @@ import { AnnotationModal } from "@/apps/diary/components/AnnotationModal";
 import { CompareNotesModal } from "@/apps/diary/components/CompareNotesModal";
 import { CollectionDetail } from "@/apps/diary/components/CollectionDetail";
 import { CollectionGallery } from "@/apps/diary/components/CollectionGallery";
-import { ProjectDetail } from "@/apps/project";
+import { ProjectHeader } from "@/apps/project/ProjectHeader";
+import { ProjectNoteManager } from "@/apps/project/ProjectNoteManager";
+import { useProject } from "@/lib/query";
 import { useUiStore } from "@/lib/store/ui-store";
 const emptyDraft = (date: Date): JournalDraft => ({
 	id: null,
@@ -125,6 +128,9 @@ export function DiaryPanel() {
 	// 项目视图：日记侧不渲染三栏 panelC，项目详情内联在主区展示（与待办侧共享同一实体）
 	const [projectViewOpen, setProjectViewOpen] = useState(false);
 	const storeSelectedProjectId = useUiStore((s) => s.selectedProjectId);
+	const tProject = useTranslations("project");
+	const [projectNoteManagerOpen, setProjectNoteManagerOpen] = useState(false);
+	const { data: project } = useProject(storeSelectedProjectId);
 
 	const openProjectView = useCallback(() => {
 		setShowTrash(false);
@@ -132,17 +138,15 @@ export function DiaryPanel() {
 		setCollectionView("none");
 		setProjectViewOpen(true);
 	}, []);
-	const closeProjectView = useCallback(() => {
+	// 关闭项目视图并清除选中项目，避免侧栏项目入口残留高亮（与筛选/日期/标签互斥）
+	const clearProjectView = useCallback(() => {
 		setProjectViewOpen(false);
 		useUiStore.setState({ selectedProjectId: null });
 	}, []);
+	const closeProjectView = clearProjectView;
 
-	const openGallery = useCallback(() => {
-		setShowTrash(false);
-		setSelectedTag(null);
-		setCollectionView("gallery");
-	}, []);
 	const selectCollection = useCallback((id: number) => {
+		clearProjectView();
 		setSelectedCollectionId(id);
 		setCollectionView("detail");
 	}, []);
@@ -224,6 +228,7 @@ export function DiaryPanel() {
 		isUpdating,
 		} = useJournalMutations();
 	const { createNoteLinkAsync } = useNoteLinkMutations();
+	const { addNotesAsync } = useProjectMutations();
 	const noteLinkList = useMemo(() => {
 		if (!allNotesData?.journals) return [];
 		return allNotesData.journals
@@ -234,6 +239,12 @@ export function DiaryPanel() {
 				preview: (n.userNotes ?? '').replace(/[\r\n]/g, ' ').slice(0, 80),
 			}));
 	}, [allNotesData, draft.id]);
+	// 稳定 filterJournalIds 的数组引用：project.notes 在 query 缓存中引用稳定，
+	// 仅在笔记成员真正变化时才重算，避免父组件每次按键渲染都产生新数组触发 DiaryEditor 清空列表。
+	const projectFilterJournalIds = useMemo(
+		() => project?.notes?.map((n) => n.id),
+		[project?.notes],
+	);
 
 	// 使用 NoteLink API 创建 SUPPORTS 链接（替代原先的 related_note_ids 写入）
 	// sourceId 可选：编辑态卡片用 editingCardId；新建态无 id 时先保存再建链
@@ -495,6 +506,14 @@ const handleSaveCardEdit = async (
 				saved = await updateJournal(updatedDraft.id, updatePayload);
 			} else {
 				saved = await createJournal(payload);
+				// 项目视图下新建的笔记自动加入当前项目，使其出现在项目笔记列表
+				if (saved && projectViewOpen && project) {
+					try {
+						await addNotesAsync({ id: project.id, journalIds: [saved.id] });
+					} catch (e) {
+						console.error("[project] auto-link note failed:", e);
+					}
+				}
 			}
 		} catch (_error) {
 			return null;
@@ -698,7 +717,7 @@ const handleSaveCardEdit = async (
 			<div className="flex h-full flex-col overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20">
 			<div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-2 relative h-screen">
 				{/* Left sidebar — inline when wide, otherwise hidden (drawer overlay) */}
-				{showLeftInline && <DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} onFilterModeChange={(mode) => { setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => { setCollectionView("none"); setShowTrash(true); }} selectedTag={selectedTag} onSelectTag={(tag) => { setCollectionView("none"); setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} onOpenGallery={openGallery} selectedProjectId={storeSelectedProjectId} onSelectProject={openProjectView} onCloseProject={closeProjectView} />}
+				{showLeftInline && <DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} hideFilterActive={projectViewOpen} onFilterModeChange={(mode) => { clearProjectView(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { clearProjectView(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => { clearProjectView(); setCollectionView("none"); setShowTrash(true); }} selectedTag={selectedTag} onSelectTag={(tag) => { clearProjectView(); setCollectionView("none"); setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} selectedProjectId={storeSelectedProjectId} onSelectProject={openProjectView} onCloseProject={closeProjectView} />}
 				<div className={cn("flex-1 min-w-0 flex flex-col", collectionView === "none" && !projectViewOpen && "max-w-[800px]")}>
 					{collectionView === "gallery" ? (
 						<CollectionGallery onSelectCollection={selectCollection} />
@@ -708,10 +727,59 @@ const handleSaveCardEdit = async (
 							onBack={() => setCollectionView("gallery")}
 						/>
 					) : projectViewOpen && storeSelectedProjectId ? (
-						<ProjectDetail
-							projectId={storeSelectedProjectId}
-							feature="note"
+						<>
+						{project ? (
+						<DiaryEditor
+							draft={draft}
+							filterMode={filterMode}
+							tagFilter={selectedTag}
+							heatmapFilterDate={heatmapFilterDate}
+							onClearHeatmapFilter={() => setHeatmapFilterDate(null)}
+							pinnedIds={pinnedIds}
+							onDelete={handleDeleteJournal}
+							onTogglePin={handleTogglePin}
+							onSaveCardEdit={handleSaveCardEdit}
+							similarToNoteId={similarToNoteId}
+							onSimilarClick={(id) => setSimilarToNoteId(id)}
+							onClearSimilarFilter={() => setSimilarToNoteId(null)}
+							recentTags={recentTags}
+							onAnnotate={(note) => setAnnotateTarget(note)}
+							onCompareNotes={(source, current) => setCompareTarget({ source, current })}
+							relatedNotesData={allNotesData?.journals ?? []}
+							noteLinkList={noteLinkList}
+							onLinkNote={handleLinkNote}
+							onRemoveLink={handleRemoveLink}
+							linkedNoteTitles={pendingLinks}
+							onTitleChange={(value) => setDraft((prev) => ({ ...prev, name: value }))}
+							onUserNotesChange={(value) => setDraft((prev) => ({ ...prev, userNotes: value }))}
+							onUserNotesBlur={(value) => handleAutoSave({ draftOverride: { userNotes: value } })}
+							onSubmit={handleSubmitNotes}
+							notesResetSignal={notesResetSignal}
+							onInlineTag={handleInlineTag}
+							showLeftToggle={!showLeftInline}
+							showRightToggle={!showRightInline}
+							isLeftOpen={leftDrawerOpen}
+							isRightOpen={rightDrawerOpen}
+							onToggleLeft={() => setLeftDrawerOpen((prev) => !prev)}
+							onToggleRight={() => setRightDrawerOpen((prev) => !prev)}
+							filterJournalIds={projectFilterJournalIds}
+							headerSlot={
+								<ProjectHeader
+									project={project}
+									manageLabel={tProject("manageNotes")}
+									onManageClick={() => setProjectNoteManagerOpen(true)}
+								/>
+							}
 						/>
+						) : null}
+						{projectNoteManagerOpen && project && (
+							<ProjectNoteManager
+								projectId={project.id}
+								memberIds={project.notes?.map((n) => n.id) ?? []}
+								onClose={() => setProjectNoteManagerOpen(false)}
+							/>
+						)}
+						</>
 					) : showTrash ? (
 						<DiaryTrashView
 							trashEntries={trashEntries}
@@ -790,7 +858,7 @@ const handleSaveCardEdit = async (
 						transition={{ type: "spring", damping: 30, stiffness: 300 }}
 						className="absolute left-0 top-0 z-40 h-full w-72 shadow-xl"
 					>
-						<DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} onFilterModeChange={(mode) => { setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => { setCollectionView("none"); setShowTrash(true); }} selectedTag={selectedTag} onSelectTag={(tag) => { setCollectionView("none"); setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} onOpenGallery={openGallery} selectedProjectId={storeSelectedProjectId} onSelectProject={openProjectView} onCloseProject={closeProjectView} />
+						<DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} hideFilterActive={projectViewOpen} onFilterModeChange={(mode) => { clearProjectView(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { clearProjectView(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => { clearProjectView(); setCollectionView("none"); setShowTrash(true); }} selectedTag={selectedTag} onSelectTag={(tag) => { clearProjectView(); setCollectionView("none"); setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} selectedProjectId={storeSelectedProjectId} onSelectProject={openProjectView} onCloseProject={closeProjectView} />
 					</motion.div>
 				</>
 			)}

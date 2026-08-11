@@ -1,5 +1,6 @@
 "use client";
 
+import { type DragEndEvent, useDndMonitor, useDroppable } from "@dnd-kit/core";
 import {
 	ChevronDown,
 	ChevronRight,
@@ -8,14 +9,16 @@ import {
 	Plus,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
 	Dialog,
 	DialogContent,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { type DragData, type DropData } from "@/lib/dnd";
 import { useProjectMutations, useProjects } from "@/lib/query";
 import { useUiStore } from "@/lib/store/ui-store";
+import { toastError, toastSuccess } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 interface ProjectListProps {
@@ -23,13 +26,13 @@ interface ProjectListProps {
 	feature: "note" | "todo";
 	/** 外部受控选中态（可选）；默认读取 ui-store.selectedProjectId */
 	selectedProjectId?: number | null;
-	/** 点击项目回调（可选）；内部已默认打开 projectDetail 面板 */
+	/** 点击项目回调（可选）；内部已默认处理选中态 */
 	onSelectProject?: (id: number) => void;
 	/** 再次点击已选中项目时关闭（笔记侧用，替代返回按钮） */
 	onCloseProject?: () => void;
 }
 
-/** 侧边栏的「项目」入口：待办侧/笔记侧共用，点击进入 projectDetail 面板（只展示各自内容）。 */
+/** 侧边栏的「项目」入口：待办侧/笔记侧共用（待办侧=按项目筛选，笔记侧=主区内联项目详情）。 */
 export function ProjectList({
 	feature,
 	selectedProjectId: selectedProjectIdProp,
@@ -38,30 +41,74 @@ export function ProjectList({
 }: ProjectListProps) {
 	const t = useTranslations("project");
 	const { data: projects = [], isLoading } = useProjects();
-	const { createProjectAsync } = useProjectMutations();
+	const { createProjectAsync, addTodosAsync } = useProjectMutations();
 	const [collapsed, setCollapsed] = useState(true);
 	const [showCreate, setShowCreate] = useState(false);
 	const storeSelectedId = useUiStore((s) => s.selectedProjectId);
 	const storeSetSelectedProjectId = useUiStore((s) => s.setSelectedProjectId);
-	const storeSetProjectDetailFeature = useUiStore(
-		(s) => s.setProjectDetailFeature,
-	);
 	const todoProjectFilter = useUiStore((s) => s.todoProjectFilter);
 	const storeSetTodoProjectFilter = useUiStore((s) => s.setTodoProjectFilter);
+	const storeSetSidebarMode = useUiStore((s) => s.setSidebarMode);
+	const storeSetSidebarTag = useUiStore((s) => s.setSidebarTag);
+
+	// 从待办列表拖拽待办到项目文件夹：自动将该待办加入项目
+	const handleDragEnd = useCallback(
+		async (event: DragEndEvent) => {
+			const { active, over } = event;
+			if (!over) return;
+
+			const dragData = active.data.current as DragData | undefined;
+			const dropData = over.data.current as DropData | undefined;
+			if (dragData?.type !== "TODO_CARD" || dropData?.type !== "PROJECT") {
+				return;
+			}
+
+			const todoId = dragData.payload.todo.id;
+			const projectId = dropData.metadata.projectId;
+			try {
+				await addTodosAsync({ id: projectId, todoIds: [todoId] });
+				toastSuccess(t("dragAddSuccess"));
+			} catch (err) {
+				console.error("Failed to add todo to project:", err);
+				toastError(t("dragAddError"));
+			}
+		},
+		[addTodosAsync, t],
+	);
+
+	// 使用 useDndMonitor 监听全局拖拽事件（仅待办侧：待办列表只出现在待办窗口，避免笔记侧实例重复触发）
+	useDndMonitor({
+		onDragEnd: feature === "todo" ? handleDragEnd : undefined,
+	});
 
 	const selectedProjectId = selectedProjectIdProp ?? storeSelectedId;
 
 	// 笔记侧：进入项目详情页（DiaryPanel 主区内联）
 	const openProject = (id: number) => {
 		storeSetSelectedProjectId(id);
-		storeSetProjectDetailFeature(feature);
 		onSelectProject?.(id);
 	};
 
 	// 点击项目：待办侧 = 切换「按项目筛选」（再点同一项目取消）；笔记侧 = 进入项目页（再点同一项目关闭）
 	const handleClickProject = (id: number) => {
 		if (feature === "todo") {
+			const willFilter = todoProjectFilter !== id;
 			storeSetTodoProjectFilter(todoProjectFilter === id ? null : id);
+			// 进入项目筛选态：清除侧边栏模式/标签筛选，避免"全部清单"等选项残留高亮
+			if (willFilter) {
+				storeSetSidebarMode(null);
+				storeSetSidebarTag(null);
+				const st = useUiStore.getState();
+				if (st.isPanelBOpen && st.panelFeatureMap.panelB === "todoDetail") {
+					st.togglePanelB();
+				}
+				if (!st.panelFeatureMap.panelC) {
+					st.setPanelFeature("panelC", "chat");
+				}
+				if (!useUiStore.getState().isPanelCOpen) {
+					useUiStore.getState().togglePanelC();
+				}
+			}
 		} else {
 			if (selectedProjectId === id) {
 				storeSetSelectedProjectId(null);
@@ -82,11 +129,11 @@ export function ProjectList({
 
 	return (
 		<div className="flex flex-col gap-1">
-			<div className="flex items-center justify-between px-1">
+			<div className="flex items-center justify-between px-0">
 				<button
 					type="button"
 					onClick={() => setCollapsed((v) => !v)}
-					className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
+					className="flex items-center gap-1.5 px-2.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
 					title={collapsed ? t("expand") : t("collapse")}
 				>
 					{t("entryTitle")}
@@ -110,37 +157,17 @@ export function ProjectList({
 							{t("empty")}
 						</p>
 					) : (
-						projects.slice(0, 12).map((p) => {
-							const isSelected = isProjectActive(p.id);
-							return (
-								<button
-									key={p.id}
-									type="button"
-									onClick={() => handleClickProject(p.id)}
-									className={cn(
-										"flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-xs transition-colors",
-										isSelected
-											? "bg-primary/10 font-medium text-primary"
-											: "text-muted-foreground hover:bg-muted/30",
-									)}
-								>
-									<span
-										className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
-										style={
-											p.color ? { backgroundColor: p.color } : undefined
-										}
-									>
-										<FolderKanban
-											className="h-3 w-3"
-											style={{
-												color: p.color ? "white" : undefined,
-											}}
-										/>
-									</span>
-									<span className="flex-1 truncate text-left">{p.name}</span>
-								</button>
-							);
-						})
+						projects.slice(0, 12).map((p) => (
+							<ProjectItem
+								key={p.id}
+								projectId={p.id}
+								name={p.name}
+								color={p.color}
+								isSelected={isProjectActive(p.id)}
+								droppable={feature === "todo"}
+								onClick={() => handleClickProject(p.id)}
+							/>
+						))
 					)}
 				</div>
 			)}
@@ -159,6 +186,62 @@ export function ProjectList({
 				createProjectAsync={createProjectAsync}
 			/>
 		</div>
+	);
+}
+
+/** 单个项目项：既是点击入口，也是待办拖拽的放置目标（TODO_CARD → PROJECT） */
+function ProjectItem({
+	projectId,
+	name,
+	color,
+	isSelected,
+	droppable,
+	onClick,
+}: {
+	projectId: number;
+	name: string;
+	color: string | null;
+	isSelected: boolean;
+	/** 是否作为拖拽放置目标（仅待办侧开启） */
+	droppable: boolean;
+	onClick: () => void;
+}) {
+	const dropData: DropData = useMemo(
+		() => ({ type: "PROJECT" as const, metadata: { projectId } }),
+		[projectId],
+	);
+	const { isOver, setNodeRef } = useDroppable({
+		id: `project-${projectId}`,
+		data: dropData,
+		disabled: !droppable,
+	});
+
+	return (
+		<button
+			ref={setNodeRef}
+			type="button"
+			onClick={onClick}
+			className={cn(
+				"flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-xs transition-colors",
+				isSelected
+					? "bg-primary/10 font-medium text-primary"
+					: "text-muted-foreground hover:bg-muted/30",
+				isOver && "bg-primary/10 ring-1 ring-primary/30",
+			)}
+		>
+			<span
+				className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+				style={color ? { backgroundColor: color } : undefined}
+			>
+				<FolderKanban
+					className="h-3 w-3"
+					style={{
+						color: color ? "white" : undefined,
+					}}
+				/>
+			</span>
+			<span className="flex-1 truncate text-left">{name}</span>
+		</button>
 	);
 }
 

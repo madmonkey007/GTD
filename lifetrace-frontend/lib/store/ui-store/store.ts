@@ -44,7 +44,6 @@ export const useUiStore = create<UiStoreState>()(
 			activeView: DEFAULT_PANEL_STATE.activeView as SidebarView,
 			isSettingsOpen: DEFAULT_PANEL_STATE.isSettingsOpen,
 			selectedProjectId: null,
-			projectDetailFeature: "todo",
 			todoProjectFilter: null,
 
 			// 位置槽位 toggle 方法
@@ -474,11 +473,6 @@ export const useUiStore = create<UiStoreState>()(
 			setSelectedProjectId: (id) =>
 				set(() => ({
 					selectedProjectId: id,
-				})),
-
-			setProjectDetailFeature: (feature) =>
-				set(() => ({
-					projectDetailFeature: feature,
 				})),
 
 			setTodoProjectFilter: (id) =>

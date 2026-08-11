@@ -28,6 +28,7 @@ import { TodoTreeList } from "./TodoTreeList";
 
 export function TodoList() {
 	const tTodoList = useTranslations("todoList");
+	const tProject = useTranslations("project");
 	const isMobile = useIsMobile();
 	// 从 TanStack Query 获取 todos 数据
 	const { data: todos = [], isLoading, error } = useTodos();
@@ -37,7 +38,6 @@ export function TodoList() {
 
 	// 项目筛选（待办侧点项目后）：只展示该项目的待办成员
 	const todoProjectFilter = useUiStore((s) => s.todoProjectFilter);
-	const setTodoProjectFilter = useUiStore((s) => s.setTodoProjectFilter);
 	const { data: filterProject } = useProject(todoProjectFilter);
 	const { addTodosAsync: addTodosToProjectAsync } = useProjectMutations();
 	const projectMemberIds = useMemo(() => {
@@ -415,34 +415,8 @@ export function TodoList() {
 				todos={todos}
 				filter={filter}
 				onFilterChange={setFilter}
+				projectFilter={filterProject ?? null}
 			/>
-
-			{todoProjectFilter && filterProject && (
-				<div className="flex items-center gap-2 border-b border-border/40 px-6 py-2">
-					<span
-						className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
-						style={
-							filterProject.color ? { backgroundColor: filterProject.color } : undefined
-						}
-					>
-						<FolderKanban
-							className="h-3 w-3"
-							style={{ color: filterProject.color ? "white" : undefined }}
-						/>
-					</span>
-					<span className="flex-1 truncate text-sm font-semibold text-foreground">
-						{filterProject.name}
-					</span>
-					<button
-						type="button"
-						onClick={() => setTodoProjectFilter(null)}
-						title={tTodoList("clearProjectFilter")}
-						className="rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-					>
-						{tTodoList("clearProjectFilter")}
-					</button>
-				</div>
-			)}
 
 			<MultiTodoContextMenu selectedTodoIds={selectedTodoIds}>
 				<div className="flex-1 overflow-y-auto">
@@ -456,9 +430,23 @@ export function TodoList() {
 					</div>
 
 					{filteredTodos.length === 0 ? (
-						<div className="flex h-[200px] items-center justify-center px-4 text-sm text-muted-foreground">
-							{tTodoList("noTodos")}
-						</div>
+						todoProjectFilter ? (
+							<div className="flex h-[200px] flex-col items-center justify-center gap-2 px-4 text-center">
+								<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/5 ring-1 ring-primary/10">
+									<FolderKanban className="h-5 w-5 text-primary/50" />
+								</div>
+								<p className="text-sm text-muted-foreground">
+									{tProject("emptyTodos")}
+								</p>
+								<p className="text-xs text-muted-foreground/60">
+									{tProject("emptyTodosHint")}
+								</p>
+							</div>
+						) : (
+							<div className="flex h-[200px] items-center justify-center px-4 text-sm text-muted-foreground">
+								{tTodoList("noTodos")}
+							</div>
+						)
 					) : (
 						<>
 							{orderedTodos.length > 0 && (
