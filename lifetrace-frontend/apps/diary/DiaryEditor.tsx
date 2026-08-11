@@ -56,6 +56,7 @@ import { DiaryTiptapEditor, type NoteLinkItem } from "./DiaryTiptapEditor";
 import { ReferenceModal } from "./components/ReferenceModal";
 import { AddNoteLinkModal } from "./components/AddNoteLinkModal";
 import { NoteMarkdown } from "./components/NoteMarkdown";
+import { TimeMachineHeader } from "./components/TimeMachineHeader";
 import { useNoteChatStore } from "@/lib/store/note-chat-store";
 
 export type DiaryFilterMode = "all" | "last7" | "random" | "todo";
@@ -75,6 +76,9 @@ interface DiaryEditorProps {
 	onUserNotesBlur: (value: string) => void;
 	heatmapFilterDate?: Date | null;
 	onClearHeatmapFilter?: () => void;
+	/** 时光机：随机穿越到的日期（优先于 heatmapFilterDate） */
+	timeMachineDate?: Date | null;
+	onClearTimeMachine?: () => void;
 	pinnedIds: number[];
 	onDelete: (note: JournalView) => void;
 	onTogglePin: (journalId: number) => void;
@@ -112,6 +116,8 @@ export function DiaryEditor({
 	tagFilter,
 	heatmapFilterDate,
 	onClearHeatmapFilter,
+	timeMachineDate,
+	onClearTimeMachine,
 	onTitleChange,
 	onUserNotesChange,
 	onUserNotesBlur,
@@ -195,6 +201,14 @@ export function DiaryEditor({
 			const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 			params.startDate = start.toISOString();
 			params.endDate = end.toISOString();
+		} else if (timeMachineDate) {
+			// 时光机：筛选穿越到的那一天
+			const start = new Date(timeMachineDate);
+			start.setHours(0, 0, 0, 0);
+			const end = new Date(timeMachineDate);
+			end.setHours(23, 59, 59, 999);
+			params.startDate = start.toISOString();
+			params.endDate = end.toISOString();
 		} else if (heatmapFilterDate) {
 			const start = new Date(heatmapFilterDate);
 			start.setHours(0, 0, 0, 0);
@@ -207,7 +221,7 @@ export function DiaryEditor({
 			params.search = debouncedSearch.trim();
 		}
 		return params;
-	}, [filterMode, heatmapFilterDate, debouncedSearch, notesOffset, filterJournalIds]);
+	}, [filterMode, heatmapFilterDate, timeMachineDate, debouncedSearch, notesOffset, filterJournalIds]);
 
 		const { data: notesData, isLoading: _isNotesLoading, isFetching: isNotesFetching } = useJournals(journalQuery);
 		// 分页累计：当新数据返回时追加到 allNotes。
@@ -252,23 +266,24 @@ export function DiaryEditor({
 	// 用 ref 比较真实变化，避免挂载时（含开发环境 StrictMode 对 effect 的二次触发）误清空 allNotes：
 	// 挂载时上面的合并 effect 已从缓存填充 allNotes，此处再清空会因 notesData 引用稳定、
 	// 合并 effect 不再触发而无法回填，导致切走再切回笔记面板时列表变空。
-	const prevFiltersRef = useRef({ filterMode, heatmapFilterDate, debouncedSearch, filterJournalIds });
+	const prevFiltersRef = useRef({ filterMode, heatmapFilterDate, timeMachineDate, debouncedSearch, filterJournalIds });
 	useEffect(() => {
 		const prev = prevFiltersRef.current;
 		if (
 			prev.filterMode === filterMode &&
 			prev.heatmapFilterDate === heatmapFilterDate &&
+			prev.timeMachineDate === timeMachineDate &&
 			prev.debouncedSearch === debouncedSearch &&
 			prev.filterJournalIds === filterJournalIds
 		) {
 			return;
 		}
-		prevFiltersRef.current = { filterMode, heatmapFilterDate, debouncedSearch, filterJournalIds };
+		prevFiltersRef.current = { filterMode, heatmapFilterDate, timeMachineDate, debouncedSearch, filterJournalIds };
 		setNotesOffset(0);
 		setAllNotes([]);
 		setHasMore(true);
 		loadedPagesRef.current = 0;
-	}, [filterMode, heatmapFilterDate, debouncedSearch, filterJournalIds]);
+	}, [filterMode, heatmapFilterDate, timeMachineDate, debouncedSearch, filterJournalIds]);
 
 	// 笔记提交成功后（父组件自增 signal），重置分页到第一页，
 	// 让新建的笔记出现在列表顶部（否则滚动加载后新笔记被合并逻辑丢弃）
@@ -462,7 +477,7 @@ export function DiaryEditor({
 					</button>
 				)}
 			</div>
-						{!debouncedSearch && !heatmapFilterDate && !tagFilter && !similarToNoteId && (
+						{!debouncedSearch && !heatmapFilterDate && !timeMachineDate && !tagFilter && !similarToNoteId && (
 				<div className="px-4 pt-2 pb-2">
 					<DiaryTiptapEditor
 						noteLinkList={noteLinkList}
@@ -502,6 +517,9 @@ export function DiaryEditor({
 			)}
 			{/* Notes list - remaining */}
 			<div className="px-4 py-3 space-y-2">
+				{timeMachineDate && onClearTimeMachine && (
+					<TimeMachineHeader target={timeMachineDate} onClose={onClearTimeMachine} />
+				)}
 				{debouncedSearch && (
 					<div className="flex items-center gap-2 mb-3 px-2">
 						<span className="text-xs font-medium text-primary/80 bg-primary/8 rounded-full px-2.5 py-1 border border-primary/10">

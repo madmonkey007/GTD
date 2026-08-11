@@ -1,5 +1,6 @@
 "use client";
 
+import { TimerReset } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { DiaryFilterMode, DiaryStatsData } from "@/apps/diary/hooks/useDiaryStats";
 import { ProjectList } from "@/apps/project";
@@ -27,6 +28,8 @@ interface DiarySidebarProps {
 	selectedProjectId?: number | null;
 	onSelectProject?: (id: number) => void;
 	onCloseProject?: () => void;
+	/** 时光机：随机穿越到过去的某一天 */
+	onTimeMachine?: () => void;
 }
 
 export function DiarySidebar({
@@ -44,6 +47,7 @@ export function DiarySidebar({
 	selectedProjectId,
 	onSelectProject,
 	onCloseProject,
+	onTimeMachine,
 }: DiarySidebarProps) {
 	const t = useTranslations("journalPanel");
 
@@ -74,6 +78,19 @@ export function DiarySidebar({
 				onFilterModeChange={onFilterModeChange}
 				hideActive={hideFilterActive}
 			/>
+
+			{/* 时光机：随机穿越到过去有笔记的某一天 */}
+			{onTimeMachine && (
+				<button
+					type="button"
+					onClick={onTimeMachine}
+					title={t("timeMachineTooltip")}
+					className="rounded-lg px-2 py-1.5 text-xs transition-colors w-full text-left flex items-center gap-1.5 text-muted-foreground/70 hover:bg-muted/20 hover:text-foreground"
+				>
+					<TimerReset className="w-3.5 h-3.5 mr-2 shrink-0" />
+					{t("timeMachine")}
+				</button>
+			)}
 
 			{/* Projects（项目入口：待办+笔记共享容器） */}
 			<ProjectList

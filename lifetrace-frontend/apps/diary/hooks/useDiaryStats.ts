@@ -35,10 +35,13 @@ export function useDiaryStats() {
 	const startDate = useMemo(() => getStartDate(filterMode), [filterMode]);
 	const endDate = useMemo(() => {
 		const now = new Date();
+		// 取「后天 00:00」而非「明天 00:00」：.toISOString() 会把本地时间转成 UTC，
+		// 仅 +1 天在东八区会落到「今天 16:00 UTC」，导致数据库按 UTC 比较时把当天
+		// 16:00 之后的笔记排除掉（统计总数偏小）。+2 天可兜底覆盖所有时区。
 		return new Date(
 			now.getFullYear(),
 			now.getMonth(),
-			now.getDate() + 1,
+			now.getDate() + 2,
 		);
 	}, []);
 

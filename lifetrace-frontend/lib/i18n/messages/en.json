@@ -350,6 +350,8 @@
     "sidebarFilterRandom": "Random",
     "sidebarFilterRandomTooltip": "Coming soon",
     "sidebarFilterTodoNotes": "Todo Notes",
+    "timeMachine": "Time Machine",
+    "timeMachineTooltip": "Randomly travel back to a past day",
     "todoNoteBadge": "Todo",
     "linkedTodo": "Linked: ",
     "sidebarTags": "Tags",
