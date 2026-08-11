@@ -22,6 +22,10 @@ type InputBoxProps = {
 	onTranscript?: (text: string) => void;
 	onSlashTyped?: () => void;
 	linkedTodos?: React.ReactNode;
+	/** @ 提及浮层（由 ChatInputSection 注入） */
+	mentionPopover?: React.ReactNode;
+	/** textarea 的 ref，供外部定位/插入光标使用 */
+	textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
 	/** 最大高度，默认为 "40vh"（视口高度的40%） */
 	maxHeight?: string;
 };
@@ -47,29 +51,26 @@ export function InputBox({
 	onSlashTyped,
 	onTranscript,
 	linkedTodos,
+	mentionPopover,
+	textareaRef: externalTextareaRef,
 	locale = "en",
 	maxHeight = "40vh",
 }: InputBoxProps) {
 	const t = useTranslations("chat");
 	const isSendDisabled = !inputValue.trim() || isStreaming;
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
+	const textareaRef = externalTextareaRef ?? internalTextareaRef;
 	const prevInputValueRef = useRef<string>(inputValue);
 
 	// 始终使用紧凑布局（单行）
 	const isCompactLayout = true;
 
-	/** 自动调整 textarea 高度 — 只在内容真正变化时调整 */
+	/** 自动调整 textarea 高度：先重置为 auto 再读 scrollHeight，避免旧高度污染 */
 	const adjustHeight = useCallback(() => {
 		const textarea = textareaRef.current;
 		if (!textarea || !isCompactLayout) return;
-
-		// 固定到 MIN_TEXTAREA_HEIGHT 再判断是否需要展开
-		if (textarea.scrollHeight <= MIN_TEXTAREA_HEIGHT) {
-			textarea.style.height = `${MIN_TEXTAREA_HEIGHT}px`;
-			return;
-		}
 		textarea.style.height = "auto";
-		textarea.style.height = `${textarea.scrollHeight}px`;
+		textarea.style.height = `${Math.max(MIN_TEXTAREA_HEIGHT, textarea.scrollHeight)}px`;
 	}, []);
 
 	// 只在 inputValue 变化时调整高度
@@ -83,6 +84,16 @@ export function InputBox({
 	// 组件挂载时调整一次
 	useEffect(() => {
 		adjustHeight();
+	}, [adjustHeight]);
+
+	// 监听 textarea 宽度变化（面板 spring 动画 / resize / 开关都会改变宽度），
+	// 宽度稳定后重算高度，避免面板变宽后残留旧的过高高度
+	useEffect(() => {
+		const textarea = textareaRef.current;
+		if (!textarea) return;
+		const observer = new ResizeObserver(() => adjustHeight());
+		observer.observe(textarea);
+		return () => observer.disconnect();
 	}, [adjustHeight]);
 
 	// 处理输入变化
@@ -149,7 +160,7 @@ export function InputBox({
 		return (
 			<div
 				className={cn(
-					"flex flex-col rounded-md border border-border",
+					"relative flex flex-col rounded-md border border-border",
 					"bg-background px-3 py-2 transition-colors duration-150",
 					"focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20",
 				)}
@@ -159,6 +170,9 @@ export function InputBox({
 
 				{/* 关联笔记区域 */}
 				<LinkedNotes locale={locale} />
+
+				{/* @ 提及浮层（绝对定位在容器上方） */}
+				{mentionPopover}
 
 				{/* 单行布局：输入框和按钮在同一行 */}
 				<div className="flex items-center gap-2">

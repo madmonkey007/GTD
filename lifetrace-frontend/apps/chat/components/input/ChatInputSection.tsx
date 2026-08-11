@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
 import { InputBox } from "@/apps/chat/components/input/InputBox";
 import { LinkedTodos } from "@/apps/chat/components/input/LinkedTodos";
+import { MentionPopover } from "@/apps/chat/components/input/MentionPopover";
 import { PromptSuggestions } from "@/apps/chat/components/input/PromptSuggestions";
 import { ToolSelector } from "@/apps/chat/components/input/ToolSelector";
 import type { Todo } from "@/lib/types";
@@ -49,12 +50,36 @@ export function ChatInputSection({
 }: ChatInputSectionProps) {
 	const tPage = useTranslations("page");
 	const [showSlashMenu, setShowSlashMenu] = useState(false);
+	const [showMention, setShowMention] = useState(false);
+	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const slashMenuRef = useRef<HTMLDivElement | null>(null);
 	const inputPlaceholder = tPage("chatInputPlaceholder");
 
 	const handleAtClick = useCallback(() => {
-		onInputChange(inputValue + "@");
-	}, [inputValue, onInputChange]);
+		// 先聚焦输入框，@ 浮层从输入框位置弹出
+		textareaRef.current?.focus();
+		setShowMention((prev) => !prev);
+	}, []);
+
+	// 在光标处插入提及文本（插入后把光标停在名称末尾）
+	const handleInsertMention = useCallback(
+		(text: string, nameLength: number) => {
+			const textarea = textareaRef.current;
+			const current = textarea?.value ?? inputValue;
+			const pos = textarea?.selectionStart ?? current.length;
+			const next = current.slice(0, pos) + text + current.slice(pos);
+			onInputChange(next);
+			setShowMention(false);
+			// 光标定位到 @名称 之后
+			requestAnimationFrame(() => {
+				if (!textarea) return;
+				textarea.focus();
+				const caret = pos + nameLength;
+				textarea.setSelectionRange(caret, caret);
+			});
+		},
+		[inputValue, onInputChange],
+	);
 
 	return (
 		<div className="bg-background p-4">
@@ -99,9 +124,19 @@ export function ChatInputSection({
 				onAtClick={handleAtClick}
 				onSlashTyped={() => setShowSlashMenu(true)}
 				onTranscript={onTranscript}
+				textareaRef={textareaRef}
+				mentionPopover={
+					<MentionPopover
+						open={showMention}
+						onClose={() => setShowMention(false)}
+						onInsert={handleInsertMention}
+						locale={locale}
+					/>
+				}
 			/>
 
 			{error && <p className="mt-2 text-sm">{error}</p>}
 		</div>
 	);
 }
+
