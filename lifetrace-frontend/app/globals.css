@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600&display=swap");
 @import "tailwindcss";
 
 /* Tailwind v4 自定义 dark 模式变体 - 基于 .dark 类 */
@@ -12,6 +13,32 @@
 	/* 全局无衬线字体，使用 next/font 注入的 CSS 变量 */
 	--font-sans: "Plus Jakarta Sans", "Segoe UI", -apple-system,
 		BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+
+	/* 衬线 display 字体（参考网页 --font-display：卡片时间行、magazine/quote 引文正文） */
+	--font-display: "Noto Serif SC", "Songti SC", "STSong", "Source Han Serif SC",
+		serif;
+
+	/* 中文正文黑体（参考网页 --font-body：卡片正文、标签） */
+	--font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei",
+		"Helvetica Neue", sans-serif;
+
+	/* 等宽字体（参考网页 --font-mono：SF Mono；卡片创建时间戳、标签等均用 mono） */
+	--font-mono: "SF Mono", "SFMono-Regular", "Cascadia Code", "JetBrains Mono",
+		Consolas, monospace;
+
+	/* 时光机卡片专属色板：参考网页固定配色，不随宿主主题反转。
+	 * --fg #1a1816 / --primary #2d5f5d / --accent #c8743a。
+	 * 浅色卡（minimal/gradient/timeline/border/sticky）用绿 primary + 暖黑 fg；
+	 * 深色卡（magazine/dark/quote）用橙 accent + 暖米字；杂志卡另有白米字。
+	 */
+	--color-card-fg: #1a1816; /* 参考 --fg · 暖黑 */
+	--color-card-primary: #2d5f5d; /* 参考 --primary · 浅色卡强调（绿） */
+	--color-card-accent: #c8743a; /* 参考 --accent · 深色卡强调（橙） */
+	--color-card-cream: #f7f5f1; /* 参考 --seed-bg · 杂志卡深底上的浅字 */
+	--color-card-carbon: #1c1a17; /* 暗色沉浸卡底 */
+	--color-card-ivory: #ece8e1; /* 暗色沉浸/语录卡浅字 */
+	--color-card-paper: #f5edd6; /* 便签卡底 */
+	--color-card-ink: #5a4a1a; /* 便签卡字 */
 
 	--color-background: oklch(var(--background));
 	--color-foreground: oklch(var(--foreground));

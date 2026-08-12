@@ -57,7 +57,10 @@ import { ReferenceModal } from "./components/ReferenceModal";
 import { AddNoteLinkModal } from "./components/AddNoteLinkModal";
 import { NoteMarkdown } from "./components/NoteMarkdown";
 import { TimeMachineHeader } from "./components/TimeMachineHeader";
+import { TimeMachineNoteCard } from "./components/TimeMachineNoteCard";
+import { TimeMachineCarousel } from "./components/TimeMachineCarousel";
 import { useNoteChatStore } from "@/lib/store/note-chat-store";
+import { useJournalStore } from "@/lib/store/journal-store";
 
 export type DiaryFilterMode = "all" | "last7" | "random" | "todo";
 
@@ -78,7 +81,12 @@ interface DiaryEditorProps {
 	onClearHeatmapFilter?: () => void;
 	/** 时光机：随机穿越到的日期（优先于 heatmapFilterDate） */
 	timeMachineDate?: Date | null;
-	onClearTimeMachine?: () => void;
+	/** 时光机：动画展示中的目标日期（尚未落定，不触发数据加载） */
+	timeMachinePending?: Date | null;
+	/** 时光机动画落定：通知父组件把 pending 日期 commit 为真实筛选日期 */
+	onTimeMachineSettled?: () => void;
+	/** 时光机：点击「发射」重新随机穿越到另一天 */
+	onTimeMachineLaunch?: () => void;
 	pinnedIds: number[];
 	onDelete: (note: JournalView) => void;
 	onTogglePin: (journalId: number) => void;
@@ -117,7 +125,9 @@ export function DiaryEditor({
 	heatmapFilterDate,
 	onClearHeatmapFilter,
 	timeMachineDate,
-	onClearTimeMachine,
+	timeMachinePending,
+	onTimeMachineSettled,
+	onTimeMachineLaunch,
 	onTitleChange,
 	onUserNotesChange,
 	onUserNotesBlur,
@@ -150,6 +160,11 @@ export function DiaryEditor({
 }: DiaryEditorProps) {
 	const t = useTranslations("journalPanel");
 	const locale = useLocale();
+	// 时光机器沉浸模式：动画中或已落定，独占顶部（隐藏视图切换/搜索/输入框）
+	const isTimeMachineMode = !!(timeMachinePending || timeMachineDate);
+	// 时光机卡片样式：随机 = 按笔记 id 分配；固定 = 全部使用选中的风格
+	const timeMachineStyleMode = useJournalStore((s) => s.timeMachineStyleMode);
+	const timeMachineStyle = useJournalStore((s) => s.timeMachineStyle);
 	const autoFilledRef = { current: false };
 		const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
 		const [refsExpanded, setRefsExpanded] = useState<Set<number>>(new Set());
@@ -358,6 +373,9 @@ export function DiaryEditor({
 
 		const notesList = allNotes;
 	const sortedNotes = useMemo(() => {
+		// 时光机器动画期间不展示任何笔记内容（时间先走完，内容再加载）
+		if (timeMachinePending) return [];
+
 		let filtered = notesList;
 
 		// 项目过滤：仅展示属于该项目的笔记
@@ -395,7 +413,7 @@ export function DiaryEditor({
 			return shuffled.slice(0, 3);
 		}
 		return sorted;
-	}, [notesList, pinnedIds, filterMode, tagFilter, similarToNoteId, randomShuffle, filterJournalIds]);
+	}, [notesList, pinnedIds, filterMode, tagFilter, similarToNoteId, randomShuffle, filterJournalIds, timeMachinePending]);
 
 	const formatTime = (dateStr: string) => {
 		const d = new Date(dateStr);
@@ -408,6 +426,7 @@ export function DiaryEditor({
 			<div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>
 			{/* Input area - auto-expanding (hidden when searching or filtering) */}
 			{/* Search bar */}
+			{/* Search bar — 时光机器模式下隐藏视图切换与搜索，让沉浸式 header 独占顶部 */}
 			<div className="relative mt-2 mb-2 mx-4 flex items-center gap-1">
 				{showLeftToggle && (
 					<button
@@ -422,6 +441,8 @@ export function DiaryEditor({
 						</svg>
 					</button>
 				)}
+				{!isTimeMachineMode && (
+					<>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<button
@@ -465,6 +486,8 @@ export function DiaryEditor({
 						</button>
 					)}
 				</div>
+					</>
+				)}
 				{showRightToggle && (
 					<button
 						type="button"
@@ -477,7 +500,7 @@ export function DiaryEditor({
 					</button>
 				)}
 			</div>
-						{!debouncedSearch && !heatmapFilterDate && !timeMachineDate && !tagFilter && !similarToNoteId && (
+						{!debouncedSearch && !heatmapFilterDate && !timeMachineDate && !timeMachinePending && !tagFilter && !similarToNoteId && (
 				<div className="px-4 pt-2 pb-2">
 					<DiaryTiptapEditor
 						noteLinkList={noteLinkList}
@@ -517,8 +540,11 @@ export function DiaryEditor({
 			)}
 			{/* Notes list - remaining */}
 			<div className="px-4 py-3 space-y-2">
-				{timeMachineDate && onClearTimeMachine && (
-					<TimeMachineHeader target={timeMachineDate} onClose={onClearTimeMachine} />
+				{(timeMachinePending || timeMachineDate) && (
+					<TimeMachineHeader
+						target={timeMachinePending ?? timeMachineDate!}
+						onSettled={timeMachinePending ? onTimeMachineSettled : undefined}
+					/>
 				)}
 				{debouncedSearch && (
 					<div className="flex items-center gap-2 mb-3 px-2">
@@ -603,10 +629,27 @@ export function DiaryEditor({
 							</div>
 						))}
 					</div>
-				) : allNotes.length === 0 ? (
+				) : allNotes.length === 0 && !timeMachinePending ? (
 					<div className="text-xs text-muted-foreground/50 italic text-center pt-8">
 						{locale === "zh" ? "暂无笔记" : "No notes yet"}
 					</div>
+				) : isTimeMachineMode && !editingCardId ? (
+					<TimeMachineCarousel
+						notes={sortedNotes}
+						notesList={notesList}
+						relatedNotesData={relatedNotesData}
+						pinnedIds={pinnedIds}
+						startEditing={startEditing}
+						setDeleteDialogNote={setDeleteDialogNote}
+						onTogglePin={onTogglePin}
+						onAnnotate={onAnnotate}
+						setAddLinkNote={setAddLinkNote}
+						addLinkedNote={addLinkedNote}
+						onSimilarClick={onSimilarClick}
+						onOpenReference={(n) => setReferenceViewNote(n)}
+						formatTime={formatTime}
+						t={t}
+					/>
 				) : (
 					<div className={viewMode === "double" ? "columns-2 gap-2 [&>*]:mb-2 [&>*]:break-inside-avoid" : "space-y-2"}>
 					{sortedNotes.map((note) => {
@@ -619,7 +662,30 @@ export function DiaryEditor({
 						return (
 						<div key={note.id}>
 
-							<motion.div
+							{isTimeMachineMode && !isEditing ? (
+								<TimeMachineNoteCard
+									note={note}
+									notesList={notesList}
+									relatedNotesData={relatedNotesData}
+									pinned={pinnedIds.includes(note.id)}
+									variant={
+										timeMachineStyleMode === "fixed"
+											? timeMachineStyle
+											: note.id % 8
+									}
+									onStartEdit={() => startEditing(note)}
+									onDelete={() => setDeleteDialogNote(note)}
+									onTogglePin={() => onTogglePin(note.id)}
+									onAnnotate={() => onAnnotate?.(note)}
+									onOpenLink={() => setAddLinkNote(note)}
+									onAddToChat={() => addLinkedNote({ id: note.id, name: note.name, userNotes: note.userNotes, date: note.date, tags: note.tags.map((t) => t.tagName) })}
+									onSimilar={() => onSimilarClick?.(note.id)}
+									onOpenReference={(n) => setReferenceViewNote(n)}
+									formatTime={formatTime}
+									t={t}
+								/>
+							) : (
+								<motion.div
 								initial={{ opacity: 0, y: 8 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
@@ -631,9 +697,9 @@ export function DiaryEditor({
 											: "border-border/30 bg-card hover:border-border/60 hover:bg-muted/[0.02]")
 									+ (pinnedIds.includes(note.id) ? " relative" : "")}
 							>
-																	{isEditing ? (
+								{isEditing ? (
 						// --- Inline edit mode ---
-						<div className="space-y-2">
+							<div className="space-y-2">
 							<input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={t("titlePlaceholder")} className="w-full text-sm font-semibold bg-transparent border-b border-border/40 pb-1 focus-visible:outline-none focus-visible:border-primary/40" />
 							<DiaryTiptapEditor noteLinkList={noteLinkList?.filter((n) => n.id !== editingCardId)} onLinkNote={onLinkNote ? (id: number) => onLinkNote(id, editingCardId ?? undefined) : undefined} variant="edit" value={editContent} onChange={setEditContent} recentTags={recentTags} placeholder={t("contentPlaceholder")}
 								toolbarEnd={
@@ -831,13 +897,26 @@ export function DiaryEditor({
 										})()}
 									</>
 									)}
-								</motion.div>
+									</motion.div>
+							)}
 						</div>
 						);
 					})}
 					</div>
 				)}
-				{hasMore && <div ref={sentinelRef} className="h-2" />}
+				{/* 时光机：底部常驻「再次出发」按钮，纯文字无边框无图标，重新随机穿越；卡片渲染完毕后才显示 */}
+			{isTimeMachineMode && !editingCardId && !timeMachinePending && sortedNotes.length > 0 && (
+				<div className="sticky bottom-3 z-20 flex justify-center pb-1">
+					<button
+						type="button"
+						onClick={onTimeMachineLaunch}
+						className="text-sm font-medium text-muted-foreground/70 transition-colors duration-200 hover:text-foreground active:opacity-60"
+					>
+						再次出发
+					</button>
+				</div>
+			)}
+			{hasMore && <div ref={sentinelRef} className="h-2" />}
 				{isNotesFetching && notesOffset > 0 && (
 					<div className="text-xs text-muted-foreground/40 text-center py-2">加载中...</div>
 				)}
