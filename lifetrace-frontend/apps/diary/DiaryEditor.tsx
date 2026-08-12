@@ -427,7 +427,7 @@ export function DiaryEditor({
 			{/* Input area - auto-expanding (hidden when searching or filtering) */}
 			{/* Search bar */}
 			{/* Search bar — 时光机器模式下隐藏视图切换与搜索，让沉浸式 header 独占顶部 */}
-			<div className="relative mt-2 mb-2 mx-4 flex items-center gap-1">
+			<div className={`relative mx-4 flex items-center gap-1 ${isTimeMachineMode ? "h-0 my-0 overflow-hidden" : "mt-2 mb-2"}`}>
 				{showLeftToggle && (
 					<button
 						type="button"
@@ -539,7 +539,10 @@ export function DiaryEditor({
 				</div>
 			)}
 			{/* Notes list - remaining */}
-			<div className="px-4 py-3 space-y-2">
+			<div className={isTimeMachineMode
+				? "relative min-h-[60vh] px-4 pt-4 pb-10 sm:pt-6"
+				: "px-4 py-3 space-y-2"
+			}>
 				{(timeMachinePending || timeMachineDate) && (
 					<TimeMachineHeader
 						target={timeMachinePending ?? timeMachineDate!}
@@ -906,13 +909,13 @@ export function DiaryEditor({
 				)}
 				{/* 时光机：底部常驻「再次出发」按钮，纯文字无边框无图标，重新随机穿越；卡片渲染完毕后才显示 */}
 			{isTimeMachineMode && !editingCardId && !timeMachinePending && sortedNotes.length > 0 && (
-				<div className="sticky bottom-3 z-20 flex justify-center pb-1">
+				<div className="sticky bottom-3 z-20 mt-6 flex justify-center pb-1">
 					<button
 						type="button"
 						onClick={onTimeMachineLaunch}
-						className="text-sm font-medium text-muted-foreground/70 transition-colors duration-200 hover:text-foreground active:opacity-60"
+						className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/95 px-4 py-2 text-sm font-medium text-foreground/90 shadow-[0_6px_20px_-8px_rgba(0,0,0,0.18)] backdrop-blur transition-all duration-200 hover:border-primary/40 hover:text-primary active:scale-[0.97]"
 					>
-						再次出发
+						{locale === "zh" ? "再次出发" : "Launch again"}
 					</button>
 				</div>
 			)}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface TimeMachineHeaderProps {
 	/** 穿越到的目标日期 */
@@ -42,9 +42,9 @@ function FlipUnit({ value, label }: { value: number; label: string }) {
 	);
 }
 
-/** 阶段文案：随动画进度推进切换 */
+/** 阶段文案：随动画进度推进切换（加载中弱化展示，落定后消失） */
 function phaseFor(progress: number): string {
-	if (progress < 0.18) return "时光机器 · 启动";
+	if (progress < 0.18) return "启动中";
 	if (progress < 0.42) return "发射";
 	if (progress < 0.72) return "时空跃迁中";
 	if (progress < 0.94) return "即将着陆";
@@ -120,59 +120,38 @@ export function TimeMachineHeader({ target, onSettled }: TimeMachineHeaderProps)
 			initial={{ opacity: 0, y: -8 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={SPRING}
-			className="relative mb-4 overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-muted/40 px-5 py-4 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.1)]"
+			className="relative mx-auto mb-8 max-w-[420px] overflow-hidden rounded-[20px] border border-border/60 bg-gradient-to-br from-card via-card to-muted/40 px-5 py-6 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.1)] sm:py-7"
 		>
 			{/* 背景径向辉光（克制，非霓虹） */}
-			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,oklch(var(--primary)/0.05),transparent_60%)]" />
+			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,oklch(var(--primary)/0.06),transparent_60%)]" />
 
-			<div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				{/* 左：标识 + 阶段文案 */}
-				<div className="flex flex-col gap-1.5">
-					<div className="flex items-center gap-2">
-						<motion.span
-							className="inline-block h-1.5 w-1.5 rounded-full bg-primary"
-							animate={settled ? { scale: 1 } : { scale: [1, 1.4, 1] }}
-							transition={settled ? { duration: 0.3 } : { duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
-						/>
-						<span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">
-							时光机器
-						</span>
-					</div>
-					<motion.span
-						key={phase}
-						initial={{ opacity: 0, y: 4 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.25 }}
-						className={`text-sm font-medium ${settled ? "text-emerald-600 dark:text-emerald-400" : "text-foreground/80"}`}
-					>
-						{phase}
-						{!settled && (
-							<span className="ml-0.5 inline-block animate-pulse">…</span>
-						)}
-					</motion.span>
-				</div>
-
-				{/* 中/右：翻牌时钟（年/月/日） */}
+			<div className="relative z-10 flex flex-col items-center gap-4">
+				{/* 翻牌时钟：核心视觉，居中 */}
 				<div className="flex items-center gap-2 sm:gap-3">
 					<FlipUnit value={year} label="YEAR" />
-					<span className="-mt-4 font-mono text-xl text-border">/</span>
+					<span className="-mt-4 font-mono text-xl text-border/80">/</span>
 					<FlipUnit value={month} label="MON" />
-					<span className="-mt-4 font-mono text-xl text-border">/</span>
+					<span className="-mt-4 font-mono text-xl text-border/80">/</span>
 					<FlipUnit value={day} label="DAY" />
 				</div>
-			</div>
 
-			{/* 底部进度条 */}
-			<motion.div
-				className="absolute bottom-0 left-0 h-px bg-primary/60"
-				initial={{ width: "0%" }}
-				animate={{ width: settled ? "100%" : "40%" }}
-				transition={
-					settled
-						? { duration: 0.5, ease: "easeOut" }
-						: { duration: 0.5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }
-				}
-			/>
+				{/* 弱化的阶段文案：仅加载中展示，落定后自动消失（页面刷新后不残留） */}
+				<AnimatePresence>
+					{!settled && (
+						<motion.span
+							key={phase}
+							initial={{ opacity: 0, y: 2 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -2 }}
+							transition={{ duration: 0.2 }}
+							className="text-[11px] font-normal text-muted-foreground/50"
+						>
+							{phase}
+							<span className="ml-0.5 inline-block animate-pulse">…</span>
+						</motion.span>
+					)}
+				</AnimatePresence>
+			</div>
 		</motion.div>
 	);
 }
