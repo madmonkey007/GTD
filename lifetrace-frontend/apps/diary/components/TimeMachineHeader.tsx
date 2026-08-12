@@ -1,24 +1,65 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 
 interface TimeMachineHeaderProps {
 	/** 穿越到的目标日期 */
 	target: Date;
-	/** 退出时光机（清除筛选） */
-	onClose: () => void;
+	/** 动画落定后触发（用于延迟加载该日笔记，确保时间先展示完整） */
+	onSettled?: () => void;
 }
 
-/** 缓动函数：先快后慢（ease-out cubic） */
-function easeOutCubic(t: number): number {
-	return 1 - Math.pow(1 - t, 3);
+const DURATION = 2600; // 总时长 ms
+
+/** ease-in-out cubic：先慢后快再慢 */
+function easeInOutCubic(t: number): number {
+	return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+/** 翻牌时钟单元：浅底深字，数字切换时上滑翻转 */
+function FlipUnit({ value, label }: { value: number; label: string }) {
+	const padded = String(value).padStart(2, "0");
+	return (
+		<div className="flex flex-col items-center gap-1">
+			<div className="relative h-12 w-9 overflow-hidden rounded-md bg-muted shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.6)] sm:h-14 sm:w-11">
+				{/* 中分线：模拟翻页时钟的横向接缝 */}
+				<div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 h-px -translate-y-1/2 bg-border/60" />
+				<motion.span
+					key={padded}
+					initial={{ y: "100%", opacity: 0 }}
+					animate={{ y: "0%", opacity: 1 }}
+					transition={{ type: "spring", stiffness: 260, damping: 24 }}
+					className="absolute inset-0 flex items-center justify-center font-mono text-lg font-semibold tabular-nums text-foreground sm:text-xl"
+				>
+					{padded}
+				</motion.span>
+			</div>
+			<span className="text-[9px] font-medium uppercase tracking-widest text-muted-foreground/60">
+				{label}
+			</span>
+		</div>
+	);
+}
+
+/** 阶段文案：随动画进度推进切换 */
+function phaseFor(progress: number): string {
+	if (progress < 0.18) return "时光机器 · 启动";
+	if (progress < 0.42) return "发射";
+	if (progress < 0.72) return "时空跃迁中";
+	if (progress < 0.94) return "即将着陆";
+	return "安全到达";
 }
 
 /**
- * 时光机头部：标题「时光机」+ 副标题「今天穿越回到了 XXXX 年 XX 月 XX 日」。
- * 年/月/日数字从今天开始飞速转动，先快后慢，最后落到目标日期。
+ * 时光机器沉浸式头部。
+ *
+ * 视觉：黑底白字的翻牌时钟数字（年/月/日），从今天缓动到目标日期。
+ * 缓动：ease-in-out cubic（先慢后快再慢）。
+ * 文案：启动 → 发射 → 时空跃迁中 → 即将着陆 → 安全到达。
+ * 「出发」按钮已移至页面底部（见 DiaryEditor 时光机分支），此处不再渲染。
  */
-export function TimeMachineHeader({ target, onClose }: TimeMachineHeaderProps) {
+export function TimeMachineHeader({ target, onSettled }: TimeMachineHeaderProps) {
 	const today = new Date();
 	const startYear = today.getFullYear();
 	const startMonth = today.getMonth() + 1;
@@ -31,34 +72,30 @@ export function TimeMachineHeader({ target, onClose }: TimeMachineHeaderProps) {
 	const [year, setYear] = useState(startYear);
 	const [month, setMonth] = useState(startMonth);
 	const [day, setDay] = useState(startDay);
+	const [phase, setPhase] = useState("时光机器 · 启动");
 	const [settled, setSettled] = useState(false);
 
 	const rafRef = useRef<number>(0);
 	const startTimeRef = useRef<number>(0);
-	const DURATION = 2200; // 总时长 ms：前段快速跳动，后段慢速落定
+	const onSettledRef = useRef(onSettled);
+	onSettledRef.current = onSettled;
 
 	useEffect(() => {
 		cancelAnimationFrame(rafRef.current);
 		setSettled(false);
+		setPhase("时光机器 · 启动");
 		startTimeRef.current = 0;
 
 		const tick = (ts: number) => {
 			if (!startTimeRef.current) startTimeRef.current = ts;
 			const elapsed = ts - startTimeRef.current;
 			const progress = Math.min(elapsed / DURATION, 1);
-			const eased = easeOutCubic(progress);
+			const eased = easeInOutCubic(progress);
 
-			// 在未落定前，数字在目标值附近上下快速抖动；随 progress 增大逐渐收敛
-			// 抖动幅度随 eased 衰减：从大范围缩到 0
-			const jitterRange = Math.max(1, Math.round((1 - eased) * 6));
-
-			const rand = (range: number) =>
-				Math.floor((Math.random() * 2 - 1) * range);
-
-			setYear(targetYear + rand(jitterRange * 2));
-			// 月份/日期需 clamp 到合法范围
-			setMonth(Math.max(1, Math.min(12, targetMonth + rand(jitterRange))));
-			setDay(Math.max(1, Math.min(28, targetDay + rand(jitterRange))));
+			setYear(Math.round(startYear + (targetYear - startYear) * eased));
+			setMonth(Math.round(startMonth + (targetMonth - startMonth) * eased));
+			setDay(Math.round(startDay + (targetDay - startDay) * eased));
+			setPhase(phaseFor(progress));
 
 			if (progress < 1) {
 				rafRef.current = requestAnimationFrame(tick);
@@ -66,50 +103,76 @@ export function TimeMachineHeader({ target, onClose }: TimeMachineHeaderProps) {
 				setYear(targetYear);
 				setMonth(targetMonth);
 				setDay(targetDay);
+				setPhase("安全到达");
 				setSettled(true);
+				onSettledRef.current?.();
 			}
 		};
 
 		rafRef.current = requestAnimationFrame(tick);
 		return () => cancelAnimationFrame(rafRef.current);
-	}, [targetYear, targetMonth, targetDay]);
+	}, [startYear, startMonth, startDay, targetYear, targetMonth, targetDay]);
+
+	const SPRING = { type: "spring" as const, stiffness: 120, damping: 18 };
 
 	return (
-		<div className="mb-3 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/[0.06] to-transparent px-4 py-3">
-			<div className="flex items-center justify-between">
-				<div className="min-w-0">
-					<div className="flex items-center gap-1.5">
-						<span className="text-sm font-semibold text-foreground">
-							时光机
+		<motion.div
+			initial={{ opacity: 0, y: -8 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={SPRING}
+			className="relative mb-4 overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-muted/40 px-5 py-4 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.1)]"
+		>
+			{/* 背景径向辉光（克制，非霓虹） */}
+			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,oklch(var(--primary)/0.05),transparent_60%)]" />
+
+			<div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+				{/* 左：标识 + 阶段文案 */}
+				<div className="flex flex-col gap-1.5">
+					<div className="flex items-center gap-2">
+						<motion.span
+							className="inline-block h-1.5 w-1.5 rounded-full bg-primary"
+							animate={settled ? { scale: 1 } : { scale: [1, 1.4, 1] }}
+							transition={settled ? { duration: 0.3 } : { duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
+						/>
+						<span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">
+							时光机器
 						</span>
-						{!settled && (
-							<span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60" />
-						)}
 					</div>
-					<p className="mt-0.5 text-xs text-muted-foreground/80">
-						今天穿越回到了{" "}
-						<span
-							className={`inline-flex items-baseline gap-0.5 font-medium tabular-nums transition-colors ${
-								settled ? "text-primary" : "text-foreground/70"
-							}`}
-						>
-							<span>{year}</span>
-							<span className="text-muted-foreground/50">年</span>
-							<span className="w-6 text-center">{month}</span>
-							<span className="text-muted-foreground/50">月</span>
-							<span className="w-5 text-center">{day}</span>
-							<span className="text-muted-foreground/50">日</span>
-						</span>
-					</p>
+					<motion.span
+						key={phase}
+						initial={{ opacity: 0, y: 4 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.25 }}
+						className={`text-sm font-medium ${settled ? "text-emerald-600 dark:text-emerald-400" : "text-foreground/80"}`}
+					>
+						{phase}
+						{!settled && (
+							<span className="ml-0.5 inline-block animate-pulse">…</span>
+						)}
+					</motion.span>
 				</div>
-				<button
-					type="button"
-					onClick={onClose}
-					className="shrink-0 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-				>
-					返回
-				</button>
+
+				{/* 中/右：翻牌时钟（年/月/日） */}
+				<div className="flex items-center gap-2 sm:gap-3">
+					<FlipUnit value={year} label="YEAR" />
+					<span className="-mt-4 font-mono text-xl text-border">/</span>
+					<FlipUnit value={month} label="MON" />
+					<span className="-mt-4 font-mono text-xl text-border">/</span>
+					<FlipUnit value={day} label="DAY" />
+				</div>
 			</div>
-		</div>
+
+			{/* 底部进度条 */}
+			<motion.div
+				className="absolute bottom-0 left-0 h-px bg-primary/60"
+				initial={{ width: "0%" }}
+				animate={{ width: settled ? "100%" : "40%" }}
+				transition={
+					settled
+						? { duration: 0.5, ease: "easeOut" }
+						: { duration: 0.5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }
+				}
+			/>
+		</motion.div>
 	);
 }
