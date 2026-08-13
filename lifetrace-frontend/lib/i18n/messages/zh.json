@@ -1312,5 +1312,11 @@
     "clearTrash": "清空回收站",
     "restore": "恢复",
     "deletedAt": "删除于"
+  },
+  "notePicker": {
+    "sortDefault": "默认排序",
+    "sortNewest": "最新发布",
+    "sortOldest": "最旧发布",
+    "tagAll": "全部标签"
   }
 }

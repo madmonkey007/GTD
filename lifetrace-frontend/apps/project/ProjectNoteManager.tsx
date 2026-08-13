@@ -4,6 +4,13 @@ import { Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { useJournals, useProjectMutations } from "@/lib/query";
+import {
+	aggregateTags,
+	DEFAULT_NOTE_PICKER_FILTERS,
+	filterAndSort,
+	NotePickerFilters,
+	type NotePickerFiltersState,
+} from "@/apps/diary/components/NotePickerFilters";
 import { cn } from "@/lib/utils";
 
 interface ProjectNoteManagerProps {
@@ -21,7 +28,11 @@ export function ProjectNoteManager({
 	const t = useTranslations("project");
 	const [search, setSearch] = useState("");
 	const [filter, setFilter] = useState<"all" | "member" | "other">("all");
+	const [pickerFilters, setPickerFilters] = useState<NotePickerFiltersState>(
+		DEFAULT_NOTE_PICKER_FILTERS,
+	);
 	const { data } = useJournals({ limit: 200, search: search || undefined });
+	const { data: allData } = useJournals({ limit: 1000 });
 	const { addNotesAsync, removeNote, isPending } = useProjectMutations();
 
 	const [selected, setSelected] = useState<Set<number>>(
@@ -32,12 +43,20 @@ export function ProjectNoteManager({
 	const memberSet = useMemo(() => new Set(memberIds), [memberIds]);
 	const memberCount = memberIds.length;
 
-	const filtered = journals.filter((j) =>
-		filter === "all"
-			? true
-			: filter === "member"
-				? memberSet.has(j.id)
-				: !memberSet.has(j.id),
+	const allTags = useMemo(
+		() => aggregateTags(allData?.journals ?? []),
+		[allData],
+	);
+
+	const filtered = filterAndSort(
+		journals.filter((j) =>
+			filter === "all"
+				? true
+				: filter === "member"
+					? memberSet.has(j.id)
+					: !memberSet.has(j.id),
+		),
+		pickerFilters,
 	);
 
 	const counts = useMemo(() => {
@@ -124,7 +143,12 @@ export function ProjectNoteManager({
 							</button>
 						))}
 					</div>
-				</div>
+					<NotePickerFilters
+						allTags={allTags}
+						filters={pickerFilters}
+						onFiltersChange={setPickerFilters}
+					/>
+					</div>
 
 				<div className="flex-1 overflow-y-auto p-2">
 					{filtered.length === 0 ? (

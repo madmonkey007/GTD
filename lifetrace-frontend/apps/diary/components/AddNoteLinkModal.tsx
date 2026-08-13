@@ -5,6 +5,13 @@ import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useLinkCandidates, useNoteLinkMutations } from "@/lib/query/note-links";
 import { useJournals } from "@/lib/query/journals";
+import {
+	aggregateTags,
+	DEFAULT_NOTE_PICKER_FILTERS,
+	filterAndSort,
+	NotePickerFilters,
+	type NotePickerFiltersState,
+} from "@/apps/diary/components/NotePickerFilters";
 
 interface AddNoteLinkModalProps {
 	isOpen: boolean;
@@ -15,6 +22,7 @@ interface AddNoteLinkModalProps {
 
 /**
  * 添加链接：无搜索词时用相似度推荐，有搜索词时调后端全量搜索。
+ * 未选排序/标签时保持默认列表；选择后切换到按条件过滤的全量结果。
  */
 export function AddNoteLinkModal({
 	isOpen,
@@ -30,6 +38,23 @@ export function AddNoteLinkModal({
 	const [search, setSearch] = useState("");
 	const [searchDebounce, setSearchDebounce] = useState("");
 	const [busyId, setBusyId] = useState<number | null>(null);
+	const [pickerFilters, setPickerFilters] = useState<NotePickerFiltersState>(
+		DEFAULT_NOTE_PICKER_FILTERS,
+	);
+
+	// 全量笔记：提供排序/标签筛选所需的 createdAt / tags 字段（缓存与 DiaryPanel 共享）
+	const { data: allData } = useJournals(
+		isOpen ? { limit: 1000 } : undefined,
+	);
+	const allJournals = allData?.journals ?? [];
+	const journalById = useMemo(() => {
+		const map = new Map<number, (typeof allJournals)[number]>();
+		for (const j of allJournals) map.set(j.id, j);
+		return map;
+	}, [allJournals]);
+	const allTags = useMemo(() => aggregateTags(allJournals), [allJournals]);
+	const filterActive =
+		pickerFilters.sort !== "default" || pickerFilters.tag !== "all";
 
 	// 有搜索词时: 从后端全量搜索
 	const { data: searchResult, isLoading: searchLoading } = useJournals(
@@ -52,27 +77,59 @@ export function AddNoteLinkModal({
 		debounceTimer(val);
 	};
 
-	// 候选列表（无搜索词 → 相似度推荐；有搜索词 → 全量搜索结果）
+	// 候选列表：
+	// - 有搜索词 → 后端全量搜索结果（叠加排序/标签过滤）
+	// - 无搜索词但选了排序/标签 → 全量笔记按条件过滤（替代推荐）
+	// - 否则 → 相似度推荐（默认）
 	const items = useMemo(() => {
 		if (searchDebounce.trim()) {
-			return (searchResult?.journals ?? [])
-				.filter((n) => n.id !== noteId)
-				.map((n) => ({
-					id: n.id,
-					name: n.name ?? "",
-					preview: (n.userNotes ?? "").replace(/[\r\n]/g, " ").slice(0, 80),
-					score: 0,
-				}));
+			return filterAndSort(
+				(searchResult?.journals ?? []).filter((n) => n.id !== noteId),
+				pickerFilters,
+			).map((n) => ({
+				id: n.id,
+				name: n.name ?? "",
+				preview: (n.userNotes ?? "").replace(/[\r\n]/g, " ").slice(0, 80),
+				score: 0,
+			}));
 		}
-		return (candidates ?? []).filter((c) => {
-			const q = search.trim().toLowerCase();
-			if (!q) return true;
-			return (
-				(c.name || "").toLowerCase().includes(q) ||
-				c.preview.toLowerCase().includes(q)
-			);
-		});
-	}, [candidates, search, searchDebounce, searchResult, noteId]);
+		if (filterActive) {
+			return filterAndSort(
+				allJournals.filter((n) => n.id !== noteId),
+				pickerFilters,
+			).map((n) => ({
+				id: n.id,
+				name: n.name ?? "",
+				preview: (n.userNotes ?? "").replace(/[\r\n]/g, " ").slice(0, 80),
+				score: 0,
+			}));
+		}
+		return (candidates ?? [])
+			.filter((c) => {
+				const q = search.trim().toLowerCase();
+				if (!q) return true;
+				return (
+					(c.name || "").toLowerCase().includes(q) ||
+					c.preview.toLowerCase().includes(q)
+				);
+			})
+			.map((c) => ({
+				...c,
+				// 推荐候选缺 createdAt/tags；用全量 Map 补齐以便展示排序一致性
+				createdAt: journalById.get(c.id)?.createdAt,
+				tags: journalById.get(c.id)?.tags,
+			}));
+	}, [
+		candidates,
+		search,
+		searchDebounce,
+		searchResult,
+		noteId,
+		allJournals,
+		journalById,
+		pickerFilters,
+		filterActive,
+	]);
 
 	const handlePick = async (targetId: number) => {
 		setBusyId(targetId);
@@ -111,6 +168,11 @@ export function AddNoteLinkModal({
 						className="w-full h-8 rounded-md border border-border/30 bg-background/50 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/30"
 					/>
 				</div>
+					<NotePickerFilters
+						allTags={allTags}
+						filters={pickerFilters}
+						onFiltersChange={setPickerFilters}
+					/>
 				<div className="flex-1 overflow-y-auto">
 					{isLoading && items.length === 0 && (
 						<div className="px-3 py-6 text-xs text-muted-foreground/50 text-center flex items-center justify-center gap-2">

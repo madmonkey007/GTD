@@ -1312,5 +1312,11 @@
     "clearTrash": "Empty Trash",
     "restore": "Restore",
     "deletedAt": "Deleted"
+  },
+  "notePicker": {
+    "sortDefault": "Default",
+    "sortNewest": "Newest first",
+    "sortOldest": "Oldest first",
+    "tagAll": "All tags"
   }
 }
