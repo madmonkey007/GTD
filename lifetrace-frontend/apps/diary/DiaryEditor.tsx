@@ -409,8 +409,19 @@ export function DiaryEditor({
 		});
 		if (filterMode === "random") {
 			void randomShuffle;
-			const shuffled = [...sorted].sort(() => Math.random() - 0.5);
-			return shuffled.slice(0, 3);
+			// 用基于 randomShuffle 的伪随机打乱，保证：只在 randomShuffle 变化时换一批，
+			// 其余重渲染（分页加载、状态更新）不会让随机列表抖动闪烁。
+			const seed = randomShuffle;
+			const mulberry32 = (a: number) => () => {
+				a |= 0; a = (a + 0x6D2B79F5) | 0;
+				let h = Math.imul(a ^ (a >>> 15), 1 | a);
+				h = (h + Math.imul(h ^ (h >>> 7), 61 | h)) ^ h;
+				return ((h ^ (h >>> 14)) >>> 0) / 4294967296;
+			};
+			const rng = mulberry32(seed * 2654435761);
+			const tagged = sorted.map((n, i) => ({ n, k: rng() + i * 1e-9 }));
+			tagged.sort((a, b) => a.k - b.k);
+			return tagged.slice(0, 3).map((x) => x.n);
 		}
 		return sorted;
 	}, [notesList, pinnedIds, filterMode, tagFilter, similarToNoteId, randomShuffle, filterJournalIds, timeMachinePending]);
