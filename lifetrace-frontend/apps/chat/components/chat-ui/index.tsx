@@ -27,19 +27,29 @@ export function MarkdownContent({ text }: { text: string }) {
 
 // ─── Auto-collapse thinking block ───
 
-export function AutoCollapseThinkingBlock({ content }: { content: string }) {
-  const [open, setOpen] = useState(true);
-
-  useEffect(() => {
-    setOpen(true);
-    const timer = setTimeout(() => setOpen(false), 3000);
-    return () => clearTimeout(timer);
-  }, [content]);
+export function AutoCollapseThinkingBlock({ content, isRunning = false }: { content: string; isRunning?: boolean }) {
+  const [open, setOpen] = useState(false);
 
   return (
     <details className="mt-1.5" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors select-none list-none [&::-webkit-details-marker]:hidden [&::marker]:hidden group">
-        <span>思考过程</span>
+        {isRunning ? (
+          <span
+            className="relative inline-block font-medium"
+            style={{
+              background: "linear-gradient(90deg, currentColor 0%, currentColor 30%, rgba(255,255,255,0.8) 50%, currentColor 70%, currentColor 100%)",
+              backgroundSize: "200% 100%",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              animation: "shimmerText 3s linear infinite",
+            }}
+          >
+            思考中
+          </span>
+        ) : (
+          <span>思考过程</span>
+        )}
         <svg
           className="w-3 h-3 transition-transform group-open:rotate-90 opacity-0 group-hover:opacity-100"
           viewBox="0 0 24 24"
@@ -207,7 +217,7 @@ export function ExecutionProcess({
         <div className="mt-2 space-y-1">
           {mergedItems.map((item, i) => {
             if (item.type === "thinking") {
-              return <AutoCollapseThinkingBlock key={`think-${i}`} content={item.content} />;
+              return <AutoCollapseThinkingBlock key={`think-${i}`} content={item.content} isRunning={isStreaming && !firstThinkingEnded} />;
             }
             if (item.type === "text") {
               return (

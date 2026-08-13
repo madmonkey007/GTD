@@ -695,7 +695,12 @@
     },
     "previous": "Previous",
     "nextQuestion": "Next",
-    "goToQuestion": "Go to question {index}"
+    "goToQuestion": "Go to question {index}",
+    "thinking": {
+      "processLabel": "Thinking Process",
+      "thinkingLabel": "Thinking",
+      "processedLabel": "Processed"
+    }
   },
   "calendar": {
     "title": "Calendar",
@@ -1029,7 +1034,8 @@
     "text": "Card text",
     "title": "Title",
     "sign": "Signature",
-    "signPlaceholder": "e.g. - My collection",    "titleSize": "Title size",
+    "signPlaceholder": "e.g. - My collection",
+    "titleSize": "Title size",
     "generateBtn": "Generate & set as cover",
     "generating": "Generating…",
     "recommendTitle": "Recommended notes",

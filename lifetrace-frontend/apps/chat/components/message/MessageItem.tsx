@@ -8,6 +8,8 @@ import { MessageContent } from "./MessageContent";
 import { MessageTodoExtractionPanel } from "./MessageTodoExtractionPanel";
 import { ToolCallLoading } from "./ToolCallLoading";
 import { ToolCallSteps } from "./ToolCallSteps";
+import { ThinkingBlockCard, type ThinkBlock } from "./ThinkingBlockCard";
+import { parseThinkingContent } from "@/apps/chat/components/chat-ui/index";
 import {
 	extractToolCalls,
 	removeToolCalls,
@@ -52,6 +54,14 @@ export function MessageItem({
 		? removeToolCalls(sanitizedContent)
 		: "";
 
+	// 从流式原始文本解析思考块（content 含 [THINK] 标签；finalReply.text 为纯正文不含）
+	const thinkingBlocks: ThinkBlock[] =
+		message.role === "assistant"
+			? parseThinkingContent(message.content ?? "").filter(
+					(p): p is Extract<typeof p, { type: "think" }> => p.type === "think",
+				)
+			: [];
+
 	// 获取新的工具调用步骤（来自 toolCallSteps 属性）
 	const toolCallSteps = message.toolCallSteps || [];
 	const hasToolCallSteps = toolCallSteps.length > 0;
@@ -90,23 +100,52 @@ export function MessageItem({
 	};
 
 	return (
-		<div
-			className={cn(
-				"flex flex-col",
-				message.role === "assistant" ? "items-start" : "items-end",
-			)}
-		>
+		<>
+			<style>{`
+				@keyframes shimmerTextCard {
+					0% { background-position: -200% center; }
+					100% { background-position: 200% center; }
+				}
+			`}</style>
+			<div
+				className={cn(
+					"flex flex-col",
+					message.role === "assistant" ? "items-start" : "items-end",
+				)}
+			>
 			{/* 没有 toolCallSteps 且空的 streaming 消息 → 显示 loading 指示器 */}
 			{isEmptyStreaming && !hasToolCallSteps ? (
 				<div className="flex items-center gap-2 rounded-full bg-muted px-3 py-2 text-xs text-muted-foreground">
 					<Loader2 className="h-4 w-4 animate-spin text-primary/60" />
-					{typingText}
+					<span
+						className="relative inline-block"
+						style={{
+							background:
+								"linear-gradient(90deg, currentColor 0%, currentColor 30%, rgba(255,255,255,0.8) 50%, currentColor 70%, currentColor 100%)",
+							backgroundSize: "200% 100%",
+							WebkitBackgroundClip: "text",
+							WebkitTextFillColor: "transparent",
+							backgroundClip: "text",
+							animation: "shimmerTextCard 3s linear infinite",
+						}}
+					>
+						{typingText}
+					</span>
 				</div>
 			) : (
 				<div className={outerClass}>
 					{/* 工具调用步骤（始终固定在气泡上方，不随流式状态切换 DOM） */}
 					{message.role === "assistant" && hasToolCallSteps && (
 						<ToolCallSteps steps={toolCallSteps} className="mb-2" />
+					)}
+
+					{/* 思考过程块（默认折叠；streaming 中最后一个未闭合块标题显示 shimmer） */}
+					{message.role === "assistant" && thinkingBlocks.length > 0 && (
+						<ThinkingBlockCard
+							blocks={thinkingBlocks}
+							isRunning={isEmptyStreaming}
+							className="mb-2"
+						/>
 					)}
 
 					{/* 空的 streaming + 有 toolCallSteps → 只显示工具步骤，不显示空气泡 */}
@@ -163,5 +202,6 @@ export function MessageItem({
 				</div>
 			)}
 		</div>
+		</>
 	);
 }

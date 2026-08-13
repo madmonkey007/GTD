@@ -695,7 +695,12 @@
     },
     "previous": "上一题",
     "nextQuestion": "下一题",
-    "goToQuestion": "跳转到第 {index} 题"
+    "goToQuestion": "跳转到第 {index} 题",
+    "thinking": {
+      "processLabel": "思考过程",
+      "thinkingLabel": "思考中",
+      "processedLabel": "已处理"
+    }
   },
   "calendar": {
     "title": "日历",
@@ -1004,7 +1009,8 @@
     "loading": "加载中…",
     "back": "返回",
     "viewList": "列表",
-    "viewSwipe": "卡片滑动",    "summarize": "AI 摘要",
+    "viewSwipe": "卡片滑动",
+    "summarize": "AI 摘要",
     "recommend": "AI 推荐",
     "aiLoading": "生成中…",
     "aiFailed": "AI 处理失败",
