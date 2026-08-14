@@ -24,18 +24,20 @@ export function DetailHeader({
 			icon={FileText}
 			title={t("todoDetailLabel")}
 			hideMenu
+			leading={
+				mobile && (
+					<button
+						type="button"
+						onClick={mobile.onBack}
+						aria-label={tTodoDetail("backToList")}
+						className="flex h-9 w-9 -ml-2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+					>
+						<ArrowLeft className="h-5 w-5" />
+					</button>
+				)
+			}
 			actions={
 				<>
-					{mobile && (
-						<button
-							type="button"
-							onClick={mobile.onBack}
-							aria-label={tTodoDetail("backToList")}
-							className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-						>
-							<ArrowLeft className="h-4.5 w-4.5" />
-						</button>
-					)}
 					<div className="flex items-center gap-0.5 rounded-md bg-muted/40 p-0.5 text-xs">
 						<button
 							type="button"

@@ -7,7 +7,8 @@
 
 import { type DragEndEvent, useDndMonitor } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { ChevronRight, FolderKanban } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronRight, FolderKanban, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
@@ -64,6 +65,7 @@ export function TodoList() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [newTodoName, setNewTodoName] = useState("");
 	const [isCompletedCollapsed, setIsCompletedCollapsed] = useState(true);
+	const [mobileComposerOpen, setMobileComposerOpen] = useState(false);
 	const [filter, setFilter] = useState<TodoFilterState>({
 		status: "all",
 		tag: "all",
@@ -357,6 +359,7 @@ export function TodoList() {
 		try {
 			const created = await createTodo(input);
 			setNewTodoName("");
+			setMobileComposerOpen(false);
 			// 处于项目筛选态时，新代办自动归入该项目（父代办）
 			if (todoProjectFilter && created?.id) {
 				try {
@@ -420,14 +423,16 @@ export function TodoList() {
 
 			<MultiTodoContextMenu selectedTodoIds={selectedTodoIds}>
 				<div className="flex-1 overflow-y-auto">
-					<div className="px-6 py-4 pb-4">
-						<NewTodoInlineForm
-							value={newTodoName}
-							onChange={setNewTodoName}
-							onSubmit={handleCreateTodo}
-							onCancel={() => setNewTodoName("")}
-						/>
-					</div>
+					{!isMobile && (
+						<div className="px-6 py-4 pb-4">
+							<NewTodoInlineForm
+								value={newTodoName}
+								onChange={setNewTodoName}
+								onSubmit={handleCreateTodo}
+								onCancel={() => setNewTodoName("")}
+							/>
+						</div>
+					)}
 
 					{filteredTodos.length === 0 ? (
 						todoProjectFilter ? (
@@ -492,6 +497,61 @@ export function TodoList() {
 					)}
 				</div>
 			</MultiTodoContextMenu>
+
+			{isMobile && (
+				<>
+					<AnimatePresence>
+						{mobileComposerOpen && (
+							<>
+								<motion.div
+									className="absolute inset-0 z-40 bg-black/30"
+									initial={{ opacity: 0 }}
+									animate={{ opacity: 1 }}
+									exit={{ opacity: 0 }}
+									transition={{ duration: 0.15 }}
+									onClick={() => setMobileComposerOpen(false)}
+								/>
+								<motion.div
+									className="absolute inset-x-0 bottom-0 z-40"
+									initial={{ y: "100%" }}
+									animate={{ y: 0 }}
+									exit={{ y: "100%" }}
+									transition={{ type: "spring", damping: 30, stiffness: 300 }}
+									style={{
+										paddingBottom: "max(env(safe-area-inset-bottom), 1rem)",
+									}}
+								>
+									<div className="border-t border-border/40 bg-background px-4 pt-3 pb-4 shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.3)]">
+										<NewTodoInlineForm
+											value={newTodoName}
+											onChange={setNewTodoName}
+											onSubmit={handleCreateTodo}
+											onCancel={() => setNewTodoName("")}
+											showSubmit
+										/>
+									</div>
+								</motion.div>
+							</>
+						)}
+					</AnimatePresence>
+
+					{!mobileComposerOpen && (
+						<motion.button
+							type="button"
+							onClick={() => setMobileComposerOpen(true)}
+							aria-label="新建待办"
+							initial={{ scale: 0, opacity: 0 }}
+							animate={{ scale: 1, opacity: 1 }}
+							exit={{ scale: 0, opacity: 0 }}
+							transition={{ type: "spring", stiffness: 300, damping: 22 }}
+							className="absolute right-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_20px_-6px_rgba(0,0,0,0.4)] transition-transform active:scale-95"
+							style={{ bottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }}
+						>
+							<Plus className="h-6 w-6" />
+						</motion.button>
+					)}
+				</>
+			)}
 		</div>
 	);
 }

@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 
 interface TodoCardExpandButtonProps {
@@ -14,9 +15,10 @@ export function TodoCardExpandButton({
 	onToggle,
 }: TodoCardExpandButtonProps) {
 	const tTodoDetail = useTranslations("todoDetail");
+	const isMobile = useIsMobile();
 
 	if (!hasChildren) {
-		return <div className="w-4 shrink-0" />;
+		return <div className={cn("w-4 shrink-0", isMobile && "w-6")} />;
 	}
 
 	return (
@@ -26,7 +28,10 @@ export function TodoCardExpandButton({
 				e.stopPropagation();
 				onToggle();
 			}}
-			className="shrink-0 flex h-4 w-4 items-center justify-center rounded-md hover:bg-muted/50 transition-colors self-start mt-1"
+			className={cn(
+				"shrink-0 flex items-center justify-center rounded-md hover:bg-muted/50 transition-colors self-start mt-1",
+				isMobile ? "h-9 w-9 rounded-lg" : "h-4 w-4",
+			)}
 			aria-label={
 				isExpanded
 					? tTodoDetail("collapseSubTasks")
@@ -37,6 +42,7 @@ export function TodoCardExpandButton({
 				className={cn(
 					"h-3 w-3 text-muted-foreground transition-transform duration-200",
 					isExpanded && "rotate-90",
+					isMobile && "h-4 w-4",
 				)}
 			/>
 		</button>

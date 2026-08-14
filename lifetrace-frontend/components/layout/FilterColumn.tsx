@@ -1,8 +1,9 @@
 "use client";
 
-import { Calendar, CalendarDays, ListTodo, Tag, X } from "lucide-react";
+import { Calendar, CalendarDays, ChevronDown, ChevronRight, ListTodo, Tag, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { ProjectList } from "@/apps/project";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useTodos } from "@/lib/query";
 import { useUiStore } from "@/lib/store/ui-store";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,8 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 	const { data: allTodos } = useTodos({ limit: 2000 });
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [isResizing, setIsResizing] = useState(false);
+	const [tagsExpanded, setTagsExpanded] = useState(true);
+	const isMobile = useIsMobile();
 
 	const allTags = useMemo(() => {
 		if (!allTodos || !Array.isArray(allTodos)) return [];
@@ -91,22 +94,36 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 		<div
 			ref={containerRef}
 			className={cn(
-				"relative flex flex-col overflow-hidden shrink-0 border-r border-border/40 bg-background",
+				"relative flex flex-col overflow-y-auto overflow-x-hidden shrink-0 border-r border-border/40 bg-background",
+				isMobile && "h-full",
 				isResizing && "pointer-events-none",
 			)}
-			style={{ width: widthOverride ?? sidebarWidth }}
+			style={{
+				width: widthOverride ?? sidebarWidth,
+				paddingBottom: isMobile
+					? "max(env(safe-area-inset-bottom), 0.75rem)"
+					: undefined,
+			}}
 		>
 			{/* 头部 */}
-			<div className="flex h-10 items-center justify-between px-3 border-b border-border/40">
+			<div
+				className={cn(
+					"flex items-center justify-between px-3 border-b border-border/40",
+					isMobile ? "h-11" : "h-10",
+				)}
+			>
 				<span className="text-xs font-medium text-muted-foreground">筛选</span>
 				{isFilterActive && (
 					<button
 						type="button"
 						onClick={() => { setSidebarMode(null); setSidebarTag(null); }}
 						title="清除筛选"
-						className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-destructive transition-colors"
+						className={cn(
+							"flex items-center justify-center rounded text-muted-foreground hover:text-destructive transition-colors",
+							isMobile ? "h-9 w-9 -mr-1.5" : "h-5 w-5",
+						)}
 					>
-						<X className="h-3 w-3" />
+						<X className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
 					</button>
 				)}
 			</div>
@@ -126,14 +143,15 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 							type="button"
 							onClick={() => { setTodoProjectFilter(null); setSidebarMode(sidebarMode === item.id ? null : item.id); }}
 							className={cn(
-								"flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs transition-colors",
+								"flex items-center gap-2.5 rounded-md px-2.5 text-xs transition-colors",
+								isMobile ? "min-h-11" : "py-1.5",
 								"hover:bg-muted/40",
 								isActive
 									? "bg-primary/10 text-primary font-medium"
 									: "text-muted-foreground",
 							)}
 						>
-							<Icon className="h-3.5 w-3.5 shrink-0" />
+							<Icon className={cn("shrink-0", isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
 							<span className="flex-1 text-left">{item.label}</span>
 							<span className="text-[10px] font-medium tabular-nums text-muted-foreground/70">
 								{count}
@@ -151,37 +169,53 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 			{/* 标签区域 */}
 			{allTags.length > 0 && (
 				<div className="flex flex-col gap-0.5 border-t border-border/20 px-2 pt-2 mt-1">
-					<span className="px-2.5 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+					<button
+						type="button"
+						onClick={() => setTagsExpanded((v) => !v)}
+						className={cn(
+							"flex items-center gap-1 px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground",
+							isMobile ? "min-h-11" : "pb-1",
+						)}
+					>
 						标签
-					</span>
-					{allTags.map((tag) => (
-						<button
-							key={tag}
-							type="button"
-							onClick={() => { setTodoProjectFilter(null); setSidebarTag(sidebarTag === tag ? null : tag); }}
-							className={cn(
-								"flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors",
-								"hover:bg-muted/40",
-								sidebarTag === tag
-									? "bg-primary/10 text-primary font-medium"
-									: "text-muted-foreground",
-							)}
-						>
-							<Tag className="h-3 w-3 shrink-0" />
-							<span className="flex-1 truncate text-left">{tag}</span>
-							<span className="text-[10px] font-medium tabular-nums text-muted-foreground/70">
-								{counts.tags[tag] ?? 0}
-							</span>
-						</button>
-					))}
+						{tagsExpanded ? (
+							<ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+						) : (
+							<ChevronRight className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+						)}
+					</button>
+					{tagsExpanded &&
+						allTags.map((tag) => (
+							<button
+								key={tag}
+								type="button"
+								onClick={() => { setTodoProjectFilter(null); setSidebarTag(sidebarTag === tag ? null : tag); }}
+								className={cn(
+									"flex items-center gap-2 rounded-md px-2.5 text-xs transition-colors",
+									isMobile ? "min-h-11" : "py-1.5",
+									"hover:bg-muted/40",
+									sidebarTag === tag
+										? "bg-primary/10 text-primary font-medium"
+										: "text-muted-foreground",
+								)}
+							>
+								<Tag className={cn("shrink-0", isMobile ? "h-4 w-4" : "h-3 w-3")} />
+								<span className="flex-1 truncate text-left">{tag}</span>
+								<span className="text-[10px] font-medium tabular-nums text-muted-foreground/70">
+									{counts.tags[tag] ?? 0}
+								</span>
+							</button>
+						))}
 				</div>
 			)}
 
-			{/* 调整大小手柄 */}
-			<div
-				className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors"
-				onPointerDown={handleResizePointerDown}
-			/>
+			{/* 调整大小手柄（移动端抽屉内无意义，隐藏） */}
+			{!isMobile && (
+				<div
+					className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors"
+					onPointerDown={handleResizePointerDown}
+				/>
+			)}
 		</div>
 	);
 }

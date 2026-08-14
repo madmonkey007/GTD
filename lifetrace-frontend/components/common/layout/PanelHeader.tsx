@@ -458,6 +458,8 @@ interface PanelHeaderProps {
 	hideMenu?: boolean;
 	/** 自定义标题 icon 的样式（会覆盖全局配置） */
 	iconClassName?: string;
+	/** 标题左侧插槽（渲染在图标/标题之前，用于移动端返回按钮等） */
+	leading?: ReactNode;
 }
 
 export function PanelHeader({
@@ -468,6 +470,7 @@ export function PanelHeader({
 	disableDrag = false,
 	hideMenu = false,
 	iconClassName,
+	leading,
 }: PanelHeaderProps) {
 	const position = usePanelPosition();
 	const isDraggable = !disableDrag && position !== null;
@@ -523,6 +526,7 @@ export function PanelHeader({
 				)}
 			>
 				<h2 className="flex items-center gap-2 text-base font-medium text-foreground">
+					{leading}
 					<Icon className={cn(headerIconStyle, iconClassName)} />
 					{title}
 					{isPinned && (

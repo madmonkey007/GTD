@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import type { Todo } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { getPriorityBorderColor } from "../utils/todoCardUtils";
@@ -9,12 +10,16 @@ interface TodoCardCheckboxProps {
 }
 
 export function TodoCardCheckbox({ todo, onToggle }: TodoCardCheckboxProps) {
+	const isMobile = useIsMobile();
 	return (
 		<button
 			type="button"
 			onClick={onToggle}
-			className="shrink-0 flex items-center"
-		>
+			className={cn(
+				"shrink-0 flex items-center",
+				isMobile && "h-9 w-9 justify-center items-start pt-1",
+			)}
+			>
 			{todo.status === "completed" ? (
 				<div className="flex h-4 w-4 items-center justify-center rounded-md bg-[oklch(var(--primary))] border border-[oklch(var(--primary))] shadow-inner">
 					<span className="text-[8px] text-[oklch(var(--primary-foreground))] font-semibold">

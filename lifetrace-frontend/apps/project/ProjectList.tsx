@@ -16,6 +16,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { type DragData, type DropData } from "@/lib/dnd";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useProjectMutations, useProjects } from "@/lib/query";
 import { useUiStore } from "@/lib/store/ui-store";
 import { toastError, toastSuccess } from "@/lib/toast";
@@ -44,6 +45,7 @@ export function ProjectList({
 	const { createProjectAsync, addTodosAsync } = useProjectMutations();
 	const [collapsed, setCollapsed] = useState(true);
 	const [showCreate, setShowCreate] = useState(false);
+	const isMobile = useIsMobile();
 	const storeSelectedId = useUiStore((s) => s.selectedProjectId);
 	const storeSetSelectedProjectId = useUiStore((s) => s.setSelectedProjectId);
 	const todoProjectFilter = useUiStore((s) => s.todoProjectFilter);
@@ -133,19 +135,25 @@ export function ProjectList({
 				<button
 					type="button"
 					onClick={() => setCollapsed((v) => !v)}
-					className="flex items-center gap-1.5 px-2.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
+					className={cn(
+						"flex items-center gap-1.5 px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground",
+						isMobile && "min-h-11",
+					)}
 					title={collapsed ? t("expand") : t("collapse")}
 				>
 					{t("entryTitle")}
-					<Chevron className="h-3 w-3" />
+					<Chevron className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
 				</button>
 				<button
 					type="button"
 					onClick={() => setShowCreate(true)}
-					className="text-[10px] text-muted-foreground/50 transition-colors hover:text-foreground"
+					className={cn(
+						"text-xs text-muted-foreground/50 transition-colors hover:text-foreground",
+						isMobile ? "flex h-9 w-9 items-center justify-center" : "",
+					)}
 					title={t("createTitle")}
 				>
-					<Plus className="h-3 w-3" />
+					<Plus className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
 				</button>
 			</div>
 
@@ -206,6 +214,7 @@ function ProjectItem({
 	droppable: boolean;
 	onClick: () => void;
 }) {
+	const isMobile = useIsMobile();
 	const dropData: DropData = useMemo(
 		() => ({ type: "PROJECT" as const, metadata: { projectId } }),
 		[projectId],
@@ -222,7 +231,8 @@ function ProjectItem({
 			type="button"
 			onClick={onClick}
 			className={cn(
-				"flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-xs transition-colors",
+				"flex w-full items-center gap-2 rounded-lg px-1.5 text-xs transition-colors",
+				isMobile ? "min-h-11" : "py-1",
 				isSelected
 					? "bg-primary/10 font-medium text-primary"
 					: "text-muted-foreground hover:bg-muted/30",
@@ -230,11 +240,14 @@ function ProjectItem({
 			)}
 		>
 			<span
-				className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+				className={cn(
+					"flex shrink-0 items-center justify-center rounded",
+					isMobile ? "h-6 w-6" : "h-5 w-5",
+				)}
 				style={color ? { backgroundColor: color } : undefined}
 			>
 				<FolderKanban
-					className="h-3 w-3"
+					className={cn(isMobile ? "h-3.5 w-3.5" : "h-3 w-3")}
 					style={{
 						color: color ? "white" : undefined,
 					}}

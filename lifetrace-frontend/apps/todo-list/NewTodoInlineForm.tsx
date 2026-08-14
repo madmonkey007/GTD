@@ -4,12 +4,15 @@ import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
 
 interface NewTodoInlineFormProps {
 	value: string;
 	onChange: (value: string) => void;
 	onSubmit: (e?: React.FormEvent) => void;
 	onCancel: () => void;
+	/** 是否显示可见的提交按钮（移动端底部弹出的输入框用） */
+	showSubmit?: boolean;
 }
 
 export function NewTodoInlineForm({
@@ -17,6 +20,7 @@ export function NewTodoInlineForm({
 	onChange,
 	onSubmit,
 	onCancel,
+	showSubmit = false,
 }: NewTodoInlineFormProps) {
 	const t = useTranslations("todoList");
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -62,6 +66,18 @@ export function NewTodoInlineForm({
 			<button type="submit" className="sr-only">
 				{t("submit")}
 			</button>
+			{showSubmit && (
+				<button
+					type="submit"
+					className={cn(
+						"shrink-0 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.97]",
+						!value.trim() && "opacity-50",
+					)}
+					disabled={!value.trim()}
+				>
+					{t("add")}
+				</button>
+			)}
 			<button type="reset" className="sr-only">
 				{t("reset")}
 			</button>

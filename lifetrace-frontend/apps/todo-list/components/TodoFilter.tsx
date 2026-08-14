@@ -121,6 +121,7 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 				}}
 				buttonOverrides={{
 					hoverTextColor: "hover:text-foreground",
+					...(isMobile ? { size: "h-9 w-9" } : {}),
 				}}
 				aria-label={tTodoList("filter")}
 			/>
@@ -145,7 +146,7 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 									type="button"
 									onClick={() => handleDueTimeChange(option.value)}
 									className={cn(
-										"px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200",
+										"px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
 										filter.dueTime === option.value
 											? "bg-primary/10 text-primary border border-primary/15"
 											: "bg-muted/20 text-muted-foreground/70 border border-transparent hover:bg-muted/40 hover:text-foreground",
@@ -161,7 +162,7 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 								onChange={(e) =>
 									handleDueTimeChange(e.target.value as DueTimeFilter)
 								}
-								className="w-full h-8 appearance-none rounded-lg border border-border/30 bg-background px-2.5 pr-8 text-xs text-foreground focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] focus:outline-none transition-all duration-200"
+								className="w-full h-10 appearance-none rounded-lg border border-border/30 bg-background px-2.5 pr-8 text-xs text-foreground focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] focus:outline-none transition-all duration-200"
 							>
 								{allTimeOptions.map((option) => (
 									<option key={option.value} value={option.value}>
@@ -185,7 +186,7 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 									type="button"
 									onClick={() => handleStatusChange(option.value)}
 									className={cn(
-										"px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200",
+										"px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
 										filter.status === option.value
 											? "bg-primary/10 text-primary border border-primary/15"
 											: "bg-muted/20 text-muted-foreground/70 border border-transparent hover:bg-muted/40 hover:text-foreground",
@@ -201,7 +202,7 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 								onChange={(e) =>
 									handleStatusChange(e.target.value as TodoStatus | "all")
 								}
-								className="w-full h-8 appearance-none rounded-lg border border-border/30 bg-background px-2.5 pr-8 text-xs text-foreground focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] focus:outline-none transition-all duration-200"
+								className="w-full h-10 appearance-none rounded-lg border border-border/30 bg-background px-2.5 pr-8 text-xs text-foreground focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] focus:outline-none transition-all duration-200"
 							>
 								{statusOptions.map((option) => (
 									<option key={option.value} value={option.value}>
@@ -223,7 +224,7 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 								<select
 									value={filter.tag}
 									onChange={(e) => handleTagChange(e.target.value)}
-									className="w-full h-8 appearance-none rounded-lg border border-border/30 bg-background px-2.5 pr-8 text-xs text-foreground focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] focus:outline-none transition-all duration-200"
+									className="w-full h-10 appearance-none rounded-lg border border-border/30 bg-background px-2.5 pr-8 text-xs text-foreground focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] focus:outline-none transition-all duration-200"
 								>
 									<option value="all">{tTodoList("filterAll")}</option>
 									{allTags.map((tag) => (
@@ -242,7 +243,7 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 						<button
 							type="button"
 							onClick={handleClearFilters}
-							className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border/30 bg-background text-xs font-medium text-muted-foreground/70 hover:bg-muted/20 hover:text-foreground transition-all duration-200"
+							className="w-full flex items-center justify-center gap-1.5 h-10 rounded-lg border border-border/30 bg-background text-xs font-medium text-muted-foreground/70 hover:bg-muted/20 hover:text-foreground transition-all duration-200"
 						>
 							<X className="h-3.5 w-3.5" />
 							{tTodoList("clearFilters")}

@@ -113,7 +113,6 @@ export function TodoCard({
 		<div
 			{...(!isOverlay ? { ...drag.attributes, ...drag.listeners } : {})}
 			ref={drag.setNodeRef}
-			style={style}
 			role="button"
 			tabIndex={0}
 			onClick={(e) => {
@@ -168,11 +167,12 @@ export function TodoCard({
 					: "hover:bg-muted/50",
 				isDragging && "ring-1 ring-primary/30",
 			)}
-			style={
-				selected
+			style={{
+				...style,
+				...(selected
 					? { boxShadow: "inset 2px 0 0 0 oklch(var(--primary))" }
-					: undefined
-			}
+					: {}),
+			}}
 		>
 			<div className="flex items-start gap-1.5">
 				<TodoCardExpandButton
@@ -181,7 +181,7 @@ export function TodoCard({
 					onToggle={() => toggleTodoExpanded(todo.id)}
 				/>
 
-				<div className="mt-0.5">
+				<div className={cn("shrink-0", isMobile ? "mt-0" : "mt-0.5")}>
 					<TodoCardCheckbox
 						todo={todo}
 						onToggle={handlers.handleToggleStatus}
@@ -216,7 +216,10 @@ export function TodoCard({
 									e.stopPropagation();
 									handlers.handleStartBreakdown();
 								}}
-								className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted/40 transition-all"
+								className={cn(
+									"flex items-center justify-center rounded-md hover:bg-muted/40 transition-all",
+									isMobile ? "h-9 w-9" : "h-6 w-6",
+								)}
 								aria-label={tTodoDetail("useAiPlan")}
 								title={tTodoDetail("useAiPlanTitle")}
 							>
@@ -228,7 +231,10 @@ export function TodoCard({
 									e.stopPropagation();
 									handlers.handleGetAdvice();
 								}}
-								className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted/40 transition-all"
+								className={cn(
+									"flex items-center justify-center rounded-md hover:bg-muted/40 transition-all",
+									isMobile ? "h-9 w-9" : "h-6 w-6",
+								)}
 								aria-label={tTodoDetail("getAdvice")}
 								title={tTodoDetail("getAdviceTitle")}
 							>

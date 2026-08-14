@@ -1,13 +1,14 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { FolderKanban, ListTodo, Search } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { SlidersHorizontal, FolderKanban, ListTodo, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import {
 	PanelActionButton,
 	usePanelIconStyle,
 } from "@/components/common/layout/PanelHeader";
+import { FilterColumn } from "@/components/layout/FilterColumn";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import type { ProjectView } from "@/lib/query";
 import type { Todo } from "@/lib/types";
@@ -37,6 +38,7 @@ export function TodoToolbar({
 	const tTodoList = useTranslations("todoList");
 	const tProject = useTranslations("project");
 	const [isSearchOpen, setIsSearchOpen] = useState(false);
+	const [filterOpen, setFilterOpen] = useState(false);
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const searchContainerRef = useRef<HTMLDivElement>(null);
 	const actionIconStyle = usePanelIconStyle("action");
@@ -71,6 +73,19 @@ export function TodoToolbar({
 		<div className="flex-shrink-0 px-4 pt-3 pb-2 border-b border-border/40">
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2 min-w-0">
+					{isMobile && (
+						<PanelActionButton
+							variant="default"
+							icon={SlidersHorizontal}
+							onClick={() => setFilterOpen(true)}
+							iconOverrides={{ color: "text-muted-foreground" }}
+							buttonOverrides={{
+								hoverTextColor: "hover:text-foreground",
+								size: "h-9 w-9",
+							}}
+							aria-label={tTodoList("filter")}
+						/>
+					)}
 					{projectFilter ? (
 						<>
 							<motion.span
@@ -124,7 +139,7 @@ export function TodoToolbar({
 						</>
 					) : (
 						<>
-							<ListTodo className="w-4 h-4 text-primary/70" />
+							{!isMobile && <ListTodo className="w-4 h-4 text-primary/70" />}
 							<span className="text-sm font-semibold tracking-tight text-foreground">
 								{tPage("todoListTitle")}
 							</span>
@@ -164,13 +179,41 @@ export function TodoToolbar({
 								icon={Search}
 								onClick={() => setIsSearchOpen(true)}
 								iconOverrides={{ color: "text-muted-foreground" }}
-								buttonOverrides={{ hoverTextColor: "hover:text-foreground" }}
+								buttonOverrides={{
+									hoverTextColor: "hover:text-foreground",
+									...(isMobile ? { size: "h-9 w-9" } : {}),
+								}}
 								aria-label={tTodoList("searchPlaceholder")}
 							/>
 						)}
 					</div>
 				</div>
 			</div>
+			<AnimatePresence>
+				{isMobile && filterOpen && (
+					<>
+						<motion.div
+							className="fixed inset-0 z-50 bg-black/30"
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: 0.15 }}
+							onClick={() => setFilterOpen(false)}
+						/>
+						<motion.div
+							className="fixed inset-y-0 left-0 z-50"
+							initial={{ x: "-100%" }}
+							animate={{ x: 0 }}
+							exit={{ x: "-100%" }}
+							transition={{ type: "spring", damping: 30, stiffness: 300 }}
+						>
+							<div className="relative h-full rounded-r-lg border-r border-border/40 bg-background shadow-xl">
+								<FilterColumn widthOverride="min(80vw,280px)" />
+							</div>
+						</motion.div>
+					</>
+				)}
+			</AnimatePresence>
 		</div>
 	);
 }
