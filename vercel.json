@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
-  "buildCommand": "pnpm build:frontend:web",
-  "installCommand": "pnpm install"
+  "installCommand": "cd lifetrace-frontend && pnpm install",
+  "buildCommand": "cd lifetrace-frontend && pnpm build:frontend:web"
 }
