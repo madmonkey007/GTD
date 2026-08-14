@@ -5,6 +5,7 @@
 
 注：屏幕录制/OCR/主动OCR/活动聚合/截图清理/自动待办检测/Todo专用录制
 等截图相关定时任务已移除（用户不需要）。
+音频录制状态检查任务也已移除（音频录制由前端WebSocket控制，无需后台监控）。
 """
 
 from functools import lru_cache
@@ -21,25 +22,6 @@ def _execute_deadline_reminder_task():
     from lifetrace.jobs.deadline_reminder import execute_deadline_reminder_task
 
     return execute_deadline_reminder_task()
-
-
-def execute_audio_recording_status_check():
-    """音频录制状态检查任务（用于监控录音状态）
-
-    注意：音频录制实际上由前端WebSocket控制，此任务仅用于状态监控和日志记录
-    """
-    try:
-        # 检查配置
-        enabled = settings.get("jobs.audio_recording.enabled", False)
-        audio_is_24x7 = settings.get("audio.is_24x7", False)
-
-        # 如果配置开启，记录状态（实际启动由前端控制）
-        if enabled and audio_is_24x7:
-            logger.debug("音频录制服务已启用（由前端WebSocket控制）")
-        else:
-            logger.debug("音频录制服务未启用")
-    except Exception as e:
-        logger.error(f"音频录制状态检查失败: {e}", exc_info=True)
 
 
 class JobManager:
@@ -91,9 +73,6 @@ class JobManager:
 
         # 启动用户自定义自动化任务
         self._start_automation_tasks()
-
-        # 启动音频录制状态检查任务
-        self._start_audio_recording_job()
 
         logger.info("所有后台任务已启动")
 
@@ -173,42 +152,6 @@ class JobManager:
             logger.info("自动化任务同步完成")
         except Exception as e:
             logger.error(f"自动化任务同步失败: {e}", exc_info=True)
-
-    def _start_audio_recording_job(self):
-        """启动音频录制状态检查任务
-
-        注意：音频录制实际上由前端WebSocket控制，此任务仅用于状态监控
-        """
-        if not self._is_module_active("audio"):
-            logger.info("音频模块未启用，跳过音频录制状态检查任务")
-            return
-        enabled = settings.get("jobs.audio_recording.enabled", False)
-
-        try:
-            scheduler = self._get_scheduler()
-            if not scheduler:
-                return
-
-            # 添加到调度器（无论是否启用都添加）
-            interval = settings.get("jobs.audio_recording.interval", 60)
-            audio_recording_id = settings.get("jobs.audio_recording.id", "audio_recording")
-            scheduler.add_interval_job(
-                func=execute_audio_recording_status_check,
-                job_id="audio_recording_job",
-                name=audio_recording_id,
-                seconds=interval,
-                replace_existing=True,
-            )
-            logger.info(f"音频录制状态检查任务已添加，间隔: {interval}秒")
-
-            # 如果未启用，则暂停
-            if not enabled:
-                scheduler.pause_job("audio_recording_job")
-                logger.info("音频录制服务未启用，已暂停")
-            else:
-                logger.info("音频录制服务已启用（由前端WebSocket控制）")
-        except Exception as e:
-            logger.error(f"启动音频录制任务失败: {e}", exc_info=True)
 
 
 # 全局单例

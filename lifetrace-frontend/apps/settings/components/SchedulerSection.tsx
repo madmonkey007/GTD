@@ -288,7 +288,7 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 									</span>
 								)}
 							</div>
-							<p className="text-xs text-muted-foreground truncate" title={job.id === "audio_recording_job" ? "此任务的间隔是状态检查间隔（用于监控录音状态），不是录音间隔。实际录音由前端WebSocket持续控制，不受此间隔影响。" : undefined}>
+							<p className="text-xs text-muted-foreground truncate">
 								{getJobDescription(job.id)}
 							</p>
 						</div>
