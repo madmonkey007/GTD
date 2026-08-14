@@ -23,6 +23,9 @@ export interface NoteLinkItem {
 	id: number;
 	name: string;
 	preview: string;
+	/** 标签（正文 #tag）与创建时间，供 @ 弹层排序/标签筛选 */
+	tags?: string[];
+	createdAt?: string;
 }
 
 interface DiaryTiptapEditorProps {
@@ -313,8 +316,47 @@ export function DiaryTiptapEditor({
 	onBlurRef.current = onBlur;
 	const [linkPopupOpen, setLinkPopupOpen] = useState(false);
 	const [linkSearch, setLinkSearch] = useState('');
+	const [linkSort, setLinkSort] = useState<'default' | 'newest' | 'oldest'>('default');
+	const [linkTag, setLinkTag] = useState<string>('all');
 	const [popupPos, setPopupPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 	const linkPopupRef = useRef<HTMLDivElement>(null);
+
+	// 聚合 noteLinkList 的标签（正文 #tag），供 @ 弹层标签下拉
+	const linkTags = useMemo(() => {
+		const countMap = new Map<string, number>();
+		for (const n of noteLinkList ?? []) {
+			for (const tagName of n.tags ?? []) {
+				countMap.set(tagName, (countMap.get(tagName) ?? 0) + 1);
+			}
+		}
+		return Array.from(countMap.entries())
+			.sort((a, b) => b[1] - a[1])
+			.map(([tagName]) => tagName);
+	}, [noteLinkList]);
+
+	// 过滤后的 @ 候选：标签 -> 关键词评分 -> 时间排序 -> 前 10
+	const filteredLinkNotes = useMemo(() => {
+		const list = (noteLinkList ?? [])
+			.filter((n: NoteLinkItem) => linkTag === 'all' || (n.tags ?? []).includes(linkTag))
+			.map((n: NoteLinkItem) => {
+				if (!linkSearch) return { item: n, score: 0 };
+				const q = linkSearch.toLowerCase();
+				let score = 0;
+				if (n.name.toLowerCase().includes(q)) score += 10;
+				if (n.preview.toLowerCase().includes(q)) score += 1;
+				return { item: n, score };
+			})
+			.filter(x => !linkSearch || x.score > 0)
+			.sort((a, b) => {
+				if (linkSort === 'default') return b.score - a.score;
+				const ta = new Date(a.item.createdAt ?? 0).getTime();
+				const tb = new Date(b.item.createdAt ?? 0).getTime();
+				if (Number.isNaN(ta) || Number.isNaN(tb)) return 0;
+				return linkSort === 'newest' ? tb - ta : ta - tb;
+			})
+			.slice(0, 10);
+		return list;
+	}, [noteLinkList, linkSearch, linkSort, linkTag]);
 
 	const wordCount = value.replace(/\s/g, '').length;
 
@@ -546,7 +588,7 @@ export function DiaryTiptapEditor({
 		: "";
 
 	return (
-		<div className={`relative transition-all duration-200 ${borderClass} focus-within:border-primary/40 focus-within:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)]`}>
+		<div className={`relative transition-all duration-200 ${borderClass} ${variant === "create" ? "focus-within:border-primary/40 focus-within:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)]" : ""}`}>
 			<EditorContent editor={editor} />
 			{/* 已关联笔记 chips */}
 			{linkedNoteTitles && linkedNoteTitles.length > 0 && (
@@ -659,20 +701,35 @@ export function DiaryTiptapEditor({
 							className="w-full h-8 rounded-md border border-border/30 bg-background/50 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/30"
 						/>
 					</div>
+					<div className="px-2 pb-2 flex items-center gap-1.5 border-b border-border/20">
+						<div className="relative flex-1">
+							<select
+								value={linkSort}
+								onChange={(e) => setLinkSort(e.target.value as any)}
+								className="h-7 w-full appearance-none rounded-md border border-border/30 bg-background/50 pl-2 pr-6 text-[10px] text-foreground focus:outline-none focus:border-primary/30"
+							>
+								<option value="default">默认排序</option>
+								<option value="newest">最新发布</option>
+								<option value="oldest">最旧发布</option>
+							</select>
+						</div>
+						<div className="relative flex-1">
+							<select
+								value={linkTag}
+								onChange={(e) => setLinkTag(e.target.value)}
+								className="h-7 w-full appearance-none rounded-md border border-border/30 bg-background/50 pl-2 pr-6 text-[10px] text-foreground focus:outline-none focus:border-primary/30"
+							>
+								<option value="all">全部标签</option>
+								{linkTags.map((tagName) => (
+									<option key={tagName} value={tagName}>
+										{tagName}
+									</option>
+								))}
+							</select>
+						</div>
+					</div>
 					<div className="flex-1 overflow-y-auto">
-						{noteLinkList
-							.map((n: NoteLinkItem) => {
-								if (!linkSearch) return { item: n, score: 0 };
-								const q = linkSearch.toLowerCase();
-								let score = 0;
-								if (n.name.toLowerCase().includes(q)) score += 10;
-								if (n.preview.toLowerCase().includes(q)) score += 1;
-								return { item: n, score };
-							})
-							.filter(x => !linkSearch || x.score > 0)
-							.sort((a, b) => b.score - a.score)
-							.slice(0, 10)
-							.map(({ item: n }) => (
+						{filteredLinkNotes.map(({ item: n }) => (
 								<button
 									key={n.id}
 									type="button"
@@ -683,7 +740,7 @@ export function DiaryTiptapEditor({
 									<span className="text-xs text-foreground/80 leading-relaxed line-clamp-3 w-full">{n.preview}</span>
 								</button>
 							))}
-						{noteLinkList.length === 0 && (
+						{filteredLinkNotes.length === 0 && (
 							<div className="px-3 py-4 text-xs text-muted-foreground/50 text-center">暂无笔记</div>
 						)}
 					</div>

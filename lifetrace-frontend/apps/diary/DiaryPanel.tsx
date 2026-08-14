@@ -287,6 +287,8 @@ export function DiaryPanel() {
 				id: n.id,
 				name: n.name ?? '',
 				preview: (n.userNotes ?? '').replace(/[\r\n]/g, ' ').slice(0, 80),
+				tags: (n.tags ?? []).map((t: any) => t.tagName),
+				createdAt: n.createdAt,
 			}));
 	}, [allNotesData, draft.id]);
 	// 稳定 filterJournalIds 的数组引用：project.notes 在 query 缓存中引用稳定，
@@ -684,6 +686,14 @@ const handleSaveCardEdit = async (
 				if (result) {
 					setAnnotateTarget(null);
 					clearAfterSubmit.current = true;
+					// 项目视图下批注产生的新笔记自动加入当前项目，使其出现在项目笔记列表
+					if (projectViewOpen && project) {
+						try {
+							await addNotesAsync({ id: project.id, journalIds: [result.id] });
+						} catch (e) {
+							console.error("[project] auto-link annotation note failed:", e);
+						}
+					}
 					// mutations 的 onSuccess 已触发 journals 重新获取，不再需显式 refetch。
 					// 先设置 guard 再 await，避免后台查询在 async 间隙更新 activeJournal
 					// 导致 sync effect 将批注内容写入 draft。
