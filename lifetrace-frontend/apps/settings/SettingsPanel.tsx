@@ -307,9 +307,9 @@ export function SettingsPanel() {
 										setActiveCategory(category.id);
 										setMobileView("content");
 									}}
-									className="flex w-full items-center gap-3 rounded-xl border border-border/60 bg-background px-4 py-3.5 text-left transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]"
+									className="flex w-full items-center gap-3.5 rounded-xl border border-border/60 bg-background px-4 py-4 text-left transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]"
 								>
-									<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+									<span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
 										<Icon className="h-5 w-5" />
 									</span>
 									<span className="min-w-0 flex-1">

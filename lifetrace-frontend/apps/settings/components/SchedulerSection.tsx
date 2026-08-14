@@ -20,16 +20,12 @@ import type { JobInfo, JobListResponse } from "@/lib/generated/schemas";
 import { toastError, toastSuccess } from "@/lib/toast";
 import { SettingsSection } from "./SettingsSection";
 
-// Legacy 任务列表
 const LEGACY_JOB_IDS = ["task_context_mapper_job", "task_summary_job"];
 
 interface SchedulerSectionProps {
 	loading?: boolean;
 }
 
-/**
- * 调度器管理设置区块
- */
 export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 	const t = useTranslations("scheduler");
 	const queryClient = useQueryClient();
@@ -41,22 +37,16 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 	});
 	const [showLegacy, setShowLegacy] = useState(false);
 
-	// 获取任务列表和状态
 	const { data: jobsData, isLoading: jobsLoading } =
 		useGetAllJobsApiSchedulerJobsGet({
-			query: {
-				refetchInterval: 10000, // 每10秒刷新一次
-			},
+			query: { refetchInterval: 10000 },
 		});
 
 	const { data: statusData, isLoading: statusLoading } =
 		useGetSchedulerStatusApiSchedulerStatusGet({
-			query: {
-				refetchInterval: 10000,
-			},
+			query: { refetchInterval: 10000 },
 		});
 
-	// 操作 mutations
 	const pauseJobMutation = usePauseJobApiSchedulerJobsJobIdPausePost();
 	const resumeJobMutation = useResumeJobApiSchedulerJobsJobIdResumePost();
 	const pauseAllMutation = usePauseAllJobsApiSchedulerJobsPauseAllPost();
@@ -74,7 +64,6 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		resumeAllMutation.isPending ||
 		updateIntervalMutation.isPending;
 
-	// 刷新数据
 	const handleRefresh = () => {
 		queryClient.invalidateQueries({
 			queryKey: getGetAllJobsApiSchedulerJobsGetQueryKey(),
@@ -84,7 +73,6 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		});
 	};
 
-	// 暂停单个任务
 	const handlePauseJob = async (jobId: string) => {
 		try {
 			await pauseJobMutation.mutateAsync({ jobId });
@@ -96,7 +84,6 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		}
 	};
 
-	// 恢复单个任务
 	const handleResumeJob = async (jobId: string) => {
 		try {
 			await resumeJobMutation.mutateAsync({ jobId });
@@ -108,7 +95,6 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		}
 	};
 
-	// 暂停所有任务（不包括 legacy）
 	const handlePauseAll = async () => {
 		try {
 			await pauseAllMutation.mutateAsync();
@@ -120,7 +106,6 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		}
 	};
 
-	// 恢复所有任务（不包括 legacy）
 	const handleResumeAll = async () => {
 		try {
 			await resumeAllMutation.mutateAsync();
@@ -132,29 +117,23 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		}
 	};
 
-	// 开始编辑间隔
 	const handleStartEditInterval = (jobId: string, trigger: string) => {
 		const parsed = parseIntervalToNumbers(trigger);
 		setEditInterval(parsed);
 		setEditingJobId(jobId);
 	};
 
-	// 取消编辑
 	const handleCancelEdit = () => {
 		setEditingJobId(null);
 		setEditInterval({ hours: 0, minutes: 0, seconds: 0 });
 	};
 
-	// 保存间隔
 	const handleSaveInterval = async (jobId: string) => {
 		const { hours, minutes, seconds } = editInterval;
-
-		// 验证至少有一个值
 		if (hours === 0 && minutes === 0 && seconds === 0) {
 			toastError(t("intervalCannotBeZero"));
 			return;
 		}
-
 		try {
 			await updateIntervalMutation.mutateAsync({
 				jobId,
@@ -174,7 +153,6 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		}
 	};
 
-	// 获取任务显示名称
 	const getJobName = (jobId: string) => {
 		try {
 			return t(`jobs.${jobId}` as Parameters<typeof t>[0]);
@@ -183,7 +161,6 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		}
 	};
 
-	// 获取任务描述
 	const getJobDescription = (jobId: string) => {
 		try {
 			return t(`jobDescriptions.${jobId}` as Parameters<typeof t>[0]);
@@ -192,16 +169,10 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		}
 	};
 
-	// 检查是否为 legacy 任务
-	const isLegacyJob = (jobId: string) => {
-		return LEGACY_JOB_IDS.includes(jobId);
-	};
+	const isLegacyJob = (jobId: string) => LEGACY_JOB_IDS.includes(jobId);
 
-	// 格式化下次运行时间
 	const formatNextRunTime = (nextRunTime: string | null) => {
-		if (!nextRunTime) {
-			return t("paused");
-		}
+		if (!nextRunTime) return t("paused");
 		const dateLocale = t("dateLocale");
 		const date = new Date(nextRunTime);
 		return date.toLocaleString(dateLocale, {
@@ -213,7 +184,6 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		});
 	};
 
-	// 解析 trigger 字符串获取间隔文字
 	const parseInterval = (trigger: string) => {
 		const match = trigger.match(/interval\[(\d+):(\d+):(\d+)\]/);
 		if (match) {
@@ -229,7 +199,6 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		return trigger;
 	};
 
-	// 解析 trigger 字符串获取间隔数值
 	const parseIntervalToNumbers = (trigger: string) => {
 		const match = trigger.match(/interval\[(\d+):(\d+):(\d+)\]/);
 		if (match) {
@@ -250,12 +219,9 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 	}>(statusData);
 	const jobsResponse = unwrapApiData<JobListResponse>(jobsData);
 	const allJobs = jobsResponse?.jobs || [];
-
-	// 分离活跃任务和 legacy 任务
 	const activeJobs = allJobs.filter((job) => !isLegacyJob(job.id));
 	const legacyJobs = allJobs.filter((job) => isLegacyJob(job.id));
 
-	// 渲染单个任务项
 	const renderJobItem = (job: JobInfo, isLegacy = false) => {
 		const isRunning = job.pending ?? false;
 		const isEditing = editingJobId === job.id;
@@ -263,32 +229,34 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 		return (
 			<div
 				key={job.id}
-				className={`rounded-md border px-3 py-2 ${
+				className={`group rounded-xl border px-4 py-3 transition-colors ${
 					isLegacy
-						? "border-border/50 bg-muted/30 opacity-70"
-						: "border-border bg-background/50"
+						? "border-border/30 bg-muted/15 opacity-60"
+						: "border-border/40 bg-card/40 hover:border-border/60 hover:bg-card/60"
 				}`}
 			>
-				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-3 flex-1 min-w-0">
+				<div className="flex items-center justify-between gap-3">
+					<div className="flex items-center gap-3 min-w-0 flex-1">
 						<span
 							className={`h-2 w-2 rounded-full shrink-0 ${
-								isRunning ? "bg-green-500" : "bg-yellow-500"
+								isRunning
+									? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]"
+									: "bg-amber-400"
 							}`}
 							title={isRunning ? t("running") : t("paused")}
 						/>
 						<div className="min-w-0 flex-1">
 							<div className="flex items-center gap-2">
-								<p className="text-sm font-medium text-foreground truncate">
+								<p className="text-[13px] font-medium text-foreground/90 truncate">
 									{getJobName(job.id)}
 								</p>
 								{isLegacy && (
-									<span className="shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+									<span className="shrink-0 rounded-md bg-amber-100/80 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/25 dark:text-amber-400">
 										Legacy
 									</span>
 								)}
 							</div>
-							<p className="text-xs text-muted-foreground truncate">
+							<p className="mt-0.5 text-xs text-muted-foreground/60 truncate">
 								{getJobDescription(job.id)}
 							</p>
 						</div>
@@ -299,10 +267,10 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 							isRunning ? handlePauseJob(job.id) : handleResumeJob(job.id)
 						}
 						disabled={isLoading}
-						className={`shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+						className={`shrink-0 inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-medium transition-all disabled:opacity-50 ${
 							isRunning
-								? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400"
-								: "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400"
+								? "bg-amber-100/80 text-amber-700 hover:bg-amber-200/80 dark:bg-amber-900/20 dark:text-amber-400"
+								: "bg-emerald-100/80 text-emerald-700 hover:bg-emerald-200/80 dark:bg-emerald-900/20 dark:text-emerald-400"
 						}`}
 					>
 						{isRunning ? (
@@ -319,96 +287,70 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 					</button>
 				</div>
 
-				{/* 间隔配置行 */}
-				<div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+				<div className="mt-2.5 flex items-center gap-2 text-xs text-muted-foreground/60">
 					<Clock className="h-3 w-3 shrink-0" />
 					{isEditing ? (
-						<div className="flex items-center gap-2">
-							<div className="flex items-center gap-1">
-								<input
-									type="number"
-									min="0"
-									max="23"
-									value={editInterval.hours}
-									onChange={(e) =>
-										setEditInterval((prev) => ({
-											...prev,
-											hours: parseInt(e.target.value, 10) || 0,
-										}))
-									}
-									className="w-12 rounded border border-input bg-background px-1 py-0.5 text-xs text-center"
-								/>
-								<span>{t("hour")}</span>
+						<div className="flex flex-wrap items-center gap-1.5">
+							{(["hours", "minutes", "seconds"] as const).map((unit, idx) => (
+								<div key={unit} className="flex items-center gap-1">
+									{idx > 0 && <span className="text-muted-foreground/30">:</span>}
+									<input
+										type="number"
+										min="0"
+										max={unit === "hours" ? 23 : 59}
+										value={editInterval[unit]}
+										onChange={(e) =>
+											setEditInterval((prev) => ({
+												...prev,
+												[unit]: parseInt(e.target.value, 10) || 0,
+											}))
+										}
+										className="min-h-[36px] w-12 rounded-md border border-border/50 bg-background/50 px-1.5 py-1 text-center text-[12px] tabular-nums focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/15"
+									/>
+									<span className="text-[10px] text-muted-foreground/40">
+										{unit === "hours" ? t("hour") : unit === "minutes" ? t("minute") : t("second")}
+									</span>
+								</div>
+							))}
+							<div className="ml-1 flex items-center gap-1">
+								<button
+									type="button"
+									onClick={() => handleSaveInterval(job.id)}
+									disabled={isLoading}
+									className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md text-emerald-600 transition-colors hover:bg-emerald-100/50 dark:text-emerald-400"
+									title={t("save")}
+								>
+									<Check className="h-4 w-4" />
+								</button>
+								<button
+									type="button"
+									onClick={handleCancelEdit}
+									className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md text-red-500 transition-colors hover:bg-red-100/50 dark:text-red-400"
+									title={t("cancel")}
+								>
+									<X className="h-4 w-4" />
+								</button>
 							</div>
-							<div className="flex items-center gap-1">
-								<input
-									type="number"
-									min="0"
-									max="59"
-									value={editInterval.minutes}
-									onChange={(e) =>
-										setEditInterval((prev) => ({
-											...prev,
-											minutes: parseInt(e.target.value, 10) || 0,
-										}))
-									}
-									className="w-12 rounded border border-input bg-background px-1 py-0.5 text-xs text-center"
-								/>
-								<span>{t("minute")}</span>
-							</div>
-							<div className="flex items-center gap-1">
-								<input
-									type="number"
-									min="0"
-									max="59"
-									value={editInterval.seconds}
-									onChange={(e) =>
-										setEditInterval((prev) => ({
-											...prev,
-											seconds: parseInt(e.target.value, 10) || 0,
-										}))
-									}
-									className="w-12 rounded border border-input bg-background px-1 py-0.5 text-xs text-center"
-								/>
-								<span>{t("second")}</span>
-							</div>
-							<button
-								type="button"
-								onClick={() => handleSaveInterval(job.id)}
-								disabled={isLoading}
-								className="p-1 rounded hover:bg-accent text-green-600"
-								title={t("save")}
-							>
-								<Check className="h-3 w-3" />
-							</button>
-							<button
-								type="button"
-								onClick={handleCancelEdit}
-								className="p-1 rounded hover:bg-accent text-red-600"
-								title={t("cancel")}
-							>
-								<X className="h-3 w-3" />
-							</button>
 						</div>
 					) : (
-						<>
-							<span>
+						<div className="flex flex-wrap items-center gap-2">
+							<span className="tabular-nums">
 								{t("interval")}: {parseInterval(job.trigger)}
 							</span>
 							<button
 								type="button"
 								onClick={() => handleStartEditInterval(job.id, job.trigger)}
 								disabled={isLoading}
-								className="p-0.5 rounded hover:bg-accent"
+								className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-muted/50 hover:text-muted-foreground/70"
 								title={t("editInterval")}
 							>
-								<Edit2 className="h-3 w-3" />
+								<Edit2 className="h-3.5 w-3.5" />
 							</button>
-							<span className="mx-1">•</span>
-							<span>
+							<span className="text-muted-foreground/20">&middot;</span>
+							<span className="tabular-nums">
 								{t("next")}: {formatNextRunTime(job.next_run_time ?? null)}
 							</span>
-						</>
+						</div>
 					)}
 				</div>
 			</div>
@@ -417,100 +359,104 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 
 	return (
 		<SettingsSection title={t("title")} description={t("description")}>
-			{/* 状态概览 */}
-			<div className="mb-4 flex items-center justify-between">
-				<div className="flex items-center gap-4 text-sm text-muted-foreground">
-					<span className="flex items-center gap-1">
-						<span
-							className={`h-2 w-2 rounded-full ${
-								status?.running ? "bg-green-500" : "bg-red-500"
-							}`}
-						/>
-						{status?.running ? t("schedulerRunning") : t("schedulerStopped")}
-					</span>
-					<span>
-						{t("runningCount", {
-							running: status?.runningJobs || 0,
-							paused: status?.pausedJobs || 0,
-						})}
-					</span>
-				</div>
-				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						onClick={handleRefresh}
-						disabled={isLoading}
-						className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
-						title={t("refresh")}
-					>
-						<RefreshCw
-							className={`h-3 w-3 ${isLoading ? "animate-spin" : ""}`}
-						/>
-					</button>
-					<button
-						type="button"
-						onClick={handlePauseAll}
-						disabled={isLoading}
-						className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
-					>
-						<Pause className="h-3 w-3" />
-						{t("pauseAll")}
-					</button>
-					<button
-						type="button"
-						onClick={handleResumeAll}
-						disabled={isLoading}
-						className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
-					>
-						<Play className="h-3 w-3" />
-						{t("resumeAll")}
-					</button>
-				</div>
-			</div>
-
-			{/* 活跃任务列表 */}
-			<div className="space-y-2">
-				{activeJobs.map((job) => renderJobItem(job))}
-
-				{activeJobs.length === 0 && !jobsLoading && (
-					<div className="py-4 text-center text-sm text-muted-foreground">
-						{t("noJobs")}
+			<div className="space-y-3">
+				{/* Status bar */}
+				<div className="flex flex-col gap-3 rounded-xl border border-border/40 bg-card/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+					<div className="flex items-center gap-4 text-[13px] text-muted-foreground/70">
+						<span className="flex items-center gap-1.5">
+							<span
+								className={`h-1.5 w-1.5 rounded-full ${
+									status?.running ? "bg-emerald-500" : "bg-red-400"
+								}`}
+							/>
+							{status?.running ? t("schedulerRunning") : t("schedulerStopped")}
+						</span>
+						<span className="tabular-nums">
+							{t("runningCount", {
+								running: status?.runningJobs || 0,
+								paused: status?.pausedJobs || 0,
+							})}
+						</span>
 					</div>
-				)}
-
-				{jobsLoading && (
-					<div className="py-4 text-center text-sm text-muted-foreground">
-						{t("loading")}
-					</div>
-				)}
-			</div>
-
-			{/* Legacy 任务区域 */}
-			{legacyJobs.length > 0 && (
-				<div className="mt-4 pt-4 border-t border-border">
-					<button
-						type="button"
-						onClick={() => setShowLegacy(!showLegacy)}
-						className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-					>
-						<span
-							className={`transition-transform ${showLegacy ? "rotate-90" : ""}`}
+					<div className="flex items-center gap-1.5">
+						<button
+							type="button"
+							onClick={handleRefresh}
+							disabled={isLoading}
+							className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground/60 transition-colors hover:bg-muted/50 hover:text-foreground/70 disabled:opacity-50"
+							title={t("refresh")}
 						>
-							▶
-						</span>
-						{t("legacyJobs")} ({legacyJobs.length})
-						<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted">
-							{t("legacyNotNeeded")}
-						</span>
-					</button>
+							<RefreshCw
+								className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+							/>
+						</button>
+						<button
+							type="button"
+							onClick={handlePauseAll}
+							disabled={isLoading}
+							className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/50 px-3 py-1.5 text-[12px] font-medium text-muted-foreground/70 transition-colors hover:bg-muted/50 hover:text-foreground/70 disabled:opacity-50"
+						>
+							<Pause className="h-3.5 w-3.5" />
+							{t("pauseAll")}
+						</button>
+						<button
+							type="button"
+							onClick={handleResumeAll}
+							disabled={isLoading}
+							className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/50 px-3 py-1.5 text-[12px] font-medium text-muted-foreground/70 transition-colors hover:bg-muted/50 hover:text-foreground/70 disabled:opacity-50"
+						>
+							<Play className="h-3.5 w-3.5" />
+							{t("resumeAll")}
+						</button>
+					</div>
+				</div>
 
-					{showLegacy && (
-						<div className="mt-2 space-y-2">
-							{legacyJobs.map((job) => renderJobItem(job, true))}
+				{/* Active jobs */}
+				<div className="space-y-2">
+					{activeJobs.map((job) => renderJobItem(job))}
+
+					{activeJobs.length === 0 && !jobsLoading && (
+						<div className="py-6 text-center text-[13px] text-muted-foreground/50">
+							{t("noJobs")}
+						</div>
+					)}
+
+					{jobsLoading && (
+						<div className="py-6 text-center text-[13px] text-muted-foreground/50">
+							{t("loading")}
 						</div>
 					)}
 				</div>
-			)}
+
+				{/* Legacy section */}
+				{legacyJobs.length > 0 && (
+					<div className="pt-3 border-t border-border/30">
+						<button
+							type="button"
+							onClick={() => setShowLegacy(!showLegacy)}
+							className="flex items-center gap-2 text-xs text-muted-foreground/50 transition-colors hover:text-muted-foreground/70"
+						>
+							<span
+								className={`inline-block text-[10px] transition-transform ${
+									showLegacy ? "rotate-90" : ""
+								}`}
+							>
+								&#9654;
+							</span>
+							{t("legacyJobs")} ({legacyJobs.length})
+							<span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] text-muted-foreground/40">
+								{t("legacyNotNeeded")}
+							</span>
+						</button>
+
+						{showLegacy && (
+							<div className="mt-2 space-y-2">
+								{legacyJobs.map((job) => renderJobItem(job, true))}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
 		</SettingsSection>
 	);
 }

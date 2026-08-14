@@ -16,9 +16,6 @@ interface LlmConfigSectionProps {
 	loading?: boolean;
 }
 
-/**
- * LLM 配置区块组件
- */
 export function LlmConfigSection({
 	config,
 	loading = false,
@@ -29,7 +26,6 @@ export function LlmConfigSection({
 	const testLlmMutation = useTestLlmConfigApiTestLlmConfigPost();
 	const saveAndInitLlmMutation = useSaveAndInitLlmApiSaveAndInitLlmPost();
 
-	// LLM 配置状态
 	const [llmApiKey, setLlmApiKey] = useState(
 		(config?.llmApiKey as string) || "",
 	);
@@ -63,10 +59,8 @@ export function LlmConfigSection({
 		testLlmMutation.isPending ||
 		saveAndInitLlmMutation.isPending;
 
-	// 当配置加载完成后，同步本地状态
 	useEffect(() => {
 		if (config) {
-			// 只在配置值存在时更新，避免覆盖用户正在编辑的值
 			if (config.llmApiKey !== undefined) {
 				setLlmApiKey((config.llmApiKey as string) || "");
 			}
@@ -82,18 +76,16 @@ export function LlmConfigSection({
 			if (config.llmMaxTokens !== undefined) {
 				setLlmMaxTokens((config.llmMaxTokens as number) ?? 2048);
 			}
-			// 更新初始配置（用于检测变更）
 			setInitialLlmConfig({
 				llmApiKey: (config.llmApiKey as string) || "",
 				llmBaseUrl: (config.llmBaseUrl as string) || "",
-				llmModel: (config.llmModel as string) || "qwen-plus",
-				llmTemperature: (config.llmTemperature as number) ?? 0.7,
-				llmMaxTokens: (config.llmMaxTokens as number) ?? 2048,
+				llmModel: (config?.llmModel as string) || "qwen-plus",
+				llmTemperature: (config?.llmTemperature as number) ?? 0.7,
+				llmMaxTokens: (config?.llmMaxTokens as number) ?? 2048,
 			});
 		}
 	}, [config]);
 
-	// 测试 LLM 连接
 	const handleTestLlm = async () => {
 		const currentApiKey = llmApiKey.trim();
 		const currentBaseUrl = llmBaseUrl.trim();
@@ -138,30 +130,25 @@ export function LlmConfigSection({
 		}
 	};
 
-	// 保存 LLM 配置（失去焦点时触发）
 	const handleSaveLlmConfig = async () => {
 		const currentApiKey = llmApiKey.trim();
 		const currentBaseUrl = llmBaseUrl.trim();
 		const currentModel = llmModel.trim();
 
-		// 检查核心配置是否改变（API Key, Base URL, Model）
 		const llmCoreConfigChanged =
 			currentApiKey !== initialLlmConfig.llmApiKey ||
 			currentBaseUrl !== initialLlmConfig.llmBaseUrl ||
 			currentModel !== initialLlmConfig.llmModel;
 
-		// 检查其他配置是否改变（Temperature, Max Tokens）
 		const otherConfigChanged =
 			llmTemperature !== initialLlmConfig.llmTemperature ||
 			llmMaxTokens !== initialLlmConfig.llmMaxTokens;
 
-		// 如果没有任何改动，不需要保存
 		if (!llmCoreConfigChanged && !otherConfigChanged) {
 			return;
 		}
 
 		try {
-			// 1. 始终保存用户输入的配置到文件（即使配置不完整）
 			await saveConfigMutation.mutateAsync({
 				data: {
 					llmApiKey: currentApiKey,
@@ -172,7 +159,6 @@ export function LlmConfigSection({
 				},
 			});
 
-			// 更新初始配置状态
 			setInitialLlmConfig({
 				llmApiKey: currentApiKey,
 				llmBaseUrl: currentBaseUrl,
@@ -181,7 +167,6 @@ export function LlmConfigSection({
 				llmMaxTokens,
 			});
 
-			// 2. 只有当核心配置改变且配置完整时，才测试并初始化 LLM
 			if (llmCoreConfigChanged && currentApiKey && currentBaseUrl) {
 				try {
 					const result = await saveAndInitLlmMutation.mutateAsync({
@@ -192,24 +177,20 @@ export function LlmConfigSection({
 						},
 					});
 
-					// 检查返回结果
 					const response = result as { success?: boolean; error?: string };
 					if (response.success) {
-						// 测试成功，更新消息提示并刷新 LLM 状态
 						setTestMessage({
 							type: "success",
 							text: t("testSuccess"),
 						});
 						await queryClient.invalidateQueries({ queryKey: ["llm-status"] });
 					} else {
-						// 测试失败，显示错误信息
 						setTestMessage({
 							type: "error",
 							text: `${t("testFailed")}: ${response.error || "Unknown error"}`,
 						});
 					}
 				} catch (initError) {
-					// 初始化失败，显示错误信息
 					const errorMsg =
 						initError instanceof Error ? initError.message : String(initError);
 					setTestMessage({
@@ -228,45 +209,52 @@ export function LlmConfigSection({
 
 	return (
 		<SettingsSection title={t("llmConfig")}>
-			<div className="space-y-3">
-				{/* 消息提示 */}
+			<div className="space-y-4">
+				{/* Status message */}
 				{testMessage && (
 					<div
-						className={`rounded-lg px-3 py-2 text-sm font-medium ${
+						className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors ${
 							testMessage.type === "success"
-								? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-								: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+								? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+								: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
 						}`}
 					>
+						<span
+							className={`inline-block h-1.5 w-1.5 rounded-full ${
+								testMessage.type === "success"
+									? "bg-emerald-500"
+									: "bg-red-500"
+							}`}
+						/>
 						{testMessage.text}
 					</div>
 				)}
 
 				{/* API Key */}
-				<div>
+				<div className="space-y-1.5">
 					<label
 						htmlFor="llm-api-key"
-						className="mb-1 block text-sm font-medium text-foreground"
+						className="block text-[13px] font-medium text-foreground/80"
 					>
-						{t("apiKey")} <span className="text-red-500">*</span>
+						{t("apiKey")} <span className="text-destructive">*</span>
 					</label>
 					<input
 						id="llm-api-key"
 						type="password"
-						className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+						className="min-h-[44px] w-full rounded-lg border border-border/60 bg-background/50 px-3 py-2.5 text-sm transition-colors placeholder:text-muted-foreground/40 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
 						placeholder={t("apiKey")}
 						value={llmApiKey}
 						onChange={(e) => setLlmApiKey(e.target.value)}
 						onBlur={handleSaveLlmConfig}
 						disabled={isLoading}
 					/>
-					<p className="mt-1 text-xs text-muted-foreground">
+					<p className="text-xs text-muted-foreground/60">
 						{t("apiKeyHint")}{" "}
 						<a
 							href="https://bailian.console.aliyun.com/?tab=api#/api"
 							target="_blank"
 							rel="noopener noreferrer"
-							className="text-primary hover:underline"
+							className="text-primary/80 underline-offset-2 hover:underline"
 						>
 							{t("apiKeyLink")}
 						</a>
@@ -274,17 +262,17 @@ export function LlmConfigSection({
 				</div>
 
 				{/* Base URL */}
-				<div>
+				<div className="space-y-1.5">
 					<label
 						htmlFor="llm-base-url"
-						className="mb-1 block text-sm font-medium text-foreground"
+						className="block text-[13px] font-medium text-foreground/80"
 					>
-						{t("baseUrl")} <span className="text-red-500">*</span>
+						{t("baseUrl")} <span className="text-destructive">*</span>
 					</label>
 					<input
 						id="llm-base-url"
 						type="text"
-						className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+						className="min-h-[44px] w-full rounded-lg border border-border/60 bg-background/50 px-3 py-2.5 text-sm transition-colors placeholder:text-muted-foreground/40 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
 						placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
 						value={llmBaseUrl}
 						onChange={(e) => setLlmBaseUrl(e.target.value)}
@@ -294,65 +282,67 @@ export function LlmConfigSection({
 				</div>
 
 				{/* Model / Temperature / Max Tokens */}
-				<div className="grid grid-cols-3 gap-3">
-					<div>
-						<label
-							htmlFor="llm-model"
-							className="mb-1 block text-sm font-medium text-foreground"
-						>
-							{t("model")}
-						</label>
-						<input
-							id="llm-model"
-							type="text"
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-							placeholder="qwen-plus"
-							value={llmModel}
-							onChange={(e) => setLlmModel(e.target.value)}
-							onBlur={handleSaveLlmConfig}
-							disabled={isLoading}
-						/>
-					</div>
-					<div>
-						<label
-							htmlFor="llm-temperature"
-							className="mb-1 block text-sm font-medium text-foreground"
-						>
-							{t("temperature")}
-						</label>
-						<input
-							id="llm-temperature"
-							type="number"
-							step="0.1"
-							min="0"
-							max="2"
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-							value={llmTemperature}
-							onChange={(e) => setLlmTemperature(parseFloat(e.target.value))}
-							onBlur={handleSaveLlmConfig}
-							disabled={isLoading}
-						/>
-					</div>
-					<div>
-						<label
-							htmlFor="llm-max-tokens"
-							className="mb-1 block text-sm font-medium text-foreground"
-						>
-							{t("maxTokens")}
-						</label>
-						<input
-							id="llm-max-tokens"
-							type="number"
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-							value={llmMaxTokens}
-							onChange={(e) => setLlmMaxTokens(parseInt(e.target.value, 10))}
-							onBlur={handleSaveLlmConfig}
-							disabled={isLoading}
-						/>
+				<div className="rounded-xl border border-border/40 bg-muted/20 p-3 sm:p-4">
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+						<div className="space-y-1.5">
+							<label
+								htmlFor="llm-model"
+								className="block text-[13px] font-medium text-foreground/80"
+							>
+								{t("model")}
+							</label>
+							<input
+								id="llm-model"
+								type="text"
+								className="min-h-[44px] w-full rounded-lg border border-border/60 bg-background/50 px-3 py-2.5 text-sm transition-colors placeholder:text-muted-foreground/40 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+								placeholder="qwen-plus"
+								value={llmModel}
+								onChange={(e) => setLlmModel(e.target.value)}
+								onBlur={handleSaveLlmConfig}
+								disabled={isLoading}
+							/>
+						</div>
+						<div className="space-y-1.5">
+							<label
+								htmlFor="llm-temperature"
+								className="block text-[13px] font-medium text-foreground/80"
+							>
+								{t("temperature")}
+							</label>
+							<input
+								id="llm-temperature"
+								type="number"
+								step="0.1"
+								min="0"
+								max="2"
+								className="min-h-[44px] w-full rounded-lg border border-border/60 bg-background/50 px-3 py-2.5 text-sm transition-colors placeholder:text-muted-foreground/40 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+								value={llmTemperature}
+								onChange={(e) => setLlmTemperature(parseFloat(e.target.value))}
+								onBlur={handleSaveLlmConfig}
+								disabled={isLoading}
+							/>
+						</div>
+						<div className="space-y-1.5">
+							<label
+								htmlFor="llm-max-tokens"
+								className="block text-[13px] font-medium text-foreground/80"
+							>
+								{t("maxTokens")}
+							</label>
+							<input
+								id="llm-max-tokens"
+								type="number"
+								className="min-h-[44px] w-full rounded-lg border border-border/60 bg-background/50 px-3 py-2.5 text-sm transition-colors placeholder:text-muted-foreground/40 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+								value={llmMaxTokens}
+								onChange={(e) => setLlmMaxTokens(parseInt(e.target.value, 10))}
+								onBlur={handleSaveLlmConfig}
+								disabled={isLoading}
+							/>
+						</div>
 					</div>
 				</div>
 
-				{/* 测试按钮 */}
+				{/* Test button */}
 				<button
 					type="button"
 					onClick={async () => {
@@ -363,7 +353,7 @@ export function LlmConfigSection({
 						await handleTestLlm();
 					}}
 					disabled={isLoading || !llmApiKey.trim() || !llmBaseUrl.trim()}
-					className="w-full rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+					className="min-h-[44px] w-full rounded-lg border border-border/60 bg-background/50 px-4 py-2.5 text-[13px] font-medium text-foreground/80 transition-colors hover:bg-muted/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{testLlmMutation.isPending
 						? `${t("testConnection")}...`
