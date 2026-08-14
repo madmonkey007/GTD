@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, List, Shuffle, CheckSquare, TimerReset } from "lucide-react";
+import { Clock, List, Shuffle, TimerReset } from "lucide-react";
 import { Fragment } from "react";
 import { useTranslations } from "next-intl";
 import type { DiaryFilterMode } from "@/apps/diary/hooks/useDiaryStats";
@@ -21,7 +21,6 @@ const FILTERS: { key: DiaryFilterMode; disabled?: boolean; icon: React.FC<{ clas
 	{ key: "all", icon: List },
 	{ key: "last7", icon: Clock },
 	{ key: "random", icon: Shuffle },
-	{ key: "todo", icon: CheckSquare },
 ];
 
 export function DiaryFilterBar({ filterMode, onFilterModeChange, hideActive, timeMachineActive, onTimeMachine }: DiaryFilterBarProps) {
@@ -36,9 +35,7 @@ export function DiaryFilterBar({ filterMode, onFilterModeChange, hideActive, tim
 						? "sidebarFilterAll"
 						: key === "last7"
 							? "sidebarFilterLast7"
-							: key === "random"
-								? "sidebarFilterRandom"
-								: "sidebarFilterTodoNotes";
+							: "sidebarFilterRandom";
 				const tooltipKey =
 					key === "random" ? "sidebarFilterRandomTooltip" : undefined;
 
@@ -60,7 +57,7 @@ export function DiaryFilterBar({ filterMode, onFilterModeChange, hideActive, tim
 							<Icon className="w-3.5 h-3.5 mr-2 shrink-0" />
 							{t(labelKey)}
 						</button>
-						{/* 时光机器：插入在随机漫步与待办笔记之间 */}
+						{/* 时光机器：插入在随机漫步之后 */}
 						{key === "random" && onTimeMachine && (
 							<button
 								type="button"

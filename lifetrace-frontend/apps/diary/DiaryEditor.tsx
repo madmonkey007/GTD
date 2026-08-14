@@ -2,7 +2,7 @@
 
 import { useRef, useState, useMemo, useEffect, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
 	ChevronDown,
 	ChevronUp,
@@ -21,12 +21,10 @@ import {
 	MessageSquarePlus,
 	ArrowUpRight,
 	ArrowDownLeft,
-	Search,
 	MessageCircle,
 	Link2,
-	List,
-	LayoutGrid,
 	CheckSquare,
+	Plus,
 } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import type { JournalDraft } from "@/apps/diary/types";
@@ -34,6 +32,7 @@ import type { JournalView } from "@/lib/query";
 import { useJournals } from "@/lib/query";
 import { queryKeys } from "@/lib/query/keys";
 import { unwrapApiData } from "@/lib/api/fetcher";
+import { cn } from "@/lib/utils";
 
 import {
 	DropdownMenu,
@@ -52,7 +51,9 @@ import {
 	AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { DiaryTiptapEditor, type NoteLinkItem } from "./DiaryTiptapEditor";
+import { DiarySearchBar } from "./components/DiarySearchBar";
 import { ReferenceModal } from "./components/ReferenceModal";
 import { AddNoteLinkModal } from "./components/AddNoteLinkModal";
 import { NoteMarkdown } from "./components/NoteMarkdown";
@@ -160,6 +161,7 @@ export function DiaryEditor({
 }: DiaryEditorProps) {
 	const t = useTranslations("journalPanel");
 	const locale = useLocale();
+	const isMobile = useIsMobile();
 	// 时光机器沉浸模式：动画中或已落定，独占顶部（隐藏视图切换/搜索/输入框）
 	const isTimeMachineMode = !!(timeMachinePending || timeMachineDate);
 	// 时光机卡片样式：随机 = 按笔记 id 分配；固定 = 全部使用选中的风格
@@ -183,6 +185,9 @@ export function DiaryEditor({
 		if (typeof window === "undefined") return "single";
 		return localStorage.getItem("diary-view-mode") === "double" ? "double" : "single";
 	});
+	// 移动端：搜索框收起为图标按钮，点击展开；输入区收起为右下角悬浮 + 按钮，点击从底部弹出
+	const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+	const [mobileComposerOpen, setMobileComposerOpen] = useState(false);
 	const PAGE_SIZE = 20;
 	const [notesOffset, setNotesOffset] = useState(0);
 	const [allNotes, setAllNotes] = useState<JournalView[]>([]);
@@ -434,126 +439,172 @@ export function DiaryEditor({
 	return (
 		<div className="flex h-full flex-col">
 			{headerSlot}
-			<div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>
+			<div className={cn("flex-1 min-h-0 overflow-y-auto", isMobile && "scrollbar-none")}>
 			{/* Input area - auto-expanding (hidden when searching or filtering) */}
 			{/* Search bar */}
 			{/* Search bar — 时光机器模式下隐藏视图切换与搜索，让沉浸式 header 独占顶部 */}
-			<div className={`relative mx-4 flex items-center gap-1 ${isTimeMachineMode ? "h-0 my-0 overflow-hidden" : "mt-2 mb-2"}`}>
-				{showLeftToggle && (
+			{isTimeMachineMode ? (
+				<div className="h-0 my-0 overflow-hidden" />
+			) : (
+				<DiarySearchBar
+					isMobile={isMobile}
+					showLeftToggle={showLeftToggle}
+					showRightToggle={showRightToggle}
+					isLeftOpen={isLeftOpen}
+					isRightOpen={isRightOpen}
+					onToggleLeft={onToggleLeft}
+					onToggleRight={onToggleRight}
+					viewMode={viewMode}
+					setViewMode={setViewMode}
+					searchQuery={searchQuery}
+					setSearchQuery={setSearchQuery}
+					mobileSearchOpen={mobileSearchOpen}
+					setMobileSearchOpen={setMobileSearchOpen}
+					locale={locale}
+				/>
+			)}
+			{/* 新建笔记输入区 */}
+			{(() => {
+				const showCreateEditor =
+					!debouncedSearch &&
+					!heatmapFilterDate &&
+					!timeMachineDate &&
+					!timeMachinePending &&
+					!tagFilter &&
+					!similarToNoteId;
+
+				const handleComposerChange = (v: string) => {
+					onUserNotesChange(v);
+					if (!draft.name && !autoFilledRef.current && v.trim()) {
+						autoFilledRef.current = true;
+						const now = new Date();
+						const y = now.getFullYear();
+						const mo = String(now.getMonth() + 1).padStart(2, "0");
+						const d = String(now.getDate()).padStart(2, "0");
+						const h = String(now.getHours()).padStart(2, "0");
+						const mi = String(now.getMinutes()).padStart(2, "0");
+						onTitleChange(y + "-" + mo + "-" + d + " " + h + ":" + mi);
+					}
+					const newTags = extractTagsFromContent(v);
+					for (const tag of newTags) {
+						if (!draft.tags.includes(tag)) onInlineTag?.(tag);
+					}
+				};
+
+				const sendButton = (
 					<button
 						type="button"
-						onClick={onToggleLeft}
-						className={`flex-shrink-0 p-1 -ml-1 transition-colors ${isLeftOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-					>
-						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-							<line x1="3" y1="6" x2="21" y2="6"/>
-							<line x1="3" y1="12" x2="21" y2="12"/>
-							<line x1="3" y1="18" x2="21" y2="18"/>
-						</svg>
-					</button>
-				)}
-				{!isTimeMachineMode && (
-					<>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<button
-							type="button"
-							title={viewMode === "single" ? (locale === "zh" ? "单列" : "Single column") : (locale === "zh" ? "双列" : "Double column")}
-							className="flex items-center gap-1 h-8 px-2 rounded-lg border border-border/30 bg-background/50 text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-colors flex-shrink-0"
-						>
-							{viewMode === "single" ? <List className="w-3.5 h-3.5" /> : <LayoutGrid className="w-3.5 h-3.5" />}
-							<ChevronDown className="w-3 h-3 opacity-60" />
-						</button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="start" className="min-w-[120px]">
-						<DropdownMenuItem onClick={() => setViewMode("single")}>
-							<List className="w-3.5 h-3.5 mr-2" />
-							{locale === "zh" ? "单列" : "Single column"}
-							{viewMode === "single" && <Check className="w-3.5 h-3.5 ml-auto" />}
-						</DropdownMenuItem>
-						<DropdownMenuItem onClick={() => setViewMode("double")}>
-							<LayoutGrid className="w-3.5 h-3.5 mr-2" />
-							{locale === "zh" ? "双列" : "Double column"}
-							{viewMode === "double" && <Check className="w-3.5 h-3.5 ml-auto" />}
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
-				<div className="relative flex-1">
-					<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
-					<input
-						type="text"
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-						placeholder="搜索笔记..."
-						className="w-full h-8 rounded-lg border border-border/30 bg-background/50 pl-8 pr-8 text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] transition-all duration-200"
-					/>
-					{searchQuery && (
-						<button
-							type="button"
-							onClick={() => setSearchQuery("")}
-							className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 hover:text-muted-foreground transition-colors"
-						>
-							<X className="w-3.5 h-3.5" />
-						</button>
-					)}
-				</div>
-					</>
-				)}
-				{showRightToggle && (
-					<button
-						type="button"
-						onClick={onToggleRight}
-						className={`flex-shrink-0 p-1 -mr-1 transition-colors ${isRightOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-					>
-						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-							<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-						</svg>
-					</button>
-				)}
-			</div>
-						{!debouncedSearch && !heatmapFilterDate && !timeMachineDate && !timeMachinePending && !tagFilter && !similarToNoteId && (
-				<div className="px-4 pt-2 pb-2">
-					<DiaryTiptapEditor
-						noteLinkList={noteLinkList}
-						onLinkNote={onLinkNote}
-						onRemoveLink={onRemoveLink}
-						linkedNoteTitles={linkedNoteTitles}
-						variant="create"
-						value={draft.userNotes}
-						onChange={(v) => {
-							onUserNotesChange(v);
-							if (!draft.name && !autoFilledRef.current && v.trim()) {
-								autoFilledRef.current = true;
-								const now = new Date();
-								const y = now.getFullYear();
-								const mo = String(now.getMonth() + 1).padStart(2, "0");
-								const d = String(now.getDate()).padStart(2, "0");
-								const h = String(now.getHours()).padStart(2, "0");
-								const mi = String(now.getMinutes()).padStart(2, "0");
-								onTitleChange(y + "-" + mo + "-" + d + " " + h + ":" + mi);
-							}
-							const newTags = extractTagsFromContent(v);
-							for (const tag of newTags) {
-								if (!draft.tags.includes(tag)) onInlineTag?.(tag);
+						onMouseDown={(e) => {
+							e.preventDefault();
+							if (draft.userNotes.trim()) {
+								onSubmit();
+								setMobileComposerOpen(false);
 							}
 						}}
-						onBlur={() => onUserNotesBlur(draft.userNotes)}
-						recentTags={recentTags}
-						onInlineTag={onInlineTag}
-						placeholder={t("contentPlaceholder")}
-						toolbarEnd={
-							<button type="button" onMouseDown={(e) => { e.preventDefault(); if (draft.userNotes.trim()) { onSubmit(); } }} disabled={!draft.userNotes.trim()} className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1 active:scale-[0.97]">
-								<Send className="w-3.5 h-3.5" />
-							</button>
-						}
-					/>
-				</div>
-			)}
+						disabled={!draft.userNotes.trim()}
+						className={cn(
+							"flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30",
+							isMobile && "py-2.5",
+						)}
+					>
+						<Send className="h-3.5 w-3.5" />
+					</button>
+				);
+
+				// 移动端：输入区默认收起，右下角悬浮 + 按钮；点击从底部弹出并固定在底部
+				if (isMobile) {
+					return (
+						<>
+							<AnimatePresence>
+								{showCreateEditor && mobileComposerOpen && (
+									<>
+										<motion.div
+											key="mobile-composer-backdrop"
+											initial={{ opacity: 0 }}
+											animate={{ opacity: 1 }}
+											exit={{ opacity: 0 }}
+											transition={{ duration: 0.15 }}
+											className="fixed inset-0 z-50 bg-black/30"
+											onClick={() => setMobileComposerOpen(false)}
+										/>
+										<motion.div
+											key="mobile-composer-sheet"
+											initial={{ y: "100%" }}
+											animate={{ y: 0 }}
+											exit={{ y: "100%" }}
+											transition={{ type: "spring", damping: 30, stiffness: 300 }}
+											className="fixed inset-x-0 bottom-0 z-50 bg-background shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.25)]"
+										>
+											<div className="px-4 pt-3 pb-4" style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}>
+												<DiaryTiptapEditor
+													noteLinkList={noteLinkList}
+													onLinkNote={onLinkNote}
+													onRemoveLink={onRemoveLink}
+													linkedNoteTitles={linkedNoteTitles}
+													variant="create"
+													value={draft.userNotes}
+													onChange={handleComposerChange}
+													onBlur={() => onUserNotesBlur(draft.userNotes)}
+													recentTags={recentTags}
+													onInlineTag={onInlineTag}
+													placeholder={t("contentPlaceholder")}
+													toolbarEnd={sendButton}
+												/>
+											</div>
+										</motion.div>
+									</>
+								)}
+							</AnimatePresence>
+							{/* 悬浮 + 按钮：仅在可写内容可见时显示，避让底部导航栏 */}
+							<AnimatePresence>
+								{showCreateEditor && !mobileComposerOpen && (
+									<motion.button
+										key="mobile-composer-fab"
+										type="button"
+										initial={{ opacity: 0, scale: 0.7 }}
+										animate={{ opacity: 1, scale: 1 }}
+										exit={{ opacity: 0, scale: 0.7 }}
+										transition={{ duration: 0.15 }}
+										onClick={() => setMobileComposerOpen(true)}
+										aria-label="新建笔记"
+										className="fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_20px_-6px_rgba(0,0,0,0.4)] transition-transform active:scale-95"
+										style={{ bottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }}
+									>
+										<Plus className="h-6 w-6" />
+									</motion.button>
+								)}
+							</AnimatePresence>
+						</>
+					);
+				}
+
+				// 桌面端：输入区内联在搜索栏下方
+				return showCreateEditor ? (
+					<div className="px-4 pt-2 pb-2">
+						<DiaryTiptapEditor
+							noteLinkList={noteLinkList}
+							onLinkNote={onLinkNote}
+							onRemoveLink={onRemoveLink}
+							linkedNoteTitles={linkedNoteTitles}
+							variant="create"
+							value={draft.userNotes}
+							onChange={handleComposerChange}
+							onBlur={() => onUserNotesBlur(draft.userNotes)}
+							recentTags={recentTags}
+							onInlineTag={onInlineTag}
+							placeholder={t("contentPlaceholder")}
+							toolbarEnd={sendButton}
+						/>
+					</div>
+				) : null;
+			})()}
 			{/* Notes list - remaining */}
-			<div className={isTimeMachineMode
-				? "relative min-h-[60vh] px-4 pt-4 pb-10 sm:pt-6"
-				: "px-4 py-3 space-y-2"
-			}>
+			<div className={cn(
+				isTimeMachineMode
+					? "relative min-h-[60vh] pt-4 pb-10 sm:pt-6"
+					: "py-3 space-y-2",
+				isMobile ? "px-1" : "px-4",
+			)}>
 				{(timeMachinePending || timeMachineDate) && (
 					<TimeMachineHeader
 						target={timeMachinePending ?? timeMachineDate!}
@@ -764,7 +815,7 @@ export function DiaryEditor({
 														type="button"
 											onClick={(e) => { e.stopPropagation(); addLinkedNote({ id: note.id, name: note.name, userNotes: note.userNotes, date: note.date, tags: note.tags.map((t) => t.tagName) }); }}
 														title={locale === "zh" ? "添加到对话" : "Add to chat"}
-														className="rounded p-1 -mt-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 hover:text-primary hover:bg-primary/10 transition-all duration-150 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+														className={cn("rounded p-1 -mt-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-all duration-150 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30", isMobile && "p-2.5 opacity-100")}
 													>
 														<MessageCircle className="w-3.5 h-3.5" />
 													</button>
@@ -772,7 +823,7 @@ export function DiaryEditor({
 														type="button"
 														onClick={(e) => { e.stopPropagation(); setAddLinkNote(note); }}
 														title={t("linkNote")}
-														className="rounded p-1 -mt-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 hover:text-primary hover:bg-primary/10 transition-all duration-150 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+														className={cn("rounded p-1 -mt-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-all duration-150 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30", isMobile && "p-2.5 opacity-100")}
 													>
 														<Link2 className="w-3.5 h-3.5" />
 													</button>
@@ -886,7 +937,7 @@ export function DiaryEditor({
 															key={ref.id}
 															type="button"
 															onClick={() => setReferenceViewNote(note)}
-															className="flex items-start gap-1.5 mt-1.5 text-[10px] text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left"
+															className={cn("flex items-start gap-1.5 mt-1.5 text-[10px] text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left", isMobile && "text-xs px-1 py-1")}
 														>
 															<span className="w-3 h-3 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
 																<ArrowUpRight className="w-2 h-2 text-primary/60" />
@@ -901,7 +952,7 @@ export function DiaryEditor({
 															key={ref.id}
 															type="button"
 															onClick={() => setReferenceViewNote(note)}
-															className="flex items-start gap-1.5 mt-1.5 text-[10px] text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left"
+															className={cn("flex items-start gap-1.5 mt-1.5 text-[10px] text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left", isMobile && "text-xs px-1 py-1")}
 														>
 															<span className="w-3 h-3 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
 																<ArrowDownLeft className="w-2 h-2 text-primary/60" />

@@ -30,7 +30,7 @@ export function CollectionList({
 				<button
 					type="button"
 					onClick={() => setCollapsed((v) => !v)}
-					className="flex items-center gap-1.5 px-2.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
+					className="flex items-center gap-1.5 px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
 					title={collapsed ? t("expand") : t("collapse")}
 				>
 					{t("entryTitle")}
@@ -44,7 +44,7 @@ export function CollectionList({
 				<button
 					type="button"
 					onClick={() => setShowCreate(true)}
-					className="text-[10px] text-muted-foreground/50 transition-colors hover:text-foreground"
+					className="text-xs text-muted-foreground/50 transition-colors hover:text-foreground"
 					title={t("createTitle")}
 				>
 					<Plus className="h-3 w-3" />

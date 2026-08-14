@@ -23,6 +23,8 @@ import {
 } from "@/lib/query/note-links";
 import { AddNoteLinkModal } from "./AddNoteLinkModal";
 import { renderContentWithTags } from "./shared";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { cn } from "@/lib/utils";
 
 interface ReferenceModalProps {
 	isOpen: boolean;
@@ -144,6 +146,7 @@ function LinkCard({
 }) {
 	const { updateNoteLink } = useNoteLinkMutations();
 	const [editing, setEditing] = useState(false);
+	const isMobile = useIsMobile();
 	const [draft, setDraft] = useState(
 		links.find((l) => l.userNote)?.userNote ?? links[0].userNote ?? "",
 	);
@@ -197,7 +200,7 @@ function LinkCard({
 					type="button"
 					onClick={() => onDeleteAll(links)}
 					title="删除链接"
-					className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/30 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 active:scale-90"
+					className={cn("flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/30 transition-all hover:bg-destructive/10 hover:text-destructive active:scale-90", isMobile ? "h-8 w-8 opacity-100" : "opacity-0 group-hover:opacity-100")}
 				>
 					<Trash2 className="w-3 h-3" />
 				</button>

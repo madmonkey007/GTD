@@ -546,3 +546,14 @@ html body .driver-popover-close-btn:hover {
 html body.dark .driver-popover {
 	box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
 }
+
+/* 完全隐藏滚动条（不预留占位空间）。用于移动端需要让内容真正铺满两侧的滚动容器 */
+.scrollbar-none {
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+	width: 0;
+	height: 0;
+	display: none;
+}

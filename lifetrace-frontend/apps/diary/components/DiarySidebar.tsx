@@ -54,7 +54,7 @@ export function DiarySidebar({
 	const t = useTranslations("journalPanel");
 
 	return (
-		<aside className="w-72 shrink-0 border-r border-border/40 overflow-y-auto bg-background px-3 py-3 flex flex-col gap-4">
+		<aside className="w-72 shrink-0 h-full border-r border-border/40 overflow-y-auto bg-background px-3 py-3 flex flex-col gap-4">
 			{/* Stats */}
 			<DiaryStats
 				totalNotes={stats.totalNotes}

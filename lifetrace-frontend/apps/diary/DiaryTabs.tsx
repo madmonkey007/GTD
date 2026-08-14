@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 
 export type JournalTab = "original" | "objective" | "ai";
@@ -12,6 +13,7 @@ interface DiaryTabsProps {
 
 export function DiaryTabs({ activeTab, onChange }: DiaryTabsProps) {
 	const t = useTranslations("journalPanel");
+	const isMobile = useIsMobile();
 
 	const tabs: { id: JournalTab; label: string }[] = [
 		{ id: "original", label: t("tabOriginal") },
@@ -28,6 +30,7 @@ export function DiaryTabs({ activeTab, onChange }: DiaryTabsProps) {
 					onClick={() => onChange(tab.id)}
 					className={cn(
 						"rounded-full px-3 py-1 text-xs font-medium transition",
+						isMobile && "px-3.5 py-1.5",
 						activeTab === tab.id
 							? "bg-background text-foreground shadow"
 							: "text-muted-foreground hover:text-foreground",

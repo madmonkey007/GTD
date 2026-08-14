@@ -2,7 +2,17 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Send, MessageSquarePlus } from "lucide-react";
+import {
+  Bold,
+  Hash,
+  Highlighter,
+  ImagePlus,
+  List,
+  ListOrdered,
+  Send,
+  MessageSquarePlus,
+  Underline,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +21,8 @@ import {
 } from "@/components/ui/dialog";
 import type { JournalView } from "@/lib/query";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
+import { uploadJournalImage } from "@/lib/api";
+import { compressImageIfNeeded } from "@/lib/imageCompress";
 
 interface AnnotationModalProps {
   isOpen: boolean;
@@ -20,6 +32,21 @@ interface AnnotationModalProps {
   isSubmitting?: boolean;
   recentTags?: string[];
 }
+
+interface FormatAction {
+  key: "bold" | "highlight" | "underline" | "ul" | "ol" | "tag";
+  icon: React.FC<{ className?: string }>;
+  title: string;
+}
+
+const FORMAT_ACTIONS: FormatAction[] = [
+  { key: "bold", icon: Bold, title: "加粗" },
+  { key: "highlight", icon: Highlighter, title: "高亮" },
+  { key: "underline", icon: Underline, title: "下划线" },
+  { key: "ul", icon: List, title: "无序列表" },
+  { key: "ol", icon: ListOrdered, title: "有序列表" },
+  { key: "tag", icon: Hash, title: "标签" },
+];
 
 export function AnnotationModal({
   isOpen,
@@ -31,6 +58,7 @@ export function AnnotationModal({
 }: AnnotationModalProps) {
   const [content, setContent] = useState("");
   const editorRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [cursorPos, setCursorPos] = useState<{ top: number; left: number } | null>(null);
@@ -88,6 +116,106 @@ export function AnnotationModal({
     if (!div) return;
     setContent(div.innerText || "");
   }, []);
+
+  /** 在编辑器内插入 markdown 源文本；优先在选区处插入，否则追加到末尾 */
+  const insertMarkdown = useCallback((snippet: string) => {
+    const div = editorRef.current;
+    if (!div) return;
+    div.focus();
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) {
+      document.execCommand("insertText", false, snippet);
+      syncContent();
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    if (div.contains(range.startContainer)) {
+      document.execCommand("insertText", false, snippet);
+    } else {
+      range.selectNodeContents(div);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      document.execCommand("insertText", false, snippet);
+    }
+    syncContent();
+  }, [syncContent]);
+
+  /** 把选区包上 markdown 标记；无选区时插入一对标记并把光标放在中间 */
+  const wrapSelection = useCallback(
+    (before: string, after: string) => {
+      const div = editorRef.current;
+      if (!div) return;
+      div.focus();
+      const sel = window.getSelection();
+      let selected = "";
+      if (sel?.rangeCount && div.contains(sel.getRangeAt(0).startContainer)) {
+        selected = sel.toString();
+      }
+      if (selected) {
+        document.execCommand("insertText", false, `${before}${selected}${after}`);
+      } else {
+        document.execCommand("insertText", false, `${before}${after}`);
+        const s = window.getSelection();
+        if (s?.rangeCount) {
+          const r = s.getRangeAt(0);
+          r.setStart(r.startContainer, Math.max(0, r.startOffset - after.length));
+          r.collapse(true);
+          s.removeAllRanges();
+          s.addRange(r);
+        }
+      }
+      syncContent();
+    },
+    [syncContent],
+  );
+
+  const runFormat = (key: FormatAction["key"]) => {
+    switch (key) {
+      case "bold":
+        wrapSelection("**", "**");
+        break;
+      case "highlight":
+        wrapSelection("<mark>", "</mark>");
+        break;
+      case "underline":
+        wrapSelection("<u>", "</u>");
+        break;
+      case "ul":
+        insertMarkdown("\n- ");
+        break;
+      case "ol":
+        insertMarkdown("\n1. ");
+        break;
+      case "tag":
+        insertMarkdown("#");
+        break;
+    }
+  };
+
+  const handleImageFiles = useCallback(async (files: File[]) => {
+    const imgs = files.filter((f) => f.type.startsWith("image/"));
+    if (imgs.length === 0) return;
+    for (const file of imgs.slice(0, 9)) {
+      try {
+        const compressed = await compressImageIfNeeded(file);
+        const result = await uploadJournalImage(compressed);
+        insertMarkdown(`![${result.alt ?? ""}](${result.url})\n`);
+      } catch (e) {
+        console.error("[AnnotationModal] 图片上传失败:", e);
+      }
+    }
+  }, [insertMarkdown]);
+
+  const onPickFile = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const onFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) await handleImageFiles(files);
+    e.target.value = "";
+  }, [handleImageFiles]);
 
   const insertTagFromAutocomplete = useCallback(
     (tagName: string) => {
@@ -356,31 +484,56 @@ export function AnnotationModal({
               );
               return typeof document !== "undefined" ? createPortal(dropdown, document.body) : dropdown;
             })()}
-            <div className="flex items-center justify-end px-2 pb-2 pt-1 gap-1">
-              <span className="text-[10px] text-muted-foreground/40 select-none tabular-nums">{content.replace(/\s/g, '').length}</span>
-              <VoiceInputButton
-                ownerId="annotation-modal"
-                stopOnUnmount
-                onTranscript={(text) => {
-                  const div = editorRef.current;
-                  if (!div) {
-                    console.log("[AnnotationModal] voice: no editor div");
-                    return;
-                  }
-                  div.focus();
-                  document.execCommand("insertText", false, ` ${text}`);
-                  syncContent();
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!content.trim() || isSubmitting}
-                className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1 active:scale-[0.97]"
-              >
-                <Send className="w-3.5 h-3.5" />
-                {isSubmitting ? "发送中..." : "发送"}
-              </button>
+            <div className="flex items-center justify-between px-2 pb-2 pt-1 gap-2">
+              {/* markdown 工具栏：批注以 content_format: markdown 存储，按钮插入 markdown 源文本 */}
+              <div className="flex items-center gap-0.5">
+                {FORMAT_ACTIONS.map(({ key, icon: Icon, title }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    title={title}
+                    onClick={() => runFormat(key)}
+                    className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+                  >
+                    <Icon className="w-4 h-4" />
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  title="插入图片"
+                  onClick={onPickFile}
+                  className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+                >
+                  <ImagePlus className="w-4 h-4" />
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={onFileChange} className="hidden" />
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground/40 select-none tabular-nums">{content.replace(/\s/g, '').length}</span>
+                <VoiceInputButton
+                  ownerId="annotation-modal"
+                  stopOnUnmount
+                  onTranscript={(text) => {
+                    const div = editorRef.current;
+                    if (!div) {
+                      console.log("[AnnotationModal] voice: no editor div");
+                      return;
+                    }
+                    div.focus();
+                    document.execCommand("insertText", false, ` ${text}`);
+                    syncContent();
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!content.trim() || isSubmitting}
+                  className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1 active:scale-[0.97]"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {isSubmitting ? "发送中..." : "发送"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NoteMarkdown } from "./NoteMarkdown";
 import type { JournalView } from "@/lib/query";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 /** 竖版卡片正文最大展示行数（参考网页正文短而整，过长再展开） */
 const MAX_LINES = 8;
@@ -213,6 +214,7 @@ export function TimeMachineNoteCard({
 }: TimeMachineNoteCardProps) {
 	const [expanded, setExpanded] = useState(false);
 	const [refsExpanded, setRefsExpanded] = useState(false);
+	const isMobile = useIsMobile();
 
 	const cfg = VARIANTS[variant % VARIANTS.length];
 	const onDark = !!cfg.onDark;
@@ -302,7 +304,7 @@ export function TimeMachineNoteCard({
 			</div>
 
 			{/* 操作图标：chat / 相似 / 更多 常驻卡片右上角，hover 卡片时淡入 */}
-			<div className="absolute right-3 top-3 z-20 flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+			<div className={`absolute right-3 top-3 z-20 flex items-center gap-0.5 transition-opacity duration-150 focus-within:opacity-100 ${isMobile ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
 				<button
 					type="button"
 					onClick={onAddToChat}
