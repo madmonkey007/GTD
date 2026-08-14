@@ -11,7 +11,17 @@ type PersistedState = Partial<UiStoreState> & {
 };
 
 const VALID_POSITIONS: PanelPosition[] = ["panelA", "panelB", "panelC"];
-const VALID_VIEWS: SidebarView[] = ["list", "calendar", "quadrants", "pomodoro", "habits"];
+const VALID_VIEWS: SidebarView[] = [
+	"list",
+	"calendar",
+	"quadrants",
+	"pomodoro",
+	"habits",
+	"diary",
+	"achievements",
+	"zeroThink",
+	"quickCommand",
+];
 const VALID_EXTERNAL_TOOL_IDS = new Set(DEFAULT_PANEL_STATE.selectedExternalTools);
 
 export const createUiStoreStorage = () =>

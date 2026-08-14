@@ -16,6 +16,7 @@ import { useTodoStore } from "@/lib/store/todo-store";
 import type { SidebarView } from "@/lib/store/ui-store/types";
 import { cn } from "@/lib/utils";
 import { FilterColumn } from "./FilterColumn";
+import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileDetailOverlay } from "./MobileDetailOverlay";
 import { MobileTopBar } from "./MobileTopBar";
 import { PanelContainer } from "./PanelContainer";
@@ -362,6 +363,7 @@ export function PanelRegion({
 					)}
 				</div>
 			</div>
+			{isMobile && <MobileBottomNav />}
 			<SettingsModal />
 		</div>
 	</div>

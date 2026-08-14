@@ -60,7 +60,7 @@ export const DEFAULT_PANEL_STATE = {
 	sidebarWidth: 220,
 	sidebarMode: null,
 	sidebarTag: null,
-	activeView: "list",
+	activeView: "quickCommand",
 	isSettingsOpen: false,
 	// 是否显示 Agno 模式的工具选择器（默认开启）
 	showAgnoToolSelector: true,
