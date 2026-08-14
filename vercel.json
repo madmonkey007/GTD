@@ -1,6 +1,5 @@
 {
-  "rootDirectory": "lifetrace-frontend",
+  "framework": "nextjs",
   "buildCommand": "pnpm build:frontend:web",
-  "installCommand": "pnpm install",
-  "framework": "nextjs"
+  "installCommand": "pnpm install"
 }
