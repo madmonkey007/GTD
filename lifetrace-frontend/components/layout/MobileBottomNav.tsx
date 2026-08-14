@@ -20,19 +20,19 @@ import { useUiStore } from "@/lib/store/ui-store";
 import type { SidebarView } from "@/lib/store/ui-store/types";
 import { cn } from "@/lib/utils";
 
-/** 主 tab：固定 4 个，更多抽屉收纳其余视图 */
+/** 主 tab：固定 5 个，更多抽屉收纳其余视图 */
 const PRIMARY_TABS = [
 	{ id: "quickCommand" as const, label: "AGENT", icon: Sparkles },
 	{ id: "list" as const, label: "清单", icon: ListTodo },
 	{ id: "diary" as const, label: "笔记", icon: BookOpen },
+	{ id: "pomodoro" as const, label: "番茄", icon: Timer },
 	{ id: "more" as const, label: "更多", icon: LayoutGrid },
 ];
 
-/** 更多抽屉：除 3 个主 tab 外的其余视图 */
+/** 更多抽屉：除 4 个主 tab 外的其余视图 */
 const MORE_ITEMS: { id: SidebarView; label: string; icon: typeof ListTodo }[] = [
 	{ id: "calendar", label: "日历", icon: CalendarDays },
 	{ id: "quadrants", label: "四象限", icon: LayoutGrid },
-	{ id: "pomodoro", label: "番茄时钟", icon: Timer },
 	{ id: "habits", label: "习惯", icon: Heart },
 	{ id: "achievements", label: "成就", icon: Award },
 	{ id: "zeroThink", label: "零秒思考", icon: BrainCircuit },

@@ -496,7 +496,7 @@ export function QuickCommandPanel() {
       </div>
 
       {/* 输入区 */}
-      <div className="border-t border-border/30 py-3">
+      <div className="border-t border-border/30 px-4 py-3">
         <div className="mx-auto flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3 py-2 focus-within:border-primary/40 transition-colors" style={{ width: isMobile ? "100%" : "70%" }}>
           <textarea
             ref={taRef}

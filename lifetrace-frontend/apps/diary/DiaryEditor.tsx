@@ -602,8 +602,8 @@ export function DiaryEditor({
 			<div className={cn(
 				isTimeMachineMode
 					? "relative min-h-[60vh] pt-4 pb-10 sm:pt-6"
-					: "py-3 space-y-2",
-				isMobile ? "px-1" : "px-4",
+					: "space-y-2 pb-3",
+				isMobile ? "px-2 pt-2" : "px-4 py-3",
 			)}>
 				{(timeMachinePending || timeMachineDate) && (
 					<TimeMachineHeader

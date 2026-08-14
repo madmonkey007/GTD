@@ -51,16 +51,11 @@ export function SettingsModal() {
 	return (
 		<div
 			ref={overlayRef}
-			className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+			className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm max-md:items-stretch max-md:bg-background max-md:backdrop-blur-none"
 			onClick={handleOverlayClick}
 		>
 			<div
-				className="relative flex flex-col overflow-hidden rounded-xl border border-border/40 bg-background shadow-2xl"
-				style={{
-					width: "min(90vw, 800px)",
-					height: "min(85vh, 700px)",
-					minWidth: "400px",
-				}}
+				className="relative flex h-full w-screen max-w-none min-w-0 flex-col overflow-hidden bg-background md:h-[min(85vh,700px)] md:w-[min(90vw,800px)] md:min-w-[400px] md:rounded-xl md:border md:border-border/40 md:shadow-2xl"
 			>
 				{/* 关闭按钮 */}
 				<button

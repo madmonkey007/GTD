@@ -28,6 +28,7 @@ import {
 	SettingsSearchProvider,
 	SettingsSection,
 	TavilyConfigSection,
+	TimeMachineStyleSection,
 	VersionInfoSection,
 } from "./components";
 import { useSettingsSearchMatchStats } from "./hooks/useSettingsSearchMatchStats";
@@ -133,6 +134,7 @@ export function SettingsPanel() {
 				return (
 					<>
 						<AppearanceSection />
+						<TimeMachineStyleSection />
 						<PanelSwitchesSection loading={loading} />
 						<NotificationPermissionSection loading={loading} />
 					</>

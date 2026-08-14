@@ -26,3 +26,4 @@ export { ToggleSwitch } from "./ToggleSwitch";
 export { AppearanceSection } from "./AppearanceSection";
 export { VersionInfoSection } from "./VersionInfoSection";
 export { DevToolsPreferencesSection } from "./DevToolsPreferencesSection";
+export { TimeMachineStyleSection } from "./TimeMachineStyleSection";
