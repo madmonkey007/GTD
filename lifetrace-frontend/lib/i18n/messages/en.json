@@ -89,6 +89,8 @@
       "categoryDeveloperDescription": "Advanced and experimental settings (audio, scheduler).",
       "categoryHelpTitle": "Help & About",
       "categoryHelpDescription": "Onboarding tour, version info, and help.",
+      "backToMenu": "Back",
+      "closeSettings": "Close settings",
       "searchPlaceholder": "Search settings...",
       "searchNoResultsTitle": "No matching settings",
       "searchNoResultsHint": "Try a different keyword.",

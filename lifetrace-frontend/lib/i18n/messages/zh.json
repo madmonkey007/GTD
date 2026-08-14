@@ -89,6 +89,8 @@
       "categoryDeveloperDescription": "高级与实验性配置（音频、调度）。",
       "categoryHelpTitle": "引导与关于",
       "categoryHelpDescription": "新手引导、版本信息与帮助入口。",
+      "backToMenu": "返回",
+      "closeSettings": "关闭设置",
       "searchPlaceholder": "搜索设置...",
       "searchNoResultsTitle": "未找到匹配的设置",
       "searchNoResultsHint": "试试其他关键词。",

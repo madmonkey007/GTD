@@ -55,13 +55,13 @@ export function SettingsModal() {
 			onClick={handleOverlayClick}
 		>
 			<div
-				className="relative flex h-full w-screen max-w-none min-w-0 flex-col overflow-hidden bg-background md:h-[min(85vh,700px)] md:w-[min(90vw,800px)] md:min-w-[400px] md:rounded-xl md:border md:border-border/40 md:shadow-2xl"
+				className="relative flex h-full w-screen max-w-none min-w-0 flex-col overflow-hidden bg-background md:h-[min(85vh,700px)] md:w-[min(92vw,860px)] md:min-w-[400px] md:rounded-xl md:border md:border-border/40 md:shadow-2xl"
 			>
 				{/* 关闭按钮 */}
 				<button
 					type="button"
 					onClick={handleClose}
-					className="absolute right-3 top-3 z-20 flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+					className="absolute right-3 top-3 z-20 hidden items-center justify-center text-muted-foreground transition-colors hover:text-foreground md:flex"
 					aria-label="关闭设置"
 				>
 					<X className="h-4 w-4" />
