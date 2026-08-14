@@ -364,7 +364,7 @@ export function DiaryTiptapEditor({
 	useEffect(() => {
 		if (!linkPopupOpen) return;
 		const handler = (e: MouseEvent) => {
-			if (linkPopupRef.current && !linkPopupRef.current.contains(e.target as Node)) {
+			if (linkPopupRef.current && !linkPopupRef.current.contains(e.target as EventTarget as HTMLElement)) {
 				setLinkPopupOpen(false);
 			}
 		};
@@ -459,7 +459,7 @@ export function DiaryTiptapEditor({
 			}),
 		);
 		const ok = results
-			.filter((r): r is { url: string; alt?: string } => r !== null)
+			.filter((r): r is Exclude<typeof results[number], null> => r !== null)
 			.map((r) => ({ src: r.url, alt: r.alt ?? "" }));
 		if (ok.length > 0) insertImages(ok);
 	}, [insertImages]);

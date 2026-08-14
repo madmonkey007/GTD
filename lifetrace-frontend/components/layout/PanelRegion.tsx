@@ -50,7 +50,6 @@ function ListPanels({
 	isResizingPanel,
 	onPanelAResizePointerDown,
 	onPanelCResizePointerDown,
-	isInPanelMode,
 	onPanelsReady,
 }: {
 	width: number;

@@ -15,8 +15,6 @@ import { queryKeys } from "@/lib/query/keys";
 
 export type { Habit, HabitRecord, HabitInput };
 
-const DEFAULT_ICON = "✅";
-
 const DEFAULT_HABIT_ICONS = [
 	"📚", "🏃", "🧘", "💪", "🎯",
 	"✍️", "🎨", "🎵", "🌱", "💧",

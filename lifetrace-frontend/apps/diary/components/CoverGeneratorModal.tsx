@@ -20,7 +20,7 @@ const COVER_COLORS = [
 ];
 
 const RATIOS = [
-	{ v: "3/4", label: "3:4" },
+	{ v: "3/4", label: "3:4", pure: false },
 	{ v: "1/1", label: "1:1", pure: true },
 	{ v: "2.35/1", label: "2.35:1", pure: true },
 ] as const;
