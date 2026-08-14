@@ -17,7 +17,7 @@ export function TodoCardCheckbox({ todo, onToggle }: TodoCardCheckboxProps) {
 			onClick={onToggle}
 			className={cn(
 				"shrink-0 flex items-center",
-				isMobile && "h-9 w-9 justify-center items-start pt-1",
+				isMobile && "h-9 w-4 justify-center items-start pt-1",
 			)}
 			>
 			{todo.status === "completed" ? (

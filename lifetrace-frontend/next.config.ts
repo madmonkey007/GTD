@@ -27,9 +27,7 @@ const nextConfig: NextConfig = {
 	output: "standalone",
 	reactStrictMode: true,
 	typedRoutes: true,
-	devIndicators: {
-		position: "bottom-left",
-	},
+	devIndicators: false,
 	// 注入版本信息到客户端环境变量
 	env: {
 		NEXT_PUBLIC_APP_VERSION: APP_VERSION,

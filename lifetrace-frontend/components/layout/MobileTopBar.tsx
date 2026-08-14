@@ -10,8 +10,8 @@ export function MobileTopBar() {
 	const activeLabel = navItem ? (navItem.label === "agent" ? "AGENT" : navItem.label) : activeView;
 
 	return (
-		<div className="relative z-40 flex h-12 shrink-0 items-center justify-between border-b border-border/40 bg-background px-3">
-			<span className="flex-1 text-center text-sm font-medium text-foreground">
+		<div className="relative z-40 flex h-12 shrink-0 items-center border-b border-border/40 bg-background px-3">
+			<span className="text-sm font-medium text-foreground">
 				{activeLabel}
 			</span>
 		</div>
