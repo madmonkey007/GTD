@@ -14,13 +14,10 @@ import {
 	AutomationTasksSection,
 	AutoTodoDetectionSection,
 	// DifyConfigSection,
-	DevToolsPreferencesSection,
 	JournalSettingsSection,
 	LlmConfigSection,
 	NotificationPermissionSection,
 	OnboardingSection,
-	PanelSwitchesSection,
-	RecorderConfigSection,
 	SchedulerSection,
 	type SettingsCategory,
 	type SettingsCategoryId,
@@ -135,7 +132,6 @@ export function SettingsPanel() {
 					<>
 						<AppearanceSection />
 						<TimeMachineStyleSection />
-						<PanelSwitchesSection loading={loading} />
 						<NotificationPermissionSection loading={loading} />
 					</>
 				);
@@ -159,8 +155,6 @@ export function SettingsPanel() {
 					<>
 						{/* <DifyConfigSection config={config} loading={loading} /> */}
 						<SchedulerSection loading={loading} />
-						<RecorderConfigSection config={config} loading={loading} />
-						<DevToolsPreferencesSection />
 						{isAudioPanelEnabled && (
 							<>
 								<AudioConfigSection config={config} loading={loading} />
@@ -233,10 +227,10 @@ export function SettingsPanel() {
 											aria-controls={`settings-category-panel-${category.id}`}
 											onClick={() => setActiveCategory(category.id)}
 											className={cn(
-												"flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition",
+												"flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition active:scale-[0.97]",
 												"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 												isActive
-													? "border-primary bg-primary text-primary-foreground shadow-sm"
+													? "border-primary bg-primary text-primary-foreground"
 													: "border-transparent bg-muted/40 text-foreground hover:bg-muted/70",
 											)}
 										>

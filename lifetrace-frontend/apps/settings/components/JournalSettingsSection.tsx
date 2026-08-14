@@ -2,7 +2,12 @@
 
 import { useTranslations } from "next-intl";
 import { useId } from "react";
-import { useJournalStore } from "@/lib/store/journal-store";
+import {
+	type JournalRefreshMode,
+	useJournalStore,
+} from "@/lib/store/journal-store";
+import { cn } from "@/lib/utils";
+import { SegmentedControl } from "./SegmentedControl";
 import { SettingsSection } from "./SettingsSection";
 import { ToggleSwitch } from "./ToggleSwitch";
 
@@ -31,15 +36,22 @@ export function JournalSettingsSection() {
 	const workStartId = useId();
 	const workEndId = useId();
 	const customId = useId();
-	const refreshModeId = useId();
 	const autoLinkId = useId();
 	const autoObjectiveId = useId();
 	const autoAiId = useId();
 
+	const timeInputCls =
+		"rounded-md border border-border bg-background px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+	const modeOptions: { value: JournalRefreshMode; label: string }[] = [
+		{ value: "fixed", label: tSettings("journalRefreshModeFixed") },
+		{ value: "workHours", label: tSettings("journalRefreshModeWorkHours") },
+		{ value: "custom", label: tSettings("journalRefreshModeCustom") },
+	];
+
 	return (
-		<>
-			<SettingsSection
-				title={tSettings("journalSettingsTitle")}
+		<SettingsSection
+			title={tSettings("journalSettingsTitle")}
 			description={tSettings("journalSettingsDescription")}
 			searchKeywords={[
 				tSettings("journalRefreshModeLabel"),
@@ -47,42 +59,25 @@ export function JournalSettingsSection() {
 			]}
 		>
 			<div className="space-y-4">
-				<div className="grid gap-3 md:grid-cols-2">
-					<div className="space-y-1">
-						<label
-							htmlFor={refreshModeId}
-							className="text-sm font-medium text-foreground"
-						>
-							{tSettings("journalRefreshModeLabel")}
-						</label>
-						<select
-							id={refreshModeId}
-							value={refreshMode}
-							onChange={(event) =>
-								setRefreshMode(
-									event.target.value as typeof refreshMode,
-								)
-							}
-							className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
-						>
-							<option value="fixed">
-								{tSettings("journalRefreshModeFixed")}
-							</option>
-							<option value="workHours">
-								{tSettings("journalRefreshModeWorkHours")}
-							</option>
-							<option value="custom">
-								{tSettings("journalRefreshModeCustom")}
-							</option>
-						</select>
-					</div>
+				{/* 刷新模式 */}
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<label className="text-sm font-medium text-foreground">
+						{tSettings("journalRefreshModeLabel")}
+					</label>
+					<SegmentedControl
+						options={modeOptions}
+						value={refreshMode}
+						onChange={setRefreshMode}
+						ariaLabel={tSettings("journalRefreshModeLabel")}
+					/>
 				</div>
 
-				<div className="grid gap-3 md:grid-cols-3">
-					<div className="space-y-1">
+				{/* 时间字段：按刷新模式只显示相关输入 */}
+				{refreshMode === "fixed" && (
+					<div className="flex flex-wrap items-center justify-between gap-3">
 						<label
 							htmlFor={fixedId}
-							className="text-sm text-muted-foreground"
+							className="text-sm font-medium text-foreground"
 						>
 							{tSettings("journalFixedTimeLabel")}
 						</label>
@@ -91,40 +86,44 @@ export function JournalSettingsSection() {
 							type="time"
 							value={fixedTime}
 							onChange={(event) => setFixedTime(event.target.value)}
-							className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+							className={cn(timeInputCls, "w-full sm:w-40")}
 						/>
 					</div>
-					<div className="space-y-1">
+				)}
+
+				{refreshMode === "workHours" && (
+					<div className="flex flex-wrap items-center justify-between gap-3">
 						<label
 							htmlFor={workStartId}
-							className="text-sm text-muted-foreground"
+							className="text-sm font-medium text-foreground"
 						>
 							{tSettings("journalWorkHoursLabel")}
 						</label>
-						<div className="flex items-center gap-2">
+						<div className="flex min-w-0 items-center gap-2">
 							<input
 								id={workStartId}
 								type="time"
 								value={workHoursStart}
-								onChange={(event) =>
-									setWorkHoursStart(event.target.value)
-								}
-								className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+								onChange={(event) => setWorkHoursStart(event.target.value)}
+								className={cn(timeInputCls, "min-w-0 flex-1 sm:w-36 sm:flex-none")}
 							/>
-							<span className="text-xs text-muted-foreground">-</span>
+							<span className="shrink-0 text-xs text-muted-foreground">-</span>
 							<input
 								id={workEndId}
 								type="time"
 								value={workHoursEnd}
 								onChange={(event) => setWorkHoursEnd(event.target.value)}
-								className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+								className={cn(timeInputCls, "min-w-0 flex-1 sm:w-36 sm:flex-none")}
 							/>
 						</div>
 					</div>
-					<div className="space-y-1">
+				)}
+
+				{refreshMode === "custom" && (
+					<div className="flex flex-wrap items-center justify-between gap-3">
 						<label
 							htmlFor={customId}
-							className="text-sm text-muted-foreground"
+							className="text-sm font-medium text-foreground"
 						>
 							{tSettings("journalCustomTimeLabel")}
 						</label>
@@ -133,13 +132,16 @@ export function JournalSettingsSection() {
 							type="time"
 							value={customTime}
 							onChange={(event) => setCustomTime(event.target.value)}
-							className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+							className={cn(timeInputCls, "w-full sm:w-40")}
 						/>
 					</div>
-				</div>
+				)}
 
-				<div className="grid gap-3">
-					<div className="flex items-center justify-between">
+				<div className="border-t border-border/60" />
+
+				{/* 自动生成策略 */}
+				<div className="space-y-3">
+					<div className="flex items-center justify-between gap-4">
 						<label
 							htmlFor={autoLinkId}
 							className="text-sm font-medium text-foreground"
@@ -153,7 +155,7 @@ export function JournalSettingsSection() {
 							ariaLabel={tSettings("journalAutoLinkLabel")}
 						/>
 					</div>
-					<div className="flex items-center justify-between">
+					<div className="flex items-center justify-between gap-4">
 						<label
 							htmlFor={autoObjectiveId}
 							className="text-sm font-medium text-foreground"
@@ -167,7 +169,7 @@ export function JournalSettingsSection() {
 							ariaLabel={tSettings("journalAutoObjectiveLabel")}
 						/>
 					</div>
-					<div className="flex items-center justify-between">
+					<div className="flex items-center justify-between gap-4">
 						<label
 							htmlFor={autoAiId}
 							className="text-sm font-medium text-foreground"
@@ -184,7 +186,5 @@ export function JournalSettingsSection() {
 				</div>
 			</div>
 		</SettingsSection>
-
-		</>
 	);
 }

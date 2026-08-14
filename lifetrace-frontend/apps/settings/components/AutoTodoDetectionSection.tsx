@@ -191,7 +191,7 @@ export function AutoTodoDetectionSection({
 				</div>
 				{autoTodoDetectionEnabled && (
 					<>
-						<div className="rounded-md bg-primary/10 p-3">
+						<div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5">
 							<p className="text-xs text-primary">
 								{tSettings("autoTodoDetectionHint")}
 							</p>

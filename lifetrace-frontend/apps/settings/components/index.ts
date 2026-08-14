@@ -7,9 +7,8 @@ export { JournalSettingsSection } from "./JournalSettingsSection";
 export { LlmConfigSection } from "./LlmConfigSection";
 export { NotificationPermissionSection } from "./NotificationPermissionSection";
 export { OnboardingSection } from "./OnboardingSection";
-export { PanelSwitchesSection } from "./PanelSwitchesSection";
-export { RecorderConfigSection } from "./RecorderConfigSection";
 export { SchedulerSection } from "./SchedulerSection";
+export { SegmentedControl } from "./SegmentedControl";
 export {
 	type SettingsCategory,
 	type SettingsCategoryId,
@@ -25,5 +24,4 @@ export { TavilyConfigSection } from "./TavilyConfigSection";
 export { ToggleSwitch } from "./ToggleSwitch";
 export { AppearanceSection } from "./AppearanceSection";
 export { VersionInfoSection } from "./VersionInfoSection";
-export { DevToolsPreferencesSection } from "./DevToolsPreferencesSection";
 export { TimeMachineStyleSection } from "./TimeMachineStyleSection";

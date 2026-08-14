@@ -79,14 +79,14 @@
     "audioStopRecording": "Stop Recording",
     "audioRecordingStatus": "Recording Status",
     "settings": {
-      "categoryWorkspaceTitle": "Workspace & Panels",
-      "categoryWorkspaceDescription": "Manage panel visibility and layout.",
+      "categoryWorkspaceTitle": "Appearance & Workspace",
+      "categoryWorkspaceDescription": "Adjust appearance, time machine styles, and notifications.",
       "categoryAutomationTitle": "Automation",
       "categoryAutomationDescription": "Manage automation features like auto todo detection.",
       "categoryAiTitle": "AI & Integrations",
       "categoryAiDescription": "Configure LLM and web search services.",
       "categoryDeveloperTitle": "Developer & Advanced",
-      "categoryDeveloperDescription": "Advanced and experimental settings (recording, audio, scheduler).",
+      "categoryDeveloperDescription": "Advanced and experimental settings (audio, scheduler).",
       "categoryHelpTitle": "Help & About",
       "categoryHelpDescription": "Onboarding tour, version info, and help.",
       "searchPlaceholder": "Search settings...",
@@ -203,7 +203,7 @@
       "audioAsrConfig": "Audio Recognition (ASR) Configuration",
       "currentVersion": "Current Version",
       "appearanceTitle": "Appearance",
-      "appearanceDescription": "Adjust layout, theme, color scheme, and language.",
+      "appearanceDescription": "Adjust theme, color scheme, and language.",
       "layoutTitle": "Layout",
       "layoutDescription": "Select panel layout mode.",
       "colorThemeTitle": "Color Theme",
@@ -850,8 +850,7 @@
       "activity_aggregator_job": "Activity Aggregator",
       "deadline_reminder_job": "DDL Reminder",
       "todo_recorder_job": "Screen Recorder (Todo)",
-      "proactive_ocr_job": "Proactive OCR",
-      "audio_recording_job": "Audio Recording"
+      "proactive_ocr_job": "Proactive OCR"
     },
     "jobDescriptions": {
       "recorder_job": "Capture screenshots periodically",
@@ -862,8 +861,7 @@
       "activity_aggregator_job": "Aggregate user activity events",
       "deadline_reminder_job": "Check todo deadlines and send notifications based on reminder settings",
       "todo_recorder_job": "Only capture screenshots from whitelisted apps for auto todo detection",
-      "proactive_ocr_job": "Automatically detect and process WeChat/Feishu windows for OCR (Windows only)",
-      "audio_recording_job": "7x24 continuous audio recording with real-time transcription and information extraction"
+      "proactive_ocr_job": "Automatically detect and process WeChat/Feishu windows for OCR (Windows only)"
     }
   },
   "common": {

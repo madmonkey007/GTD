@@ -101,15 +101,15 @@ export function SettingsSection({
 			className={
 				isSearchActive
 					? "rounded-lg border border-primary/40 bg-primary/5 p-4 ring-1 ring-primary/20"
-					: "rounded-lg border border-border p-4"
+					: "rounded-lg border border-border/60 p-4"
 			}
 		>
-			<div className="mb-4">
-				<h3 className="mb-1 text-base font-semibold text-foreground">
+			<div className="mb-3">
+				<h3 className="text-sm font-semibold text-foreground">
 					{title}
 				</h3>
 				{description && (
-					<p className="text-sm text-muted-foreground">{description}</p>
+					<p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
 				)}
 			</div>
 			{children}

@@ -79,14 +79,14 @@
     "audioStopRecording": "停止录音",
     "audioRecordingStatus": "录音状态",
     "settings": {
-      "categoryWorkspaceTitle": "工作区与面板",
-      "categoryWorkspaceDescription": "管理各面板的开关与布局。",
+      "categoryWorkspaceTitle": "外观与工作区",
+      "categoryWorkspaceDescription": "调整外观、时光机样式与通知。",
       "categoryAutomationTitle": "自动化",
       "categoryAutomationDescription": "管理自动待办检测等自动化能力。",
       "categoryAiTitle": "AI 与集成",
       "categoryAiDescription": "配置大模型与联网搜索等 AI 服务。",
       "categoryDeveloperTitle": "开发者与高级",
-      "categoryDeveloperDescription": "高级与实验性配置（录制、音频、调度）。",
+      "categoryDeveloperDescription": "高级与实验性配置（音频、调度）。",
       "categoryHelpTitle": "引导与关于",
       "categoryHelpDescription": "新手引导、版本信息与帮助入口。",
       "searchPlaceholder": "搜索设置...",
@@ -203,7 +203,7 @@
       "audioAsrConfig": "音频识别（ASR）配置",
       "currentVersion": "当前版本",
       "appearanceTitle": "外观",
-      "appearanceDescription": "调整布局、主题、配色与语言。",
+      "appearanceDescription": "调整主题、配色与语言。",
       "layoutTitle": "布局",
       "layoutDescription": "选择面板布局模式。",
       "colorThemeTitle": "配色风格",
@@ -850,8 +850,7 @@
       "activity_aggregator_job": "活动聚合",
       "deadline_reminder_job": "DDL提醒",
       "todo_recorder_job": "屏幕录制（Todo生成）",
-      "proactive_ocr_job": "主动OCR",
-      "audio_recording_job": "音频录制"
+      "proactive_ocr_job": "主动OCR"
     },
     "jobDescriptions": {
       "recorder_job": "定时截取屏幕截图",
@@ -862,8 +861,7 @@
       "activity_aggregator_job": "聚合用户活动事件",
       "deadline_reminder_job": "检查待办事项的截止日期，根据提醒设置发送通知",
       "todo_recorder_job": "仅录制白名单应用的截图，用于自动待办检测",
-      "proactive_ocr_job": "自动检测并处理微信/飞书窗口进行OCR识别（仅Windows）",
-      "audio_recording_job": "7x24小时持续录音，实时转录和提取信息（间隔为状态检查间隔，非录音间隔）"
+      "proactive_ocr_job": "自动检测并处理微信/飞书窗口进行OCR识别（仅Windows）"
     }
   },
   "common": {

@@ -68,20 +68,15 @@ export function SettingsCategoryPanel({
 
 	const content = (
 		<>
-			{(!isSearchActive || hasMatches) && (
-				<div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-					<div className="flex items-center gap-2">
-						<Icon className="h-4 w-4 text-primary" />
-						<h3
-							id={labelId}
-							className="text-sm font-semibold text-foreground"
-						>
-							{category.label}
-						</h3>
-					</div>
-					<p className="mt-1 text-sm text-muted-foreground">
-						{category.description}
-					</p>
+			{isSearchActive && hasMatches && (
+				<div className="flex items-center gap-2 px-1">
+					<Icon className="h-4 w-4 text-primary" />
+					<h3
+						id={labelId}
+						className="text-sm font-semibold text-foreground"
+					>
+						{category.label}
+					</h3>
 				</div>
 			)}
 			<SettingsSearchMatchProvider onMatchChange={handleMatchChange}>

@@ -25,9 +25,10 @@ export function ToggleSwitch({
 			disabled={disabled}
 			onClick={() => onToggle(!enabled)}
 			className={`
-        relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+        relative inline-flex h-6 w-11 items-center rounded-full transition
         focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
         disabled:opacity-50 disabled:cursor-not-allowed
+        active:scale-95
         ${enabled ? "bg-primary" : "bg-muted"}
       `}
 			aria-label={ariaLabel}

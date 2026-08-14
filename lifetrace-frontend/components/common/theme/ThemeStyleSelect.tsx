@@ -1,12 +1,17 @@
 "use client";
 
-import { Check, Paintbrush } from "lucide-react";
+import { Check, ChevronDown, Paintbrush } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { type ColorTheme, useColorThemeStore } from "@/lib/store/color-theme";
 import { cn } from "@/lib/utils";
 
-export function ThemeStyleSelect() {
+export function ThemeStyleSelect({
+	showLabel = false,
+}: {
+	/** 显示当前主题名称 + 下拉箭头（用于设置页等需要展示当前值的场景） */
+	showLabel?: boolean;
+}) {
 	const { colorTheme, setColorTheme } = useColorThemeStore();
 	const t = useTranslations("colorTheme");
 	const [mounted, setMounted] = useState(false);
@@ -38,7 +43,7 @@ export function ThemeStyleSelect() {
 	}, [open]);
 
 	if (!mounted) {
-		return <div className="h-9 w-35" />;
+		return <div className="h-9 w-9" />;
 	}
 
 	const options: { value: ColorTheme; label: string }[] = [
@@ -47,6 +52,8 @@ export function ThemeStyleSelect() {
 		{ value: "neutral", label: t("neutral") },
 	];
 
+	const currentOption = options.find((option) => option.value === colorTheme);
+
 	return (
 		<div className="relative" ref={wrapperRef}>
 			<span className="sr-only">{t("label")}</span>
@@ -54,18 +61,31 @@ export function ThemeStyleSelect() {
 				type="button"
 				onClick={() => setOpen((prev) => !prev)}
 				className={cn(
-					"flex items-center justify-center rounded-md p-2",
-					"text-muted-foreground transition-all duration-200",
-					"hover:bg-muted hover:text-foreground hover:shadow-md",
-					"active:scale-95 active:shadow-sm",
+					"transition-all duration-200 active:scale-95",
 					"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+					showLabel
+						? "flex shrink-0 items-center gap-1.5 rounded-lg border border-border/70 bg-background px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted/50"
+						: "flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground hover:shadow-md active:shadow-sm",
 				)}
 				aria-haspopup="listbox"
 				aria-expanded={open}
 				title={t("label")}
 				aria-label={t("label")}
 			>
-				<Paintbrush className="h-5 w-5" />
+				{showLabel ? (
+					<>
+						<Paintbrush className="h-4 w-4 text-muted-foreground" />
+						<span className="max-w-28 truncate">{currentOption?.label}</span>
+						<ChevronDown
+							className={cn(
+								"h-3.5 w-3.5 text-muted-foreground transition-transform",
+								open && "rotate-180",
+							)}
+						/>
+					</>
+				) : (
+					<Paintbrush className="h-5 w-5" />
+				)}
 			</button>
 			{open && (
 				<div
