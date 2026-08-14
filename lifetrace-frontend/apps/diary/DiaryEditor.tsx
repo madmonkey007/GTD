@@ -770,11 +770,11 @@ export function DiaryEditor({
 													</button>
 													<button
 														type="button"
-														onClick={(e) => { e.stopPropagation(); onSimilarClick?.(note.id); }}
-														title={t("similarNotes")}
+														onClick={(e) => { e.stopPropagation(); setAddLinkNote(note); }}
+														title={t("linkNote")}
 														className="rounded p-1 -mt-1 text-muted-foreground/30 opacity-0 group-hover:opacity-100 hover:text-primary hover:bg-primary/10 transition-all duration-150 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
 													>
-														<GitFork className="w-3.5 h-3.5" />
+														<Link2 className="w-3.5 h-3.5" />
 													</button>
 												</>
 											)}
@@ -795,6 +795,10 @@ export function DiaryEditor({
 													<DropdownMenuItem onClick={() => onAnnotate?.(note)}>
 														<MessageSquarePlus className="w-3.5 h-3.5 mr-2" />
 														批注
+													</DropdownMenuItem>
+													<DropdownMenuItem onClick={() => onSimilarClick?.(note.id)}>
+														<GitFork className="w-3.5 h-3.5 mr-2" />
+														{t("similarNotes")}
 													</DropdownMenuItem>
 													<DropdownMenuItem onClick={() => setAddLinkNote(note)}>
 														<Link2 className="w-3.5 h-3.5 mr-2" />

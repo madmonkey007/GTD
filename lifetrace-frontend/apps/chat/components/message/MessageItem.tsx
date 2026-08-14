@@ -6,12 +6,10 @@ import type { ChatMessage } from "@/apps/chat/types";
 import { cn } from "@/lib/utils";
 import { MessageContent } from "./MessageContent";
 import { MessageTodoExtractionPanel } from "./MessageTodoExtractionPanel";
-import { ToolCallLoading } from "./ToolCallLoading";
 import { ToolCallSteps } from "./ToolCallSteps";
 import { ThinkingBlockCard, type ThinkBlock } from "./ThinkingBlockCard";
 import { parseThinkingContent } from "@/apps/chat/components/chat-ui/index";
 import {
-	extractToolCalls,
 	removeToolCalls,
 	removeToolEvents,
 	removeThinkingTags,
@@ -47,8 +45,6 @@ export function MessageItem({
 	const sanitizedContent = effectiveReplyText
 		? removeThinkingTags(removeToolEvents(effectiveReplyText))
 		: "";
-	// 检测工具调用标记（在消息渲染前）
-	const toolCalls = sanitizedContent ? extractToolCalls(sanitizedContent) : [];
 	// 移除工具调用和思考标记后的内容
 	const contentWithoutToolCalls = sanitizedContent
 		? removeToolCalls(sanitizedContent)

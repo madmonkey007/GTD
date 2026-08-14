@@ -313,11 +313,11 @@ export function TimeMachineNoteCard({
 				</button>
 				<button
 					type="button"
-					onClick={onSimilar}
-					title={t("similarNotes")}
+					onClick={onOpenLink}
+					title={t("linkNote")}
 					className={`rounded-md p-1.5 transition-all duration-150 active:scale-[0.92] ${hoverActionClass}`}
 				>
-					<GitFork className="h-3.5 w-3.5" />
+					<Link2 className="h-3.5 w-3.5" />
 				</button>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
@@ -337,9 +337,9 @@ export function TimeMachineNoteCard({
 							<MessageSquarePlus className="w-3.5 h-3.5 mr-2" />
 							批注
 						</DropdownMenuItem>
-						<DropdownMenuItem onClick={onOpenLink}>
-							<Link2 className="w-3.5 h-3.5 mr-2" />
-							链接
+						<DropdownMenuItem onClick={onSimilar}>
+							<GitFork className="w-3.5 h-3.5 mr-2" />
+							{t("similarNotes")}
 						</DropdownMenuItem>
 						<DropdownMenuItem onClick={onTogglePin}>
 							{pinned ? (

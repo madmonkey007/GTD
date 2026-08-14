@@ -376,6 +376,7 @@
     "trashClearConfirm": "Clear the recycle bin? This action cannot be undone.",
     "trashRestore": "Restore",
     "similarNotes": "Similar Notes",
+    "linkNote": "Link to note",
     "similarToNote": "Similar to current note",
     "clearSimilarFilter": "Clear filter",
     "loadFailedTitle": "Load Failed",

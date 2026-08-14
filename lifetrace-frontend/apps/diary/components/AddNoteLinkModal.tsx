@@ -154,8 +154,8 @@ export function AddNoteLinkModal({
 					<div className="text-xs font-semibold text-foreground/90 mb-0.5">
 						添加链接
 					</div>
-					<div className="text-[10px] text-muted-foreground/50 leading-relaxed">
-						搜索框输入关键词可检索全部笔记；未输入时按语义相似度推荐
+					<div className="text-[10px] text-muted-foreground/50 leading-relaxed truncate">
+						当前笔记：{noteName} · 搜索框输入关键词可检索全部笔记
 					</div>
 				</div>
 				<div className="relative p-2 border-b border-border/20">

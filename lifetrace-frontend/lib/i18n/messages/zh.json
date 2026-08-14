@@ -376,6 +376,7 @@
     "trashClearConfirm": "确认清空回收站？删除后将不可恢复。",
     "trashRestore": "恢复",
     "similarNotes": "相似笔记",
+    "linkNote": "链接到笔记",
     "similarToNote": "与当前笔记相似",
     "clearSimilarFilter": "清除筛选",
     "loadFailedTitle": "加载失败",
