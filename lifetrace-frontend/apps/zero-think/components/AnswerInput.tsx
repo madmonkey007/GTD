@@ -112,7 +112,7 @@ export function AnswerInput({
 									type="button"
 									onClick={() => removeLine(index)}
 									disabled={disabled}
-									className="p-2 text-muted-foreground hover:text-foreground transition-colors active:scale-95"
+									className="p-2.5 text-muted-foreground hover:text-foreground transition-colors active:scale-95"
 								>
 									<X size={14} strokeWidth={1.5} />
 								</button>

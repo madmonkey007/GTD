@@ -13,6 +13,7 @@ import { PanelHeader } from "@/components/common/layout/PanelHeader";
 import { useCreateTodo, useTodos } from "@/lib/query";
 import { normalizeReminderOffsets } from "@/lib/reminders";
 import { useTodoStore } from "@/lib/store/todo-store";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 import { QuickCreatePopover } from "./components/QuickCreatePopover";
 import { useMonthScroll } from "./hooks/useMonthScroll";
@@ -35,6 +36,7 @@ import { WeekView } from "./views/WeekView";
 
 export function CalendarPanel() {
 	const t = useTranslations("calendar");
+	const isMobile = useIsMobile();
 
 	// 从 TanStack Query 获取 todos 数据
 	const { data: todos = [] } = useTodos();
@@ -329,7 +331,7 @@ export function CalendarPanel() {
 					<button
 						type="button"
 						onClick={() => handleNavigate("prev")}
-						className="inline-flex h-9 w-9 items-center justify-center rounded-md border bg-card text-muted-foreground hover:bg-muted/60"
+						className={cn("inline-flex h-9 w-9 items-center justify-center rounded-md border bg-card text-muted-foreground hover:bg-muted/60", isMobile && "h-10 w-10")}
 						aria-label={t("previous")}
 					>
 						<ChevronLeft className="h-4 w-4" />
@@ -337,7 +339,7 @@ export function CalendarPanel() {
 					<button
 						type="button"
 						onClick={() => handleNavigate("today")}
-						className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60"
+						className={cn("inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60", isMobile && "min-h-11")}
 					>
 						<RotateCcw className="h-4 w-4" />
 						{t("today")}
@@ -345,7 +347,7 @@ export function CalendarPanel() {
 					<button
 						type="button"
 						onClick={() => handleNavigate("next")}
-						className="inline-flex h-9 w-9 items-center justify-center rounded-md border bg-card text-muted-foreground hover:bg-muted/60"
+						className={cn("inline-flex h-9 w-9 items-center justify-center rounded-md border bg-card text-muted-foreground hover:bg-muted/60", isMobile && "h-10 w-10")}
 						aria-label={t("next")}
 					>
 						<ChevronRight className="h-4 w-4" />
@@ -359,6 +361,7 @@ export function CalendarPanel() {
 							onClick={() => setView(option.id)}
 							className={cn(
 								"rounded-md px-3 py-2 text-sm font-medium transition-colors",
+								isMobile && "min-h-11",
 								view === option.id
 									? "bg-primary text-primary-foreground shadow-sm"
 									: "bg-card text-muted-foreground hover:bg-muted/60",
@@ -384,7 +387,7 @@ export function CalendarPanel() {
 			{/* 视图主体 */}
 			<div
 				ref={monthScrollRef}
-				className="flex-1 overflow-y-auto bg-background p-3"
+				className="flex-1 overflow-y-auto bg-background p-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]"
 			>
 					{view === "month" && (
 						<div className="grid grid-cols-7">

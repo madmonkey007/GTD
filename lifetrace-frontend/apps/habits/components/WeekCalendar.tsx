@@ -107,7 +107,7 @@ export function WeekCalendar({
 										{checked ? (
 											<span
 												className={cn(
-													"flex h-7 w-7 items-center justify-center rounded-full",
+													"flex h-9 w-9 items-center justify-center rounded-full",
 													"bg-primary text-primary-foreground",
 													"shadow-sm shadow-primary/20",
 													"transition-all duration-150",
@@ -118,7 +118,7 @@ export function WeekCalendar({
 										) : (
 											<span
 												className={cn(
-													"flex h-7 w-7 items-center justify-center rounded-full",
+													"flex h-9 w-9 items-center justify-center rounded-full",
 													"border border-muted-foreground/25",
 													"bg-transparent",
 													"transition-all duration-150",

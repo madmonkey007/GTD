@@ -170,7 +170,7 @@ export function HabitsPanel() {
 						<button
 							type="button"
 							onClick={() => setMobileDetailOpen(false)}
-							className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/50"
+							className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/50"
 							aria-label={t("back")}
 						>
 							<ArrowLeft className="h-5 w-5" />

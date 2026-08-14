@@ -7,6 +7,7 @@ import {
 	countRecentRecords,
 } from "@/apps/habits/hooks/useHabits";
 import { WeekCalendar } from "@/apps/habits/components/WeekCalendar";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 
 interface HabitStatsPanelProps {
@@ -29,6 +30,7 @@ export function HabitStatsPanel({
 	onDeleteHabit,
 }: HabitStatsPanelProps) {
 	const t = useTranslations("habits");
+	const isMobile = useIsMobile();
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
@@ -38,7 +40,7 @@ export function HabitStatsPanel({
 				<button
 					type="button"
 					onClick={onAddClick}
-					className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+					className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
 				>
 					<Plus className="h-4 w-4" />
 				</button>
@@ -106,7 +108,12 @@ export function HabitStatsPanel({
 											e.stopPropagation();
 											onDeleteHabit(habit.id);
 										}}
-										className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/30 opacity-0 transition-all hover:text-destructive group-hover:opacity-100"
+										className={cn(
+											"flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/30 transition-all hover:text-destructive",
+											isMobile
+												? "h-8 w-8 opacity-100"
+												: "opacity-0 group-hover:opacity-100",
+										)}
 										title={t("delete")}
 									>
 										<Trash2 className="h-3.5 w-3.5" />

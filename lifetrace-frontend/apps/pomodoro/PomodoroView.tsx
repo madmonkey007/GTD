@@ -5,6 +5,7 @@ import { Play, RotateCcw, Settings, Square, Minus, Plus } from "lucide-react";
 import { StatsChart } from "./components/StatsChart";
 import { useTimer } from "./hooks/useTimer";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { cn } from "@/lib/utils";
 
 interface PomodoroConfig {
 	workMinutes: number;
@@ -256,7 +257,7 @@ export function PomodoroView() {
 			<div
 				className={`flex flex-col gap-4 p-5 ${
 					isMobile
-						? "w-full border-t border-border/40"
+						? "w-full border-t border-border/40 p-6"
 						: "w-80 border-l border-border/40"
 				}`}
 			>
@@ -297,6 +298,7 @@ function DurationControl({
 	value: number;
 	onChange: (v: number) => void;
 }) {
+	const isMobile = useIsMobile();
 	return (
 		<div className="flex items-center justify-between gap-4">
 			<span className="text-sm text-muted-foreground">{label}</span>
@@ -305,7 +307,7 @@ function DurationControl({
 					type="button"
 					onClick={() => onChange(Math.max(MIN_MINUTES, value - 1))}
 					disabled={value <= MIN_MINUTES}
-					className="flex h-7 w-7 items-center justify-center rounded-md border border-border/40 text-muted-foreground transition-colors hover:bg-muted/30 disabled:opacity-30"
+					className={cn("flex h-7 w-7 items-center justify-center rounded-md border border-border/40 text-muted-foreground transition-colors hover:bg-muted/30 disabled:opacity-30", isMobile && "h-10 w-10")}
 				>
 					<Minus className="h-3 w-3" />
 				</button>
@@ -316,7 +318,7 @@ function DurationControl({
 					type="button"
 					onClick={() => onChange(Math.min(MAX_MINUTES, value + 1))}
 					disabled={value >= MAX_MINUTES}
-					className="flex h-7 w-7 items-center justify-center rounded-md border border-border/40 text-muted-foreground transition-colors hover:bg-muted/30 disabled:opacity-30"
+					className={cn("flex h-7 w-7 items-center justify-center rounded-md border border-border/40 text-muted-foreground transition-colors hover:bg-muted/30 disabled:opacity-30", isMobile && "h-10 w-10")}
 				>
 					<Plus className="h-3 w-3" />
 				</button>

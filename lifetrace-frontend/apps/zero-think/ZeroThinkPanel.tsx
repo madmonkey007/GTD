@@ -136,7 +136,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 				}
 			`}</style>
 
-			<div className="min-h-screen bg-background">
+			<div className="h-full bg-background">
 				{/* Top bar */}
 				<div className="sticky top-0 z-40 bg-background border-b border-border">
 					<div className="flex items-center justify-between px-6 py-4">
@@ -144,7 +144,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 							<button
 								type="button"
 								onClick={handleBack}
-								className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+								className="p-2.5 text-muted-foreground hover:text-foreground transition-colors"
 							>
 								<ArrowLeft size={20} strokeWidth={1.5} />
 							</button>
@@ -248,7 +248,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 												<button
 													type="button"
 													onClick={handleBack}
-													className="px-6 py-2 text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
+													className="px-6 min-h-11 flex items-center justify-center text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
 												>
 													返回列表
 												</button>
@@ -284,7 +284,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 													<button
 														type="button"
 														onClick={handleBack}
-												className="px-6 py-2 text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
+												className="px-6 min-h-11 flex items-center justify-center text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
 													>
 														稍后再说
 													</button>
@@ -343,7 +343,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 											<button
 												type="button"
 												onClick={handleBack}
-												className="px-6 py-2 text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
+												className="px-6 min-h-11 flex items-center justify-center text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
 											>
 												返回列表
 											</button>
@@ -392,7 +392,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 											<button
 												type="button"
 												onClick={handleBack}
-												className="px-6 py-2 text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
+												className="px-6 min-h-11 flex items-center justify-center text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
 											>
 												稍后再说
 											</button>

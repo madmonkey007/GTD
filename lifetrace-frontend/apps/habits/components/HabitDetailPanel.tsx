@@ -150,7 +150,7 @@ export function HabitDetailPanel({
 						<button
 							type="button"
 							onClick={goPrevMonth}
-							className="rounded-md p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+							className="rounded-md p-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
 						>
 							<ChevronLeft className="h-4 w-4" />
 						</button>
@@ -160,7 +160,7 @@ export function HabitDetailPanel({
 						<button
 							type="button"
 							onClick={goNextMonth}
-							className="rounded-md p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+							className="rounded-md p-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
 						>
 							<ChevronRight className="h-4 w-4" />
 						</button>

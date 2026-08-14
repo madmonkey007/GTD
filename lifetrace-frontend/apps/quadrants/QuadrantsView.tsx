@@ -65,7 +65,7 @@ export function QuadrantsView() {
 	return (
 		<div className="flex h-full flex-col p-4">
 			<h2 className="mb-4 text-lg font-semibold tracking-tight">四象限视图</h2>
-			<div className="grid flex-1 grid-cols-2 gap-3">
+			<div className="grid flex-1 grid-cols-1 gap-3 min-[420px]:grid-cols-2">
 				{QUADRANTS.map((quadrant) => {
 					const todos = quadrants[quadrant.key];
 					return (
@@ -83,7 +83,7 @@ export function QuadrantsView() {
 									{todos.length}
 								</span>
 							</h3>
-							<div className="flex-1 space-y-1.5 overflow-y-auto">
+							<div className="flex-1 space-y-2 overflow-y-auto">
 								{todos.length === 0 ? (
 									<p className="text-xs text-muted-foreground/50">暂无任务</p>
 								) : (

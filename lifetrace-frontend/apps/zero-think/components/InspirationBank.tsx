@@ -61,7 +61,7 @@ export function InspirationBank({
 							<button
 								type="button"
 								onClick={onClose}
-								className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+								className="p-2.5 text-muted-foreground hover:text-foreground transition-colors"
 							>
 								<X size={18} strokeWidth={1.5} />
 							</button>
