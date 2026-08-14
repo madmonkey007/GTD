@@ -703,9 +703,10 @@ export function DiaryEditor({
 								initial={{ opacity: 0, y: 8 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+								style={isEditing ? { borderWidth: 1.5 } : undefined}
 								className={"group w-full rounded-xl border px-4 py-3 transition-all duration-200 "
 									+ (isEditing
-										? "border-primary/50 ring-1 ring-primary/20 bg-background"
+											? "border-foreground/70 bg-card hover:border-foreground"
 										: draft.id === note.id
 											? "border-primary/30 bg-primary/[0.02] ring-1 ring-primary/10"
 											: "border-border/30 bg-card hover:border-border/60 hover:bg-muted/[0.02]")

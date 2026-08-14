@@ -578,6 +578,16 @@ class JournalService:
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"清理笔记集合成员关系失败: {exc}")
 
+        # 级联清理 ProjectNoteRelation 成员关系（笔记可能属多个项目）
+        try:
+            from lifetrace.repositories.sql_project_repository import (
+                SqlProjectRepository,
+            )
+
+            SqlProjectRepository(self.db_base).delete_by_journal(journal_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"清理笔记项目成员关系失败: {exc}")
+
         logger.info(f"成功删除日记: {journal_id}")
 
     def auto_link(self, payload: JournalAutoLinkRequest) -> JournalAutoLinkResponse:

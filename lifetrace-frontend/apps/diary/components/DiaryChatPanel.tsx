@@ -514,7 +514,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
             setMessages((prev) => prev.map((m) => m.id === assistantId ? {
               ...m,
               toolCallSteps: [...(m.toolCallSteps || []), {
-                id: "tc-" + Date.now(),
+                id: "tc-" + Date.now() + "-" + Math.random().toString(16).slice(2, 6),
                 toolName: event.tool_name!,
                 toolArgs: event.tool_args,
                 status: "running" as const,
