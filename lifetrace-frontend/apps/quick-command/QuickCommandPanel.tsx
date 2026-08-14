@@ -13,6 +13,7 @@ import { sendChatMessageStream, type ToolCallEvent } from "@/lib/api";
 import type { ChatMessage, ToolCallStep } from "@/apps/chat/types";
 import { useLocaleStore } from "@/lib/store/locale";
 import { useUiStore } from "@/lib/store/ui-store";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useTodoStore } from "@/lib/store/todo-store";
 import { useFocusTarget } from "@/lib/store/focus-target-store";
 import { queryKeys } from "@/lib/query/keys";
@@ -224,6 +225,7 @@ function CreatedEntityCard({ artifact, locale }: { artifact: Artifact; locale: s
 
 export function QuickCommandPanel() {
   const locale = useLocaleStore((s) => s.locale);
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -417,12 +419,11 @@ export function QuickCommandPanel() {
           type="button"
           onClick={() => setHistoryOpen((v) => !v)}
           title={locale === "zh" ? "历史记录" : "History"}
-          className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${historyOpen ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"}`}
+          className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${historyOpen ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"}`}
         >
           <History className="h-4 w-4" />
         </button>
         <Sparkles className="w-4 h-4 text-primary/70" />
-        <span className="text-sm font-semibold">{locale === "zh" ? "AI Agent" : "AI Agent"}</span>
       </div>
 
       {/* 消息区 */}
@@ -476,7 +477,7 @@ export function QuickCommandPanel() {
             </motion.div>
           </motion.div>
         ) : (
-          <div className="mx-auto space-y-4" style={{ width: "70%" }}>
+          <div className="mx-auto space-y-4" style={{ width: isMobile ? "100%" : "70%" }}>
             {messages.map((m) => {
               const artifacts = m.role === "assistant" ? extractArtifacts(m) : [];
               return (
@@ -496,7 +497,7 @@ export function QuickCommandPanel() {
 
       {/* 输入区 */}
       <div className="border-t border-border/30 py-3">
-        <div className="mx-auto flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3 py-2 focus-within:border-primary/40 transition-colors" style={{ width: "70%" }}>
+        <div className="mx-auto flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3 py-2 focus-within:border-primary/40 transition-colors" style={{ width: isMobile ? "100%" : "70%" }}>
           <textarea
             ref={taRef}
             value={input}
@@ -521,14 +522,14 @@ export function QuickCommandPanel() {
                 ta.style.height = `${Math.min(ta.scrollHeight, 160)}px`;
               }
             }}
-            className="flex-shrink-0 rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            className="flex-shrink-0 rounded-lg p-2.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           />
           {isStreaming ? (
             <button
               type="button"
               onClick={onStop}
               title="停止"
-              className="flex-shrink-0 rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              className="flex-shrink-0 rounded-lg p-2.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             >
               <Square className="w-4 h-4" />
             </button>
@@ -538,7 +539,7 @@ export function QuickCommandPanel() {
               onClick={onSubmit}
               disabled={!input.trim()}
               title="发送"
-              className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ArrowUp className="w-4 h-4" />
             </button>
@@ -547,59 +548,65 @@ export function QuickCommandPanel() {
       </div>
       {/* 历史记录抽屉（左侧滑出） */}
       {historyOpen && (
-        <div className="absolute inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-border bg-background shadow-lg">
-          <div className="flex items-center justify-between px-3 py-3 border-b border-border/30">
-            <span className="text-sm font-semibold">{locale === "zh" ? "历史记录" : "History"}</span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={handleNewChat}
-                title={locale === "zh" ? "新对话" : "New chat"}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setHistoryOpen(false)}
-                title={locale === "zh" ? "关闭" : "Close"}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
+        <>
+          <div
+            className="absolute inset-0 z-30 bg-black/30"
+            onClick={() => setHistoryOpen(false)}
+          />
+          <div className="absolute inset-y-0 left-0 z-30 flex w-[85vw] max-w-64 flex-col border-r border-border bg-background shadow-lg">
+            <div className="flex items-center justify-between px-3 py-3 border-b border-border/30">
+              <span className="text-sm font-semibold">{locale === "zh" ? "历史记录" : "History"}</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleNewChat}
+                  title={locale === "zh" ? "新对话" : "New chat"}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHistoryOpen(false)}
+                  title={locale === "zh" ? "关闭" : "Close"}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {sessionsLoading ? (
+                <div className="flex items-center justify-center py-6 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              ) : sessions.length === 0 ? (
+                <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+                  {locale === "zh" ? "暂无历史记录" : "No history yet"}
+                </p>
+              ) : (
+                sessions.map((s, i) => (
+                  <button
+                    key={s.sessionId ? `${s.sessionId}-${i}` : `s-${i}`}
+                    type="button"
+                    onClick={() => setLoadTarget(s.sessionId)}
+                    className={`w-full rounded-lg border border-border/60 px-2.5 py-2.5 text-left transition-colors hover:bg-foreground/5 ${s.sessionId === conversationId ? "ring-1 ring-ring" : ""}`}
+                  >
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {s.title || (locale === "zh" ? "新对话" : "New chat")}
+                    </p>
+                    <div className="mt-0.5 flex items-center justify-between text-[10px] text-muted-foreground/70">
+                      <span className="truncate">{s.lastActive ?? ""}</span>
+                      {typeof s.messageCount === "number" && (
+                        <span className="ml-1 flex-shrink-0">{s.messageCount}{locale === "zh" ? "条" : "msg"}</span>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {sessionsLoading ? (
-              <div className="flex items-center justify-center py-6 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-            ) : sessions.length === 0 ? (
-              <p className="px-2 py-6 text-center text-xs text-muted-foreground">
-                {locale === "zh" ? "暂无历史记录" : "No history yet"}
-              </p>
-            ) : (
-              sessions.map((s, i) => (
-                <button
-                  key={s.sessionId ? `${s.sessionId}-${i}` : `s-${i}`}
-                  type="button"
-                  onClick={() => setLoadTarget(s.sessionId)}
-                  className={`w-full rounded-lg border border-border/60 px-2.5 py-2 text-left transition-colors hover:bg-foreground/5 ${s.sessionId === conversationId ? "ring-1 ring-ring" : ""}`}
-                >
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {s.title || (locale === "zh" ? "新对话" : "New chat")}
-                  </p>
-                  <div className="mt-0.5 flex items-center justify-between text-[10px] text-muted-foreground/70">
-                    <span className="truncate">{s.lastActive ?? ""}</span>
-                    {typeof s.messageCount === "number" && (
-                      <span className="ml-1 flex-shrink-0">{s.messageCount}{locale === "zh" ? "条" : "msg"}</span>
-                    )}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
+        </>
       )}
     </div>
   );
