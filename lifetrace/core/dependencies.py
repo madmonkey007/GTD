@@ -110,9 +110,12 @@ def get_current_user(
 
 def get_todo_repository(
     db_base: DatabaseBase = Depends(get_db_base),
+    current_user: User = Depends(get_current_user),
 ) -> ITodoRepository:
     """获取 Todo 仓库实例"""
-    return SqlTodoRepository(db_base)
+    if current_user.id is None:
+        raise HTTPException(status_code=401, detail="未登录")
+    return SqlTodoRepository(db_base, user_id=current_user.id)
 
 
 def get_todo_service(
@@ -128,9 +131,12 @@ def get_todo_service(
 
 def get_journal_repository(
     db_base: DatabaseBase = Depends(get_db_base),
+    current_user: User = Depends(get_current_user),
 ) -> IJournalRepository:
     """获取 Journal 仓库实例"""
-    return SqlJournalRepository(db_base)
+    if current_user.id is None:
+        raise HTTPException(status_code=401, detail="未登录")
+    return SqlJournalRepository(db_base, user_id=current_user.id)
 
 
 def get_journal_service(
@@ -147,9 +153,12 @@ def get_journal_service(
 
 def get_habit_repository(
     db_base: DatabaseBase = Depends(get_db_base),
+    current_user: User = Depends(get_current_user),
 ) -> SqlHabitRepository:
     """获取 Habit 仓库实例"""
-    return SqlHabitRepository(db_base)
+    if current_user.id is None:
+        raise HTTPException(status_code=401, detail="未登录")
+    return SqlHabitRepository(db_base, user_id=current_user.id)
 
 
 def get_habit_service(
@@ -212,9 +221,12 @@ def get_collection_service(
 
 def get_project_repository(
     db_base: DatabaseBase = Depends(get_db_base),
+    current_user: User = Depends(get_current_user),
 ) -> SqlProjectRepository:
     """获取 Project 仓库实例"""
-    return SqlProjectRepository(db_base)
+    if current_user.id is None:
+        raise HTTPException(status_code=401, detail="未登录")
+    return SqlProjectRepository(db_base, user_id=current_user.id)
 
 
 def get_project_service(

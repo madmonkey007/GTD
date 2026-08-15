@@ -16,6 +16,7 @@ from sqlalchemy import or_
 from lifetrace.llm.journal_generation_service import journal_generation_service
 from lifetrace.llm.vector_db import create_vector_db
 from lifetrace.schemas.journal import (
+    TODO_ORIGINS,
     JournalAutoLinkCandidate,
     JournalAutoLinkRequest,
     JournalAutoLinkResponse,
@@ -25,13 +26,19 @@ from lifetrace.schemas.journal import (
     JournalListResponse,
     JournalResponse,
     JournalUpdate,
-    TODO_ORIGINS,
 )
 from lifetrace.services.journal_sync_service import (
     _is_syncing_from_peer as _is_peer_sync,
+)
+from lifetrace.services.journal_sync_service import (
     _mark_syncing,
 )
-from lifetrace.storage.journal_manager import JournalCreatePayload, JournalManager, JournalUpdatePayload, _UNSET
+from lifetrace.storage.journal_manager import (
+    _UNSET,
+    JournalCreatePayload,
+    JournalManager,
+    JournalUpdatePayload,
+)
 from lifetrace.storage.models import Activity, Todo
 from lifetrace.storage.sql_utils import col
 from lifetrace.util.logging_config import get_logger
@@ -41,7 +48,7 @@ logger = get_logger()
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from lifetrace.repositories.interfaces import IJournalRepository
+    from lifetrace.repositories.interfaces import IJournalRepository, ITodoRepository
     from lifetrace.storage.database_base import DatabaseBase
 
 _DEFAULT_BUCKET_START = time(hour=4, minute=0)
@@ -54,11 +61,12 @@ class JournalService:
         self,
         repository: IJournalRepository,
         db_base: DatabaseBase,
-        todo_repository: "ITodoRepository | None" = None,
+        todo_repository: ITodoRepository | None = None,
     ):
         self.repository = repository
         self.db_base = db_base
-        self.journal_manager = JournalManager(db_base)
+        self.user_id = int(getattr(repository, "user_id", 1))
+        self.journal_manager = JournalManager(db_base, user_id=self.user_id)
         # 向量库（用于笔记语义检索，可能为 None）
         self._vector_db = create_vector_db()
         if self._vector_db is None:

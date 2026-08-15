@@ -13,9 +13,9 @@ from lifetrace.storage.todo_manager import TodoManager
 class SqlTodoRepository(ITodoRepository):
     """基于 SQLAlchemy 的 Todo 仓库实现"""
 
-    def __init__(self, db_base: DatabaseBase):
+    def __init__(self, db_base: DatabaseBase, user_id: int = 1):
         # 复用现有的 TodoManager 逻辑
-        self._manager = TodoManager(db_base)
+        self._manager = TodoManager(db_base, user_id=user_id)
 
     def get_by_id(self, todo_id: int) -> dict[str, Any] | None:
         return self._manager.get_todo(todo_id)

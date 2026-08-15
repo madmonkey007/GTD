@@ -23,8 +23,9 @@ if TYPE_CHECKING:
 class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
     """Todo 管理类"""
 
-    def __init__(self, db_base: DatabaseBase):
+    def __init__(self, db_base: DatabaseBase, user_id: int = 1):
         self.db_base = db_base
+        self.user_id = user_id
 
     # ========== 查询辅助 ==========
     def _get_todo_tags(self, session, todo_id: int) -> list[str]:
@@ -41,7 +42,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
         try:
             with self.db_base.get_session() as session:
                 # 获取当前任务
-                current_todo = session.query(Todo).filter_by(id=todo_id).first()
+                current_todo = session.query(Todo).filter_by(id=todo_id, user_id=self.user_id).first()
                 if not current_todo:
                     return None
 
@@ -54,7 +55,9 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
 
                 while parent_id is not None and parent_id not in visited_parents:
                     visited_parents.add(parent_id)
-                    parent_todo = session.query(Todo).filter_by(id=parent_id).first()
+                    parent_todo = (
+                        session.query(Todo).filter_by(id=parent_id, user_id=self.user_id).first()
+                    )
                     if not parent_todo:
                         break
                     parents.append(self._todo_to_dict(session, parent_todo))
@@ -67,6 +70,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
                         session.query(Todo)
                         .filter(
                             col(Todo.parent_todo_id) == current_todo.parent_todo_id,
+                            col(Todo.user_id) == self.user_id,
                             col(Todo.id) != todo_id,
                         )
                         .all()
@@ -77,7 +81,12 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
                 def _get_children_recursive(parent_todo_id: int) -> list[dict[str, Any]]:
                     children: list[dict[str, Any]] = []
                     child_todos = (
-                        session.query(Todo).filter(col(Todo.parent_todo_id) == parent_todo_id).all()
+                        session.query(Todo)
+                        .filter(
+                            col(Todo.parent_todo_id) == parent_todo_id,
+                            col(Todo.user_id) == self.user_id,
+                        )
+                        .all()
                     )
                     for child in child_todos:
                         child_dict = self._todo_to_dict(session, child)
@@ -102,7 +111,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
     def get_todo(self, todo_id: int) -> dict[str, Any] | None:
         try:
             with self.db_base.get_session() as session:
-                todo = session.query(Todo).filter_by(id=todo_id).first()
+                todo = session.query(Todo).filter_by(id=todo_id, user_id=self.user_id).first()
                 if not todo:
                     return None
                 return self._todo_to_dict(session, todo)
@@ -115,7 +124,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
             return None
         try:
             with self.db_base.get_session() as session:
-                todo = session.query(Todo).filter_by(uid=uid).first()
+                todo = session.query(Todo).filter_by(uid=uid, user_id=self.user_id).first()
                 if not todo:
                     return None
                 return self._todo_to_dict(session, todo)
@@ -132,7 +141,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
     ) -> list[dict[str, Any]]:
         try:
             with self.db_base.get_session() as session:
-                q = session.query(Todo)
+                q = session.query(Todo).filter(col(Todo.user_id) == self.user_id)
                 # 默认不返回软删除数据（如果未来使用 deleted_at）
                 with contextlib.suppress(Exception):
                     q = q.filter(col(Todo.deleted_at).is_(None))
@@ -149,7 +158,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
     def count_todos(self, *, status: str | None = None) -> int:
         try:
             with self.db_base.get_session() as session:
-                q = session.query(Todo)
+                q = session.query(Todo).filter(col(Todo.user_id) == self.user_id)
                 with contextlib.suppress(Exception):
                     q = q.filter(col(Todo.deleted_at).is_(None))
                 if status:
@@ -166,7 +175,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
         """
         try:
             with self.db_base.get_session() as session:
-                q = session.query(Todo)
+                q = session.query(Todo).filter(col(Todo.user_id) == self.user_id)
                 with contextlib.suppress(Exception):
                     q = q.filter(col(Todo.deleted_at).is_(None))
 
@@ -196,7 +205,11 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
     def _delete_todo_recursive(self, session, todo_id: int) -> None:
         """递归删除 todo 及其所有子任务"""
         # 查找所有子任务
-        child_todos = session.query(Todo).filter(col(Todo.parent_todo_id) == todo_id).all()
+        child_todos = (
+            session.query(Todo)
+            .filter(col(Todo.parent_todo_id) == todo_id, col(Todo.user_id) == self.user_id)
+            .all()
+        )
 
         # 递归删除所有子任务
         for child in child_todos:
@@ -209,7 +222,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
         ).delete()
 
         # 删除 todo 本身
-        todo = session.query(Todo).filter_by(id=todo_id).first()
+        todo = session.query(Todo).filter_by(id=todo_id, user_id=self.user_id).first()
         if todo:
             session.delete(todo)
             logger.info(f"删除 todo: {todo_id}")
@@ -217,7 +230,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
     def delete_todo(self, todo_id: int) -> bool:
         try:
             with self.db_base.get_session() as session:
-                todo = session.query(Todo).filter_by(id=todo_id).first()
+                todo = session.query(Todo).filter_by(id=todo_id, user_id=self.user_id).first()
                 if not todo:
                     logger.warning(f"todo 不存在: {todo_id}")
                     return False
@@ -248,7 +261,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
                     if not todo_id:
                         continue
 
-                    todo = session.query(Todo).filter_by(id=todo_id).first()
+                    todo = session.query(Todo).filter_by(id=todo_id, user_id=self.user_id).first()
                     if not todo:
                         logger.warning(f"reorder_todos: todo 不存在: {todo_id}")
                         continue

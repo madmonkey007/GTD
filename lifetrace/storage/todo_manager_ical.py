@@ -51,6 +51,8 @@ class TodoIcalMixin:
 
         def _set_todo_tags(self, session, todo_id: int, tags: list[str]) -> None: ...
 
+        user_id: int
+
     def _todo_to_dict(self, session, todo: Todo) -> dict[str, Any]:
         todo_id = todo.id
         if todo_id is None:
@@ -203,6 +205,7 @@ class TodoIcalMixin:
                     dtstamp = now
 
                 todo_kwargs: dict[str, Any] = {
+                    "user_id": self.user_id,
                     "name": name,
                     "summary": resolved_summary,
                     "description": description,
@@ -400,7 +403,7 @@ class TodoIcalMixin:
     ) -> bool:
         try:
             with self.db_base.get_session() as session:
-                todo = session.query(Todo).filter_by(id=todo_id).first()
+                todo = session.query(Todo).filter_by(id=todo_id, user_id=self.user_id).first()
                 if not todo:
                     logger.warning(f"todo 不存在: {todo_id}")
                     return False

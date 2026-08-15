@@ -17,6 +17,7 @@ logger = get_logger()
 def _habit_to_dict(habit: Habit) -> dict[str, Any]:
     return {
         "id": habit.id,
+        "user_id": habit.user_id,
         "uid": habit.uid,
         "name": habit.name,
         "icon": habit.icon,
@@ -33,6 +34,7 @@ def _habit_to_dict(habit: Habit) -> dict[str, Any]:
 def _record_to_dict(record: HabitRecord) -> dict[str, Any]:
     return {
         "id": record.id,
+        "user_id": record.user_id,
         "habit_id": record.habit_id,
         "record_date": record.record_date,
         "created_at": record.created_at,
@@ -42,17 +44,26 @@ def _record_to_dict(record: HabitRecord) -> dict[str, Any]:
 class SqlHabitRepository:
     """基于 SQLAlchemy 的 Habit 仓库"""
 
-    def __init__(self, db_base: DatabaseBase):
+    def __init__(self, db_base: DatabaseBase, user_id: int = 1):
         self.db_base = db_base
+        self.user_id = user_id
 
     def get_by_id(self, habit_id: int) -> dict[str, Any] | None:
         with self.db_base.get_session() as session:
-            habit = session.query(Habit).filter_by(id=habit_id, deleted_at=None).first()
+            habit = (
+                session.query(Habit)
+                .filter_by(id=habit_id, user_id=self.user_id, deleted_at=None)
+                .first()
+            )
             return _habit_to_dict(habit) if habit else None
 
     def get_by_uid(self, uid: str) -> dict[str, Any] | None:
         with self.db_base.get_session() as session:
-            habit = session.query(Habit).filter_by(uid=uid, deleted_at=None).first()
+            habit = (
+                session.query(Habit)
+                .filter_by(uid=uid, user_id=self.user_id, deleted_at=None)
+                .first()
+            )
             return _habit_to_dict(habit) if habit else None
 
     def list_habits(
@@ -62,7 +73,10 @@ class SqlHabitRepository:
         search: str | None = None,
     ) -> list[dict[str, Any]]:
         with self.db_base.get_session() as session:
-            query = session.query(Habit).filter(Habit.deleted_at.is_(None))
+            query = session.query(Habit).filter(
+                Habit.user_id == self.user_id,
+                Habit.deleted_at.is_(None),
+            )
             if search:
                 like = f"%{search}%"
                 query = query.filter(Habit.name.like(like))
@@ -71,14 +85,17 @@ class SqlHabitRepository:
 
     def count(self, search: str | None = None) -> int:
         with self.db_base.get_session() as session:
-            query = session.query(Habit).filter(Habit.deleted_at.is_(None))
+            query = session.query(Habit).filter(
+                Habit.user_id == self.user_id,
+                Habit.deleted_at.is_(None),
+            )
             if search:
                 query = query.filter(Habit.name.like(f"%{search}%"))
             return query.count()
 
     def create(self, fields: dict[str, Any]) -> dict[str, Any]:
         with self.db_base.get_session() as session:
-            habit = Habit(**fields)
+            habit = Habit(user_id=self.user_id, **fields)
             session.add(habit)
             session.flush()
             result = _habit_to_dict(habit)
@@ -87,7 +104,11 @@ class SqlHabitRepository:
 
     def update(self, habit_id: int, fields: dict[str, Any]) -> dict[str, Any] | None:
         with self.db_base.get_session() as session:
-            habit = session.query(Habit).filter_by(id=habit_id, deleted_at=None).first()
+            habit = (
+                session.query(Habit)
+                .filter_by(id=habit_id, user_id=self.user_id, deleted_at=None)
+                .first()
+            )
             if not habit:
                 return None
             for key, value in fields.items():
@@ -101,11 +122,15 @@ class SqlHabitRepository:
     def delete(self, habit_id: int) -> bool:
         """软删除习惯，并清理其打卡记录。"""
         with self.db_base.get_session() as session:
-            habit = session.query(Habit).filter_by(id=habit_id, deleted_at=None).first()
+            habit = (
+                session.query(Habit)
+                .filter_by(id=habit_id, user_id=self.user_id, deleted_at=None)
+                .first()
+            )
             if not habit:
                 return False
             habit.deleted_at = get_utc_now()
-            session.query(HabitRecord).filter_by(habit_id=habit_id).delete(
+            session.query(HabitRecord).filter_by(user_id=self.user_id, habit_id=habit_id).delete(
                 synchronize_session=False
             )
             session.commit()
@@ -117,7 +142,7 @@ class SqlHabitRepository:
         with self.db_base.get_session() as session:
             query = (
                 session.query(HabitRecord)
-                .filter_by(habit_id=habit_id, deleted_at=None)
+                .filter_by(user_id=self.user_id, habit_id=habit_id, deleted_at=None)
                 .order_by(HabitRecord.record_date.desc())
                 .limit(limit)
             )
@@ -128,7 +153,10 @@ class SqlHabitRepository:
         with self.db_base.get_session() as session:
             query = (
                 session.query(HabitRecord)
-                .filter(HabitRecord.deleted_at.is_(None))
+                .filter(
+                    HabitRecord.user_id == self.user_id,
+                    HabitRecord.deleted_at.is_(None),
+                )
                 .order_by(HabitRecord.record_date.desc())
                 .limit(limit)
             )
@@ -138,14 +166,19 @@ class SqlHabitRepository:
         with self.db_base.get_session() as session:
             record = (
                 session.query(HabitRecord)
-                .filter_by(habit_id=habit_id, record_date=record_date, deleted_at=None)
+                .filter_by(
+                    user_id=self.user_id,
+                    habit_id=habit_id,
+                    record_date=record_date,
+                    deleted_at=None,
+                )
                 .first()
             )
             return _record_to_dict(record) if record else None
 
     def add_record(self, habit_id: int, record_date: datetime) -> dict[str, Any]:
         with self.db_base.get_session() as session:
-            record = HabitRecord(habit_id=habit_id, record_date=record_date)
+            record = HabitRecord(user_id=self.user_id, habit_id=habit_id, record_date=record_date)
             session.add(record)
             session.flush()
             result = _record_to_dict(record)
@@ -156,7 +189,12 @@ class SqlHabitRepository:
         with self.db_base.get_session() as session:
             deleted = (
                 session.query(HabitRecord)
-                .filter_by(habit_id=habit_id, record_date=record_date, deleted_at=None)
+                .filter_by(
+                    user_id=self.user_id,
+                    habit_id=habit_id,
+                    record_date=record_date,
+                    deleted_at=None,
+                )
                 .delete(synchronize_session=False)
             )
             session.commit()

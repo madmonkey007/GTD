@@ -14,8 +14,9 @@ from lifetrace.storage.journal_manager import JournalManager
 class SqlJournalRepository(IJournalRepository):
     """基于 SQLAlchemy 的 Journal 仓库实现"""
 
-    def __init__(self, db_base: DatabaseBase):
-        self._manager = JournalManager(db_base)
+    def __init__(self, db_base: DatabaseBase, user_id: int = 1):
+        self.user_id = user_id
+        self._manager = JournalManager(db_base, user_id=user_id)
 
     def get_by_id(self, journal_id: int) -> dict[str, Any] | None:
         return self._manager.get_journal(journal_id)

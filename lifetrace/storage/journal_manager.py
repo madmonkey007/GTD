@@ -71,8 +71,9 @@ class JournalUpdatePayload:
 class JournalManager:
     """日记管理类"""
 
-    def __init__(self, db_base: DatabaseBase):
+    def __init__(self, db_base: DatabaseBase, user_id: int = 1):
         self.db_base = db_base
+        self.user_id = user_id
 
     # ===== 工具方法 =====
     def _serialize_journal(
@@ -281,6 +282,7 @@ class JournalManager:
         try:
             with self.db_base.get_session() as session:
                 journal_data = {
+                    "user_id": self.user_id,
                     "name": payload.name,
                     "user_notes": payload.user_notes,
                     "date": payload.date,
@@ -323,6 +325,7 @@ class JournalManager:
                 journal = (
                     session.query(Journal)
                     .filter(col(Journal.id) == journal_id)
+                    .filter(col(Journal.user_id) == self.user_id)
                     .filter(col(Journal.deleted_at).is_(None))
                     .first()
                 )
@@ -359,7 +362,10 @@ class JournalManager:
         """列出日记"""
         try:
             with self.db_base.get_session() as session:
-                query = session.query(Journal).filter(col(Journal.deleted_at).is_(None))
+                query = session.query(Journal).filter(
+                    col(Journal.user_id) == self.user_id,
+                    col(Journal.deleted_at).is_(None),
+                )
 
                 if start_date is not None:
                     query = query.filter(col(Journal.date) >= start_date)
@@ -415,7 +421,10 @@ class JournalManager:
         """统计日记数量"""
         try:
             with self.db_base.get_session() as session:
-                query = session.query(Journal).filter(col(Journal.deleted_at).is_(None))
+                query = session.query(Journal).filter(
+                    col(Journal.user_id) == self.user_id,
+                    col(Journal.deleted_at).is_(None),
+                )
                 if start_date is not None:
                     query = query.filter(col(Journal.date) >= start_date)
                 if end_date is not None:
@@ -442,6 +451,7 @@ class JournalManager:
                 journal = (
                     session.query(Journal)
                     .filter(col(Journal.id) == journal_id)
+                    .filter(col(Journal.user_id) == self.user_id)
                     .filter(col(Journal.deleted_at).is_(None))
                     .first()
                 )
@@ -474,7 +484,10 @@ class JournalManager:
         """删除日记（物理删除）"""
         try:
             with self.db_base.get_session() as session:
-                journal = session.query(Journal).filter_by(id=journal_id).first()
+                journal = session.query(Journal).filter_by(
+                    id=journal_id,
+                    user_id=self.user_id,
+                ).first()
                 if not journal:
                     logger.warning(f"日记不存在: {journal_id}")
                     return False

@@ -21,6 +21,7 @@ def _project_to_dict(
 ) -> dict[str, Any]:
     return {
         "id": p.id,
+        "user_id": p.user_id,
         "uid": p.uid,
         "name": p.name,
         "description": p.description,
@@ -36,8 +37,9 @@ def _project_to_dict(
 class SqlProjectRepository:
     """基于 SQLAlchemy 的 Project 仓库"""
 
-    def __init__(self, db_base: DatabaseBase):
+    def __init__(self, db_base: DatabaseBase, user_id: int = 1):
         self.db_base = db_base
+        self.user_id = user_id
 
     # ---- Project CRUD ----
 
@@ -45,7 +47,7 @@ class SqlProjectRepository:
         with self.db_base.get_session() as session:
             rows = (
                 session.query(Project)
-                .filter_by(deleted_at=None)
+                .filter_by(user_id=self.user_id, deleted_at=None)
                 .order_by(Project.updated_at.desc())
                 .all()
             )
@@ -66,7 +68,11 @@ class SqlProjectRepository:
 
     def get(self, project_id: int) -> dict[str, Any] | None:
         with self.db_base.get_session() as session:
-            p = session.query(Project).filter_by(id=project_id, deleted_at=None).first()
+            p = (
+                session.query(Project)
+                .filter_by(id=project_id, user_id=self.user_id, deleted_at=None)
+                .first()
+            )
             if not p:
                 return None
             todo_count = (
@@ -83,12 +89,16 @@ class SqlProjectRepository:
 
     def get_by_uid(self, uid: str) -> dict[str, Any] | None:
         with self.db_base.get_session() as session:
-            project = session.query(Project).filter_by(uid=uid, deleted_at=None).first()
+            project = (
+                session.query(Project)
+                .filter_by(uid=uid, user_id=self.user_id, deleted_at=None)
+                .first()
+            )
             return _project_to_dict(project) if project else None
 
     def create(self, fields: dict[str, Any]) -> dict[str, Any]:
         with self.db_base.get_session() as session:
-            p = Project(**fields)
+            p = Project(user_id=self.user_id, **fields)
             session.add(p)
             session.flush()
             result = _project_to_dict(p, 0, 0)
@@ -97,7 +107,11 @@ class SqlProjectRepository:
 
     def update(self, project_id: int, fields: dict[str, Any]) -> dict[str, Any] | None:
         with self.db_base.get_session() as session:
-            p = session.query(Project).filter_by(id=project_id, deleted_at=None).first()
+            p = (
+                session.query(Project)
+                .filter_by(id=project_id, user_id=self.user_id, deleted_at=None)
+                .first()
+            )
             if not p:
                 return None
             for key, value in fields.items():
@@ -119,7 +133,11 @@ class SqlProjectRepository:
 
     def soft_delete(self, project_id: int) -> bool:
         with self.db_base.get_session() as session:
-            p = session.query(Project).filter_by(id=project_id, deleted_at=None).first()
+            p = (
+                session.query(Project)
+                .filter_by(id=project_id, user_id=self.user_id, deleted_at=None)
+                .first()
+            )
             if not p:
                 return False
             now = get_utc_now()
@@ -140,7 +158,9 @@ class SqlProjectRepository:
         with self.db_base.get_session() as session:
             rows = (
                 session.query(ProjectTodoRelation.todo_id)
+                .join(Project, ProjectTodoRelation.project_id == Project.id)
                 .filter_by(project_id=project_id, deleted_at=None)
+                .filter(Project.user_id == self.user_id)
                 .order_by(ProjectTodoRelation.created_at.asc())
                 .all()
             )
@@ -150,6 +170,8 @@ class SqlProjectRepository:
         if not todo_ids:
             return []
         with self.db_base.get_session() as session:
+            if not self._project_exists(session, project_id):
+                return []
             existing = {
                 row[0]
                 for row in session.query(ProjectTodoRelation.todo_id).filter_by(
@@ -168,6 +190,8 @@ class SqlProjectRepository:
 
     def remove_todo(self, project_id: int, todo_id: int) -> bool:
         with self.db_base.get_session() as session:
+            if not self._project_exists(session, project_id):
+                return False
             rel = (
                 session.query(ProjectTodoRelation)
                 .filter_by(project_id=project_id, todo_id=todo_id, deleted_at=None)
@@ -185,7 +209,9 @@ class SqlProjectRepository:
         with self.db_base.get_session() as session:
             rows = (
                 session.query(ProjectNoteRelation.journal_id)
+                .join(Project, ProjectNoteRelation.project_id == Project.id)
                 .filter_by(project_id=project_id, deleted_at=None)
+                .filter(Project.user_id == self.user_id)
                 .order_by(ProjectNoteRelation.created_at.asc())
                 .all()
             )
@@ -195,6 +221,8 @@ class SqlProjectRepository:
         if not journal_ids:
             return []
         with self.db_base.get_session() as session:
+            if not self._project_exists(session, project_id):
+                return []
             existing = {
                 row[0]
                 for row in session.query(ProjectNoteRelation.journal_id).filter_by(
@@ -213,6 +241,8 @@ class SqlProjectRepository:
 
     def remove_note(self, project_id: int, journal_id: int) -> bool:
         with self.db_base.get_session() as session:
+            if not self._project_exists(session, project_id):
+                return False
             rel = (
                 session.query(ProjectNoteRelation)
                 .filter_by(project_id=project_id, journal_id=journal_id, deleted_at=None)
@@ -230,7 +260,9 @@ class SqlProjectRepository:
         with self.db_base.get_session() as session:
             count = (
                 session.query(ProjectTodoRelation)
+                .join(Project, ProjectTodoRelation.project_id == Project.id)
                 .filter_by(todo_id=todo_id, deleted_at=None)
+                .filter(Project.user_id == self.user_id)
                 .update({ProjectTodoRelation.deleted_at: get_utc_now()}, synchronize_session=False)
             )
             session.commit()
@@ -240,8 +272,18 @@ class SqlProjectRepository:
         with self.db_base.get_session() as session:
             count = (
                 session.query(ProjectNoteRelation)
+                .join(Project, ProjectNoteRelation.project_id == Project.id)
                 .filter_by(journal_id=journal_id, deleted_at=None)
+                .filter(Project.user_id == self.user_id)
                 .update({ProjectNoteRelation.deleted_at: get_utc_now()}, synchronize_session=False)
             )
             session.commit()
             return count
+
+    def _project_exists(self, session, project_id: int) -> bool:
+        return (
+            session.query(Project.id)
+            .filter_by(id=project_id, user_id=self.user_id, deleted_at=None)
+            .first()
+            is not None
+        )
