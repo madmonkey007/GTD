@@ -1,10 +1,15 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { PanelHeader } from "@/components/common/layout/PanelHeader";
 import { FEATURE_ICON_MAP } from "@/lib/config/panel-config";
 import { useAudioRecordingStore } from "@/lib/store/audio-recording-store";
+import {
+	isTranscriptionBusy,
+	transcriptionStatusLabel,
+} from "@/lib/store/audio-transcription-status";
 import { toastError } from "@/lib/toast";
 import { AudioExtractionPanel } from "./components/AudioExtractionPanel";
 import { AudioHeader } from "./components/AudioHeader";
@@ -40,6 +45,7 @@ export function AudioPanel() {
 	const storeLiveTodos = useAudioRecordingStore((state) => state.liveTodos);
 	const storeLiveSchedules = useAudioRecordingStore((state) => state.liveSchedules);
 	const storeRecordingStartedAt = useAudioRecordingStore((state) => state.recordingStartedAt);
+	const transcriptionStatus = useAudioRecordingStore((state) => state.transcriptionStatus);
 
 	// 从全局 store 获取更新方法
 	const updateLastFinalEnd = useAudioRecordingStore((state) => state.updateLastFinalEnd);
@@ -154,9 +160,9 @@ export function AudioPanel() {
 	// 跳转到当前日期
 	const handleJumpToCurrentDate = useCallback(() => setSelectedDate(new Date()), []);
 
-	// 手动开始录音
+	// 手动开始录音（上传/转写期间禁止重新开始）
 	const handleStartRecording = useCallback(async () => {
-		if (isRecording || isStartingRef.current) return;
+		if (isRecording || isStartingRef.current || isTranscriptionBusy(transcriptionStatus)) return;
 		isStartingRef.current = true;
 		try {
 			clearSessionData();
@@ -202,16 +208,16 @@ export function AudioPanel() {
 			isStartingRef.current = false;
 		}
 	}, [
-		isRecording, clearSessionData, startRecording, updateLastFinalEnd,
+		isRecording, transcriptionStatus, clearSessionData, startRecording, updateLastFinalEnd,
 		appendTranscriptionText, appendSegmentData, setStorePartialText,
 		setStoreOptimizedText, setStoreLiveTodos, setStoreLiveSchedules, selectedDate, setSelectedSegmentIndex,
 	]);
 
-	// 手动停止录音（显示确认弹窗）
+	// 手动停止录音（上传/转写期间禁止重复停止；显示确认弹窗）
 	const handleStopRecording = useCallback(() => {
-		if (!isRecording) return;
+		if (!isRecording || isTranscriptionBusy(transcriptionStatus)) return;
 		openStopConfirm();
-	}, [isRecording, openStopConfirm]);
+	}, [isRecording, transcriptionStatus, openStopConfirm]);
 
 	// 用于防止数据加载错乱：记录当前加载请求的日期
 	const currentLoadingDateRef = useRef<string | null>(null);
@@ -359,6 +365,13 @@ export function AudioPanel() {
 
 			{isRecording && isViewingCurrentDate ? (
 				<RecordingStatus isRecording={isRecording} recordingStartedAt={storeRecordingStartedAt || undefined} />
+			) : isTranscriptionBusy(transcriptionStatus) ? (
+				<div className="px-4 py-3 flex items-center gap-2 border-t border-[oklch(var(--border))] bg-[oklch(var(--muted))]/30">
+					<Loader2 className="h-4 w-4 text-primary animate-spin" />
+					<span className="text-sm text-[oklch(var(--muted-foreground))]">
+						{transcriptionStatusLabel(transcriptionStatus)}
+					</span>
+				</div>
 			) : (
 				selectedRecordingId && (
 					<AudioPlayer

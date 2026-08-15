@@ -3,13 +3,18 @@
  *
  * 将录音状态和资源提升到全局层面，使录音在面板切换时不会中断。
  * 核心思路：
- * - 使用模块级变量存储不可序列化的资源（WebSocket、AudioContext、MediaStream）
- * - 使用 Zustand store 存储可序列化的状态（isRecording、transcriptionText 等）
+ * - 使用模块级变量存储不可序列化的资源（MediaRecorder、MediaStream、录音数据块）
+ * - 使用 Zustand store 存储可序列化的状态（isRecording、transcriptionText、transcriptionStatus 等）
  * - 组件卸载时不清理录音资源，只有显式调用 stopRecording 才会停止
  */
 
 import { create } from "zustand";
 import { authHeaders } from "@/lib/auth/session";
+import {
+	isTranscriptionBusy,
+	nextTranscriptionStatus,
+	type TranscriptionStatus,
+} from "./audio-transcription-status";
 
 // ========== 类型定义 ==========
 
@@ -46,6 +51,8 @@ interface AudioRecordingState {
 	recordingStartedDate: Date | null;
 	/** 上一个 final 文本的时间戳（用于计算段落时间） */
 	lastFinalEndMs: number | null;
+	/** 录音结束后的云端转写进度状态 */
+	transcriptionStatus: TranscriptionStatus;
 
 	// ===== 转录数据（在面板切换时保持） =====
 	/** 原始转录文本 */
@@ -76,7 +83,7 @@ interface AudioRecordingActions {
 		onError?: ErrorCallback,
 		is24x7?: boolean,
 	) => Promise<void>;
-	/** 停止录音（等待最终识别结果后再关闭 WS） */
+	/** 停止录音（结束录制后上传云端并轮询转写） */
 	stopRecording: (segmentTimestamps?: number[]) => Promise<void>;
 	/** 重置时间戳引用（用于新段落） */
 	resetLastFinalEnd: () => void;
@@ -113,7 +120,7 @@ let mediaRecorderRef: MediaRecorder | null = null;
 let mediaStreamRef: MediaStream | null = null;
 let recordingChunksRef: Blob[] = [];
 
-// 回调函数引用（用于在 WebSocket 消息中调用）
+// 回调函数引用（用于云端转写完成后回调）
 let currentOnTranscription: TranscriptionCallback | null = null;
 let currentOnError: ErrorCallback | null = null;
 
@@ -189,7 +196,11 @@ async function fetchJson<T>(path: string, init: RequestInit): Promise<T> {
 	return response.json() as Promise<T>;
 }
 
-async function transcribeCloudRecording(blob: Blob): Promise<string> {
+/**
+ * 上传录音到云端并轮询转写结果
+ * @param onTranscribing 上传完成、开始轮询时回调
+ */
+async function transcribeCloudRecording(blob: Blob, onTranscribing?: () => void): Promise<string> {
 	if (blob.size === 0) throw new Error("没有录到可上传的音频");
 	const extension = fileExtensionFromMimeType(blob.type);
 	const upload = await fetchJson<{ task_id: string; upload_url: string }>("/api/cloud-audio/uploads", {
@@ -211,6 +222,8 @@ async function transcribeCloudRecording(blob: Blob): Promise<string> {
 		body: JSON.stringify({ task_id: upload.task_id }),
 	});
 
+	onTranscribing?.();
+
 	for (let attempt = 0; attempt < 90; attempt++) {
 		await new Promise((resolve) => setTimeout(resolve, 2000));
 		const result = await fetchJson<{ status: string; text?: string; error?: string }>(
@@ -231,6 +244,7 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 	recordingStartedAt: null,
 	recordingStartedDate: null,
 	lastFinalEndMs: null,
+	transcriptionStatus: "idle",
 
 	// ===== 转录数据 =====
 	transcriptionText: "",
@@ -246,9 +260,9 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 	// ===== Actions =====
 
 	startRecording: async (onTranscription, _onRealtimeNlp, onError, _is24x7 = false) => {
-		// 如果已经在录音，直接返回
-		if (get().isRecording) {
-			console.warn("[AudioRecordingStore] Already recording, ignoring start request");
+		// 如果已经在录音，或正在上传/转写，直接返回
+		if (get().isRecording || isTranscriptionBusy(get().transcriptionStatus)) {
+			console.warn("[AudioRecordingStore] Already recording or transcribing, ignoring start request");
 			return;
 		}
 
@@ -274,6 +288,7 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 				recordingStartedAt: now,
 				recordingStartedDate: new Date(),
 				lastFinalEndMs: null,
+				transcriptionStatus: "idle",
 			});
 		} catch (error) {
 			console.error("Failed to start recording:", error);
@@ -284,7 +299,7 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 		}
 	},
 
-	/** 停止录音 */
+	/** 停止录音（录制结束后上传云端并轮询转写结果） */
 	stopRecording: async () => {
 		const recorder = mediaRecorderRef;
 		if (!recorder) return;
@@ -301,14 +316,20 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 			recordingStartedAt: null,
 			recordingStartedDate: null,
 			lastFinalEndMs: null,
+			transcriptionStatus: nextTranscriptionStatus("recording-stopped"),
 		});
 
 		try {
 			const blob = await stopped;
-			const text = await transcribeCloudRecording(blob);
+			const text = await transcribeCloudRecording(blob, () => {
+				// 上传完成，进入轮询转写阶段
+				set({ transcriptionStatus: nextTranscriptionStatus("upload-finished") });
+			});
+			set({ transcriptionStatus: nextTranscriptionStatus("transcription-finished") });
 			if (text && currentOnTranscription) currentOnTranscription(text, true);
 		} catch (error) {
 			console.error("Failed to transcribe recording:", error);
+			set({ transcriptionStatus: nextTranscriptionStatus("transcription-failed") });
 			if (currentOnError) currentOnError(error as Error);
 		} finally {
 			recordingChunksRef = [];
@@ -373,6 +394,7 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 			segmentOffsetsSec: [],
 			liveTodos: [],
 			liveSchedules: [],
+			transcriptionStatus: "idle",
 		});
 	},
 }));
