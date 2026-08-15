@@ -8,6 +8,8 @@
 
 **Tech Stack:** Next.js 16、FastAPI、SQLModel/SQLAlchemy、Neon PostgreSQL + pgvector、Supabase Storage、DashScope 非实时 ASR、Vercel Functions。
 
+**Current implementation status:** Tasks 1-4 are implemented on the feature branch. Task 5 deployment guidance lives in `docs/vercel-cloud-deployment.md` because `README.md` currently contains invalid UTF-8 bytes that prevent safe patching.
+
 ---
 
 ### Task 1: 建立 Vercel 可加载的云端 API 入口
@@ -195,7 +197,7 @@ Expected: FAIL，因为云端音频路由尚不存在。
 
 - [ ] **Step 3: 实现受保护的 Supabase Storage 中转**
 
-创建 `POST /api/audio/uploads`（返回对象键与一次性上传 URL）、`POST /api/audio/transcriptions`（以对象键创建 DashScope 非实时任务）和 `GET /api/audio/transcriptions/{id}`。对象键必须以 `user_id` 为前缀，且只接受创建者自己的键。服务端使用 `SUPABASE_SERVICE_ROLE_KEY` 生成签名 URL；前端不得收到服务角色密钥或 DashScope 密钥。
+创建 `POST /api/cloud-audio/uploads`（返回对象键与一次性上传 URL）、`POST /api/cloud-audio/transcriptions`（以任务编号创建 DashScope 非实时任务）和 `GET /api/cloud-audio/transcriptions/{id}`。对象键必须以 `user_id` 为前缀，且只接受创建者自己的任务。服务端使用 `SUPABASE_SERVICE_ROLE_KEY` 生成签名 URL；前端不得收到服务角色密钥或 DashScope 密钥。
 
 - [ ] **Step 4: 修改前端录音结束流程**
 
@@ -218,14 +220,14 @@ Expected: PASS。
 - [ ] **Step 6: 提交**
 
 ```bash
-git add lifetrace/routers/cloud_audio.py lifetrace/services/cloud_audio_service.py lifetrace/schemas/cloud_audio.py lifetrace-frontend/lib/store/audio-recording-store.ts lifetrace-frontend/apps/audio/AudioPanel.tsx tests/test_cloud_audio_router.py lifetrace-frontend/lib/store/audio-recording-store.test.ts
+git add lifetrace/routers/cloud_audio.py lifetrace/schemas/cloud_audio.py lifetrace/storage/models.py lifetrace/vercel_app.py lifetrace-frontend/lib/store/audio-recording-store.ts tests/test_cloud_audio_router.py
 git commit -m "Transcribe completed recordings in the cloud"
 ```
 
 ### Task 5: 验证 Vercel 部署产物与配置说明
 
 **Files:**
-- Modify: `README.md`
+- Create: `docs/vercel-cloud-deployment.md`
 - Modify: `lifetrace-frontend/next.config.ts`
 - Test: `tests/test_vercel_app.py`
 
@@ -245,7 +247,7 @@ Expected: FAIL，直到部署配置固定 Python 入口。
 
 - [ ] **Step 3: 固化同域 API 与部署指引**
 
-README 明确列出两个 Vercel 项目：后端项目根目录为仓库根目录，前端项目根目录为 `lifetrace-frontend`；前端将 `NEXT_PUBLIC_API_URL` 设置为后端 Vercel URL。README 也列出 Neon、Supabase Storage 和 DashScope 的环境变量，以及必须先在 Neon 执行的 `CREATE EXTENSION vector;`。
+部署文档明确列出两个 Vercel 项目：后端项目根目录为仓库根目录，前端项目根目录为 `lifetrace-frontend`；前端将 `NEXT_PUBLIC_API_URL` 设置为后端 Vercel URL。文档也列出 Neon、Supabase Storage 和 DashScope 的环境变量，以及必须先对 Neon 执行的 `uv run python scripts/bootstrap_neon.py`。
 
 - [ ] **Step 4: 运行完整验证**
 
@@ -260,6 +262,6 @@ Expected: 所有测试、类型检查和前端生产构建通过。
 - [ ] **Step 5: 提交**
 
 ```bash
-git add README.md lifetrace-frontend/next.config.ts vercel.json tests/test_vercel_app.py
+git add docs/vercel-cloud-deployment.md vercel.json tests/test_vercel_app.py
 git commit -m "Document the serverless cloud deployment"
 ```

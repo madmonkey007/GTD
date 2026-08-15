@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, time, timedelta
+from inspect import signature
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
@@ -67,7 +68,8 @@ class JournalService:
         self.user_id = int(getattr(repository, "user_id", 1))
         self.journal_manager = JournalManager(db_base, user_id=self.user_id)
         # 向量库（用于笔记语义检索，可能为 None）
-        self._vector_db = create_vector_db(db_base)
+        vector_factory_params = signature(create_vector_db).parameters
+        self._vector_db = create_vector_db(db_base) if vector_factory_params else create_vector_db()
         if self._vector_db is None:
             logger.info("Journal 向量检索不可用（vector_db 未初始化）")
         # 镜像笔记回写待办的同步服务（反向同步）

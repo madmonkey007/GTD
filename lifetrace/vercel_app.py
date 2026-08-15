@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 os.environ.setdefault("LIFETRACE_SKIP_MIGRATIONS", "1")
 
 from lifetrace.core.module_registry import get_module_states, register_modules
+from lifetrace.routers.cloud_audio import router as cloud_audio_router
 
 CLOUD_MODULE_IDS = frozenset(
     {
@@ -51,3 +52,4 @@ app.state.registered_modules = set(
         force_enabled=True,
     )
 )
+app.include_router(cloud_audio_router)
