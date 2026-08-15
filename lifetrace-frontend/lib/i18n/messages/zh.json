@@ -388,6 +388,8 @@
   },
   "bottomDock": {
     "calendar": "日历",
+    "quadrants": "四象限",
+    "habits": "习惯",
     "activity": "活动",
     "todos": "待办",
     "chat": "聊天",

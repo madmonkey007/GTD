@@ -4,7 +4,7 @@ import type { PanelFeature, PanelPosition } from "@/lib/config/panel-config";
 export type SidebarMode = "today" | "last7days" | "list" | null;
 
 // 侧边栏导航视图类型
-export type SidebarView = "list" | "calendar" | "quadrants" | "pomodoro" | "habits" | "diary" | "achievements" | "zeroThink" | "quickCommand";
+export type SidebarView = "list" | "calendar" | "quadrants" | "pomodoro" | "habits" | "diary" | "achievements" | "zeroThink" | "quickCommand" | "profile";
 
 // 布局预设类型
 export interface LayoutPreset {

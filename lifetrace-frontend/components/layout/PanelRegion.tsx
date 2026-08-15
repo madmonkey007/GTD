@@ -9,6 +9,7 @@ import { ZeroThinkPanel } from "@/apps/zero-think";
 import { PomodoroView } from "@/apps/pomodoro/PomodoroView";
 import { QuadrantsView } from "@/apps/quadrants/QuadrantsView";
 import { QuickCommandPanel } from "@/apps/quick-command/QuickCommandPanel";
+import { ProfilePanel } from "./ProfilePanel";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useWindowAdaptivePanels } from "@/lib/hooks/useWindowAdaptivePanels";
 import { useUiStore } from "@/lib/store/ui-store";
@@ -358,6 +359,7 @@ export function PanelRegion({
 							{activeView === "achievements" && <AchievementsPanel />}
 							{activeView === "zeroThink" && <ZeroThinkPanel setActiveView={(view: string) => setActiveView(view as SidebarView)} />}
 							{activeView === "quickCommand" && <QuickCommandPanel />}
+							{activeView === "profile" && <ProfilePanel />}
 						</div>
 					)}
 				</div>

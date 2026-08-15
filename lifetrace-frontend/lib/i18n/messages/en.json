@@ -388,6 +388,8 @@
   },
   "bottomDock": {
     "calendar": "Calendar",
+    "quadrants": "Quadrants",
+    "habits": "Habits",
     "activity": "Activity",
     "todos": "Todos",
     "chat": "Chat",

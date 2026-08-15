@@ -11,6 +11,7 @@ import {
 	Settings,
 	Sparkles,
 	Timer,
+	User,
 } from "lucide-react";
 import Image from "next/image";
 import { useOpenSettings } from "@/lib/hooks/useOpenSettings";
@@ -40,7 +41,6 @@ export function SidebarNav() {
 
 	return (
 		<nav className="flex flex-col items-center h-full py-2">
-			{/* Logo at top */}
 			<button
 				onClick={() => setActiveView("list")}
 				className="relative h-6 w-6 shrink-0 mb-2.5"
@@ -63,7 +63,6 @@ export function SidebarNav() {
 				/>
 			</button>
 
-			{/* Navigation items in the middle */}
 			<div className="flex flex-col items-center gap-0.5">
 				{SIDEBAR_NAV_ITEMS.map((item) => {
 					const Icon = item.icon;
@@ -91,10 +90,26 @@ export function SidebarNav() {
 				})}
 			</div>
 
-			{/* Spacer to push settings to bottom */}
 			<div className="flex-1" />
 
-			{/* Settings button at bottom */}
+			<button
+				onClick={() => setActiveView("profile")}
+				type="button"
+				className={cn(
+					"relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+					"hover:bg-muted/50",
+					activeView === "profile"
+						? "bg-primary/10 text-primary"
+						: "text-muted-foreground",
+				)}
+				title="我的"
+			>
+				{activeView === "profile" && (
+					<div className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
+				)}
+				<User className="h-4.5 w-4.5" />
+			</button>
+
 			<button
 				onClick={openSettings}
 				type="button"
