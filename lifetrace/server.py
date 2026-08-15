@@ -19,8 +19,8 @@ from lifetrace.core.module_registry import (
 from lifetrace.jobs.job_manager import get_job_manager
 from lifetrace.services.config_service import is_llm_configured
 from lifetrace.util.base_paths import get_user_logs_dir
-from lifetrace.util.path_utils import get_journal_image_dir
 from lifetrace.util.logging_config import get_logger, setup_logging
+from lifetrace.util.path_utils import get_journal_image_dir
 from lifetrace.util.settings import settings
 
 # 使用处理后的日志路径配置
@@ -30,7 +30,7 @@ setup_logging(logging_config)
 
 logger = get_logger()
 
-PRIORITY_MODULES = ("health", "config", "system", "todo")
+PRIORITY_MODULES = ("health", "config", "system", "sync", "todo")
 
 
 @asynccontextmanager

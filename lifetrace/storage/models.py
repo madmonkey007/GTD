@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import ClassVar
 from uuid import uuid4
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Column, Field, SQLModel, Text
 
 from lifetrace.util.time_utils import get_utc_now
@@ -448,6 +449,9 @@ class HabitRecord(SQLModel, table=True):
     """习惯打卡记录"""
 
     __tablename__: ClassVar[str] = "habit_records"
+    __table_args__ = (
+        UniqueConstraint("habit_id", "record_date", name="uq_habit_record_date"),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     habit_id: int = Field(index=True)  # 关联的习惯ID
@@ -457,6 +461,35 @@ class HabitRecord(SQLModel, table=True):
 
     def __repr__(self):
         return f"<HabitRecord(id={self.id}, habit_id={self.habit_id}, date={self.record_date})>"
+
+
+class SyncTombstone(SQLModel, table=True):
+    """Deletion marker used by incremental offline clients."""
+
+    __tablename__: ClassVar[str] = "sync_tombstones"
+    __table_args__ = (
+        UniqueConstraint("entity_type", "uid", name="uq_sync_tombstone_entity_uid"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    entity_type: str = Field(max_length=32, index=True)
+    uid: str = Field(max_length=128)
+    deleted_at: datetime = Field(default_factory=get_utc_time, index=True)
+
+
+class SyncOpLog(SQLModel, table=True):
+    """Idempotency record for a client operation."""
+
+    __tablename__: ClassVar[str] = "sync_op_log"
+    __table_args__ = (
+        UniqueConstraint("client_id", "op_id", name="uq_sync_op_log_client_op"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    client_id: str = Field(max_length=128, index=True)
+    op_id: str = Field(max_length=128)
+    result_json: str = Field(sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=get_utc_time, index=True)
 
 
 class Chat(TimestampMixin, table=True):

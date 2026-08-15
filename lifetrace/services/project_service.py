@@ -5,12 +5,10 @@ CRUD + 双成员管理（待办/笔记）。本期不含 AI 摘要/推荐（预�
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
 
-from lifetrace.repositories.interfaces import IJournalRepository, ITodoRepository
-from lifetrace.repositories.sql_project_repository import SqlProjectRepository
 from lifetrace.schemas.project import (
     ProjectAddNotesRequest,
     ProjectAddTodosRequest,
@@ -23,6 +21,10 @@ from lifetrace.schemas.project import (
 from lifetrace.util.logging_config import get_logger
 
 logger = get_logger()
+
+if TYPE_CHECKING:
+    from lifetrace.repositories.interfaces import IJournalRepository, ITodoRepository
+    from lifetrace.repositories.sql_project_repository import SqlProjectRepository
 
 
 def _todo_to_preview(todo: dict[str, Any]) -> ProjectTodoItem:
@@ -112,8 +114,13 @@ class ProjectService:
     def create_project(self, data: ProjectCreate) -> ProjectResponse:
         if not (data.name or "").strip():
             raise HTTPException(status_code=422, detail="项目名称不能为空")
+        if data.uid:
+            existing = self.repository.get_by_uid(data.uid)
+            if existing:
+                return _to_response(existing)
         p = self.repository.create(
             {
+                **({"uid": data.uid} if data.uid else {}),
                 "name": data.name.strip(),
                 "description": data.description,
                 "cover_image_url": data.cover_image_url,

@@ -61,7 +61,12 @@ class HabitService:
 
     def create_habit(self, data: HabitCreate) -> HabitResponse:
         self._validate_enums(frequency=data.frequency, goal=data.goal, group=data.group)
+        if data.uid:
+            existing = self.repository.get_by_uid(data.uid)
+            if existing:
+                return _to_response(existing)
         fields = {
+            **({"uid": data.uid} if data.uid else {}),
             "name": data.name,
             "icon": data.icon,
             "frequency": data.frequency,

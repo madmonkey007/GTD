@@ -77,6 +77,9 @@ importers:
       html2canvas:
         specifier: ^1.4.1
         version: 1.4.1
+      idb:
+        specifier: ^8.0.3
+        version: 8.0.3
       jimp:
         specifier: ^1.6.0
         version: 1.6.0
@@ -2897,6 +2900,9 @@ packages:
 
   icu-minify@4.8.1:
     resolution: {integrity: sha512-RhXrTA19/PUt5/xs3B/eyx3DCjnMmcfdgqNYBE5vdrEqM4PQK2GWjHa1zdArTxPGgEc4jfuDMH1LkKhmIxwLFw==}
+
+  idb@8.0.3:
+    resolution: {integrity: sha512-LtwtVyVYO5BqRvcsKuB2iUMnHwPVByPCXFXOpuU96IZPPoPN6xjOGxZQ74pgSVVLQWtUOYgyeL4GE98BY5D3wg==}
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -7293,6 +7299,8 @@ snapshots:
   icu-minify@4.8.1:
     dependencies:
       '@formatjs/icu-messageformat-parser': 3.5.1
+
+  idb@8.0.3: {}
 
   ieee754@1.2.1: {}
 

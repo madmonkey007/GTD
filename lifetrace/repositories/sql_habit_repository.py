@@ -9,6 +9,7 @@ from typing import Any
 from lifetrace.storage.database_base import DatabaseBase
 from lifetrace.storage.models import Habit, HabitRecord
 from lifetrace.util.logging_config import get_logger
+from lifetrace.util.time_utils import get_utc_now
 
 logger = get_logger()
 
@@ -49,6 +50,11 @@ class SqlHabitRepository:
             habit = session.query(Habit).filter_by(id=habit_id, deleted_at=None).first()
             return _habit_to_dict(habit) if habit else None
 
+    def get_by_uid(self, uid: str) -> dict[str, Any] | None:
+        with self.db_base.get_session() as session:
+            habit = session.query(Habit).filter_by(uid=uid, deleted_at=None).first()
+            return _habit_to_dict(habit) if habit else None
+
     def list_habits(
         self,
         limit: int = 100,
@@ -86,6 +92,7 @@ class SqlHabitRepository:
                 return None
             for key, value in fields.items():
                 setattr(habit, key, value)
+            habit.updated_at = get_utc_now()
             session.flush()
             result = _habit_to_dict(habit)
             session.commit()
@@ -97,7 +104,7 @@ class SqlHabitRepository:
             habit = session.query(Habit).filter_by(id=habit_id, deleted_at=None).first()
             if not habit:
                 return False
-            habit.deleted_at = datetime.utcnow()
+            habit.deleted_at = get_utc_now()
             session.query(HabitRecord).filter_by(habit_id=habit_id).delete(
                 synchronize_session=False
             )

@@ -4,7 +4,6 @@
 """
 
 from collections.abc import Generator
-from functools import lru_cache
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
@@ -25,21 +24,22 @@ from lifetrace.repositories.interfaces import (
 )
 from lifetrace.repositories.sql_activity_repository import SqlActivityRepository
 from lifetrace.repositories.sql_chat_repository import SqlChatRepository
-from lifetrace.repositories.sql_event_repository import SqlEventRepository, SqlOcrRepository
-from lifetrace.repositories.sql_journal_repository import SqlJournalRepository
-from lifetrace.repositories.sql_todo_repository import SqlTodoRepository
-from lifetrace.repositories.sql_habit_repository import SqlHabitRepository
-from lifetrace.repositories.sql_note_link_repository import SqlNoteLinkRepository
 from lifetrace.repositories.sql_collection_repository import SqlCollectionRepository
+from lifetrace.repositories.sql_event_repository import SqlEventRepository, SqlOcrRepository
+from lifetrace.repositories.sql_habit_repository import SqlHabitRepository
+from lifetrace.repositories.sql_journal_repository import SqlJournalRepository
+from lifetrace.repositories.sql_note_link_repository import SqlNoteLinkRepository
 from lifetrace.repositories.sql_project_repository import SqlProjectRepository
+from lifetrace.repositories.sql_todo_repository import SqlTodoRepository
 from lifetrace.services.activity_service import ActivityService
 from lifetrace.services.chat_service import ChatService
+from lifetrace.services.collection_service import CollectionService
 from lifetrace.services.event_service import EventService
 from lifetrace.services.habit_service import HabitService
 from lifetrace.services.journal_service import JournalService
 from lifetrace.services.note_link_service import NoteLinkService
-from lifetrace.services.collection_service import CollectionService
 from lifetrace.services.project_service import ProjectService
+from lifetrace.services.sync_service import SyncService
 from lifetrace.services.todo_service import TodoService
 from lifetrace.services.zero_think_service import ZeroThinkService
 from lifetrace.storage.database_base import DatabaseBase
@@ -124,6 +124,16 @@ def get_habit_service(
 ) -> HabitService:
     """获取 Habit 服务实例"""
     return HabitService(repo, db_base)
+
+
+# ========== Offline sync module dependency injection ==========
+
+
+def get_sync_service(
+    db_base: DatabaseBase = Depends(get_db_base),
+) -> SyncService:
+    """Return the batch offline synchronization service."""
+    return SyncService(db_base)
 
 
 # ========== NoteLink 模块依赖注入 ==========

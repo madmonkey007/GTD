@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 class ProjectCreate(BaseModel):
     """创建项目"""
 
+    uid: str | None = Field(None, max_length=64, description="客户端生成的稳定标识")
     name: str = Field(..., min_length=1, max_length=200, description="项目名称")
     description: str | None = Field(None, description="项目描述")
     cover_image_url: str | None = Field(None, max_length=500, description="封面图地址")

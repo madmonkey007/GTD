@@ -97,6 +97,7 @@
 		"driver.js": "^1.4.0",
 		"framer-motion": "^12.29.2",
 		"html2canvas": "^1.4.1",
+		"idb": "^8.0.3",
 		"jimp": "^1.6.0",
 		"lucide-react": "^0.563.0",
 		"markdown-it": "^14.1.0",

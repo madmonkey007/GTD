@@ -68,6 +68,28 @@ export const unwrapApiData = <T>(response: unknown): T | null => {
 	return response as T;
 };
 
+/**
+ * 带状态码的 API 错误（保持原 message 格式 `API Error: <status>` 兼容现有代码）
+ * 离线判断依赖 status === 503（Service Worker 离线兜底响应）
+ */
+export class ApiError extends Error {
+	status: number;
+
+	constructor(status: number) {
+		super(`API Error: ${status}`);
+		this.name = "ApiError";
+		this.status = status;
+	}
+}
+
+/** 判断错误是否因离线/网络不可达（而非业务错误） */
+export function isOfflineError(error: unknown): boolean {
+	if (error instanceof ApiError) return error.status === 503;
+	if (error instanceof TypeError) return true; // fetch 网络失败
+	const msg = error instanceof Error ? error.message : String(error);
+	return msg.includes("Failed to fetch") || msg.includes("NetworkError");
+}
+
 export async function customFetcher<T>(
 	url: string,
 	options?: CustomFetcherOptions<T>,
@@ -133,7 +155,7 @@ export async function customFetcher<T>(
 	const response = await fetch(`${baseUrl}${finalUrl}`, fetchInit);
 
 	if (!response.ok) {
-		throw new Error(`API Error: ${response.status}`);
+		throw new ApiError(response.status);
 	}
 
 	// 处理空响应体（如 204 No Content 或 DELETE 操作）

@@ -1,7 +1,9 @@
 // 开发环境：直接透传所有请求，不做任何缓存，避免 ServiceWorker 缓存旧代码干扰开发
 // 生产环境：带哈希的静态资源 cache-first，页面 HTML 与 API network-first
 // （HTML 引用的 /_next/static 块带内容哈希，旧 HTML 部署后会 404，因此 HTML 绝不能 cache-first）
-const CACHE_NAME = "lifetrace-v2";
+importScripts("/sync-sw.js");
+
+const CACHE_NAME = "lifetrace-v3";
 const STATIC_ASSETS = ["/", "/manifest.json", "/logo.png"];
 const IS_DEV = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
 
@@ -64,6 +66,26 @@ self.addEventListener("fetch", (event) => {
 	// 其余资源：network-first，失败时回退缓存
 	event.respondWith(networkFirst(request));
 });
+
+// The page owns IndexedDB conflict handling. Background Sync wakes every open
+// client and asks its shared sync engine to flush the durable outbox.
+self.addEventListener("sync", (event) => {
+	if (event.tag !== "lifetrace-sync") return;
+	event.waitUntil(
+		(IS_DEV ? Promise.resolve() : self.flushLifeTraceOutbox()).finally(notifyClientsToSync),
+	);
+});
+
+self.addEventListener("message", (event) => {
+	if (event.data?.type === "LIFETRACE_SYNC_REQUEST") {
+		event.waitUntil(notifyClientsToSync());
+	}
+});
+
+async function notifyClientsToSync() {
+	const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+	for (const client of windows) client.postMessage({ type: "LIFETRACE_SYNC" });
+}
 
 async function cacheFirst(request) {
 	const cached = await caches.match(request);

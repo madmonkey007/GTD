@@ -1,14 +1,30 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ApiError, isOfflineError } from "@/lib/api/fetcher";
+import {
+	isOffline,
+	offlineCreateHabit,
+	offlineDeleteHabit,
+	offlineSetHabitRecord,
+	offlineUpdateHabit,
+	saveHabitToMirror,
+} from "@/lib/offline/writes";
+import { listMirrorEntities } from "@/lib/offline/db";
+import { saveServerList } from "@/lib/offline/mirror";
 import { queryKeys } from "./keys";
 
+// 客户端走相对路径（Next rewrites 代理），SSR 用环境变量——与 customFetcher 一致。
+// 之前直连 NEXT_PUBLIC_API_URL 会导致隧道地址过期后请求打空。
 const API_BASE =
-	process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+	typeof window !== "undefined"
+		? ""
+		: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
 // 前端习惯类型（沿用 apps/habits 里的 Habit 接口形状，id 为 string 以保持向后兼容）
 export interface Habit {
 	id: string;
+	uid: string;
 	name: string;
 	icon: string;
 	frequency: "daily" | "weekly" | "monthly";
@@ -53,6 +69,7 @@ function toDateKey(value: string | null): string {
 function mapHabit(h: ServerHabit): Habit {
 	return {
 		id: String(h.id),
+		uid: h.uid ?? `srv-${h.id}`,
 		name: h.name,
 		icon: h.icon || "✅",
 		frequency: (h.frequency as Habit["frequency"]) || "daily",
@@ -77,6 +94,8 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 		...init,
 	});
 	if (!res.ok) {
+		// 用 ApiError 让离线判断（status 503）生效
+		if (res.status === 503) throw new ApiError(503);
 		const text = await res.text().catch(() => "");
 		throw new Error(`${res.status} ${res.statusText} ${text}`);
 	}
@@ -183,17 +202,56 @@ export async function migrateLocalHabitsIfNeeded(): Promise<boolean> {
 // ---- fetchers ----
 
 export async function fetchHabits(): Promise<Habit[]> {
-	const data = await http<{ total: number; habits: ServerHabit[] }>(
-		"/api/habits?limit=1000",
-	);
-	return data.habits.map(mapHabit);
+	try {
+		const data = await http<{ total: number; habits: ServerHabit[] }>(
+			"/api/habits?limit=1000",
+		);
+		const habits = data.habits.map(mapHabit);
+		await saveServerList("habit", "habit", habits as unknown as Array<Record<string, unknown> & { uid: string }>);
+		return habits;
+	} catch (err) {
+		if (isOfflineError(err)) {
+			// 离线兜底：镜像里的行就是 Habit 形状（含离线创建的）
+			return listMirrorEntities<Habit>("habit");
+		}
+		throw err;
+	}
 }
 
 export async function fetchAllHabitRecords(): Promise<HabitRecord[]> {
-	const data = await http<{ records: ServerRecord[] }>(
-		"/api/habits/records/all",
-	);
-	return data.records.map(mapRecord);
+	try {
+		const data = await http<{ records: ServerRecord[] }>(
+			"/api/habits/records/all",
+		);
+		const records = data.records.map(mapRecord);
+		// 打卡记录无 updated_at，直接全量替换镜像（habitUid 键需要 uid 映射）；
+		// 有待推送的打卡操作时不替换，避免清掉离线变更
+		const { pendingOpsForEntity } = await import("@/lib/offline/outbox");
+		const pending = await pendingOpsForEntity("habit");
+		if (pending.filter((op) => op.kind === "habit.record_set").length === 0) {
+			const habits = await listMirrorEntities<Habit>("habit");
+			const idToUid = new Map(habits.map((h) => [h.id, h.uid]));
+			const { replaceMirrorStore } = await import("@/lib/offline/db");
+			await replaceMirrorStore(
+				"habitRecord",
+				records.map((r) => ({
+					habitUid: idToUid.get(r.habitId) ?? `srv-${r.habitId}`,
+					habitId: r.habitId,
+					date: r.date,
+				})),
+			);
+		}
+		return records;
+	} catch (err) {
+		if (isOfflineError(err)) {
+			const rows = await listMirrorEntities<{
+				habitId: string;
+				date: string;
+			}>("habitRecord");
+			return rows.map((r) => ({ habitId: r.habitId, date: r.date }));
+		}
+		throw err;
+	}
 }
 
 export interface HabitInput {
@@ -242,10 +300,22 @@ export function useHabitMutations() {
 				persistence_days: input.persistenceDays ?? 0,
 				group: input.group ?? "allDay",
 			};
-			return http<ServerHabit>("/api/habits", {
-				method: "POST",
-				body: JSON.stringify(body),
-			});
+			if (isOffline()) {
+				return offlineCreateHabit(body as Record<string, unknown>);
+			}
+			try {
+				const created = await http<ServerHabit>("/api/habits", {
+					method: "POST",
+					body: JSON.stringify(body),
+				});
+				await saveHabitToMirror(mapHabit(created) as never);
+				return created;
+			} catch (err) {
+				if (isOfflineError(err)) {
+					return offlineCreateHabit(body as Record<string, unknown>);
+				}
+				throw err;
+			}
 		},
 		onSuccess: () => invalidate(),
 	});
@@ -262,27 +332,74 @@ export function useHabitMutations() {
 			if (input.persistenceDays !== undefined)
 				body.persistence_days = input.persistenceDays;
 			if (input.group !== undefined) body.group = input.group;
-			return http<ServerHabit>(`/api/habits/${id}`, {
-				method: "PUT",
-				body: JSON.stringify(body),
-			});
+			if (isOffline()) {
+				await offlineUpdateHabit(id, body);
+				return null;
+			}
+			try {
+				return await http<ServerHabit>(`/api/habits/${id}`, {
+					method: "PUT",
+					body: JSON.stringify(body),
+				});
+			} catch (err) {
+				if (isOfflineError(err)) {
+					await offlineUpdateHabit(id, body);
+					return null;
+				}
+				throw err;
+			}
 		},
 		onSuccess: () => invalidate(),
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: async (id: string) =>
-			http<void>(`/api/habits/${id}`, { method: "DELETE" }),
+		mutationFn: async (id: string) => {
+			if (isOffline()) {
+				await offlineDeleteHabit(id);
+				return;
+			}
+			try {
+				await http<void>(`/api/habits/${id}`, { method: "DELETE" });
+			} catch (err) {
+				if (isOfflineError(err)) {
+					await offlineDeleteHabit(id);
+					return;
+				}
+				throw err;
+			}
+		},
 		onSuccess: () => invalidate(),
 	});
 
+	// 打卡：按本地记录计算目标状态，在线时用服务端 toggle 达到同样效果；
+	// 离线/网络失败时走 record_set（set-state，重放幂等）
 	const toggleMutation = useMutation({
 		mutationFn: async ({ habitId, date }: { habitId: string; date?: string }) => {
 			const d = date ?? new Date().toISOString().slice(0, 10);
-			return http<{ recorded: boolean }>(
-				`/api/habits/${habitId}/records`,
-				{ method: "POST", body: JSON.stringify({ date: `${d}T00:00:00` }) },
+			const records = queryClient.getQueryData<HabitRecord[]>(
+				queryKeys.habits.records,
 			);
+			const currentlyRecorded = (records ?? []).some(
+				(r) => r.habitId === habitId && r.date === d,
+			);
+			const wantRecorded = !currentlyRecorded;
+
+			if (isOffline()) {
+				await offlineSetHabitRecord(habitId, d, wantRecorded);
+				return { recorded: wantRecorded };
+			}
+			try {
+				return await http<{ recorded: boolean }>(
+					`/api/habits/${habitId}/records`,
+					{ method: "POST", body: JSON.stringify({ date: `${d}T00:00:00` }) },
+				);
+			} catch (err) {
+				if (isOfflineError(err)) {
+					await offlineSetHabitRecord(habitId, d, wantRecorded);
+					return { recorded: wantRecorded };
+				}
+				throw err;
+			}
 		},
 		onSuccess: () => invalidate(),
 	});

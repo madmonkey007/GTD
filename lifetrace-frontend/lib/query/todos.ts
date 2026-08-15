@@ -1,13 +1,24 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { isOfflineError } from "@/lib/api/fetcher";
 import {
 	createTodoApiTodosPost,
 	deleteTodoApiTodosTodoIdDelete,
+	listTodosApiTodosGet,
 	reorderTodosApiTodosReorderPost,
 	updateTodoApiTodosTodoIdPut,
 	useListTodosApiTodosGet,
 } from "@/lib/generated/todos/todos";
+import { listMirrorEntities } from "@/lib/offline/db";
+import { saveServerList } from "@/lib/offline/mirror";
+import {
+	isOffline,
+	offlineCreateTodo,
+	offlineDeleteTodo,
+	offlineUpdateTodo,
+	saveTodoToMirror,
+} from "@/lib/offline/writes";
 import type {
 	CreateTodoInput,
 	Todo,
@@ -52,7 +63,7 @@ function normalizeDateTimeValue(
  * Normalize API response to ensure consistent Todo type
  * Now that fetcher auto-converts snake_case -> camelCase, we just need to normalize some optional fields
  */
-function normalizeTodo(raw: Record<string, unknown>): Todo {
+export function normalizeTodo(raw: Record<string, unknown>): Todo {
 	return {
 		id: raw.id as number,
 		name: raw.name as string,
@@ -114,30 +125,59 @@ interface UseTodosParams {
 
 /**
  * 获取 Todo 列表的 Query Hook
- * 使用 Orval 生成的 hook
+ * 使用 Orval 生成的 hook；queryFn 包了一层离线逻辑：
+ * 成功 → 写入 IndexedDB 镜像；网络失败 → 返回镜像数据（含离线创建的行）
  */
 export function useTodos(params?: UseTodosParams) {
-	return useListTodosApiTodosGet(
-		{
-			limit: params?.limit ?? 2000,
-			offset: params?.offset ?? 0,
-			status: params?.status,
-		},
-		{
-			query: {
-				queryKey: queryKeys.todos.list(params),
-				staleTime: 30 * 1000, // 30 秒内数据被认为是新鲜的
-				select: (data: unknown) => {
-					// Data is now auto-converted to camelCase by the fetcher
-					const response = data as TodoListResponse;
-					const todos = response?.todos ?? [];
-					return todos.map((raw) =>
-						normalizeTodo(raw as unknown as Record<string, unknown>),
+	const requestParams = {
+		limit: params?.limit ?? 2000,
+		offset: params?.offset ?? 0,
+		status: params?.status,
+	};
+
+	return useListTodosApiTodosGet(requestParams, {
+		query: {
+			queryKey: queryKeys.todos.list(params),
+			staleTime: 30 * 1000, // 30 秒内数据被认为是新鲜的
+			queryFn: async ({ signal }) => {
+				try {
+					const res = await listTodosApiTodosGet(requestParams, { signal });
+					const response = res as unknown as TodoListResponse;
+					const rows = (response?.todos ?? []) as unknown as Record<
+						string,
+						unknown
+					>[];
+					await saveServerList(
+						"todo",
+						"todo",
+						rows.map((raw) => ({
+							...normalizeTodo(raw),
+							uid: (raw.uid as string) ?? `srv-${raw.id}`,
+						})),
 					);
-				},
+					return res;
+				} catch (err) {
+					if (isOfflineError(err)) {
+						const mirrorRows = await listMirrorEntities<
+							Record<string, unknown>
+						>("todo");
+						return { todos: mirrorRows, total: mirrorRows.length } as unknown as Awaited<
+							ReturnType<typeof listTodosApiTodosGet>
+						>;
+					}
+					throw err;
+				}
+			},
+			select: (data: unknown) => {
+				// Data is now auto-converted to camelCase by the fetcher
+				const response = data as TodoListResponse;
+				const todos = response?.todos ?? [];
+				return todos.map((raw) =>
+					normalizeTodo(raw as unknown as Record<string, unknown>),
+				);
 			},
 		},
-	);
+	});
 }
 
 // ============================================================================
@@ -147,6 +187,30 @@ export function useTodos(params?: UseTodosParams) {
 // 防抖更新相关的全局状态
 const pendingUpdateTimers = new Map<number, ReturnType<typeof setTimeout>>();
 const pendingUpdatePayloads = new Map<number, UpdateTodoInput>();
+
+// 在线更新 + 断网时转入离线队列；rawInput 为 camelCase 原始字段（镜像合并用）
+async function executeTodoUpdate(
+	id: number,
+	payload: Record<string, unknown>,
+	rawInput: UpdateTodoInput,
+): Promise<Todo> {
+	if (isOffline()) {
+		return offlineUpdateTodo(id, rawInput as Record<string, unknown>) as unknown as Todo;
+	}
+	try {
+		const updated = await updateTodoApiTodosTodoIdPut(id, payload as never);
+		await saveTodoToMirror(updated as unknown as Record<string, unknown>);
+		return normalizeTodo(updated as unknown as Record<string, unknown>);
+	} catch (err) {
+		if (isOfflineError(err)) {
+			return offlineUpdateTodo(
+				id,
+				rawInput as Record<string, unknown>,
+			) as unknown as Todo;
+		}
+		throw err;
+	}
+}
 
 /**
  * 创建 Todo 的 Mutation Hook
@@ -198,8 +262,22 @@ export function useCreateTodo() {
 				tags: input.tags ?? [],
 				relatedActivities: input.relatedActivities ?? [],
 			};
-			const created = await createTodoApiTodosPost(payload as never);
-			return normalizeTodo(created as unknown as Record<string, unknown>);
+			const created = await (async () => {
+				if (isOffline()) {
+					return offlineCreateTodo(payload as Record<string, unknown>);
+				}
+				try {
+					const res = await createTodoApiTodosPost(payload as never);
+					await saveTodoToMirror(res as unknown as Record<string, unknown>);
+					return res as unknown as Record<string, unknown>;
+				} catch (err) {
+					if (isOfflineError(err)) {
+						return offlineCreateTodo(payload as Record<string, unknown>);
+					}
+					throw err;
+				}
+			})();
+			return normalizeTodo(created as Record<string, unknown>);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: queryKeys.todos.all });
@@ -274,12 +352,8 @@ export function useUpdateTodo() {
 								completedAt: normalizeDateTimeValue(body.completedAt),
 								rrule: body.rrule,
 							};
-							const updated = await updateTodoApiTodosTodoIdPut(
-								id,
-								payload as never,
-							);
 							resolve(
-								normalizeTodo(updated as unknown as Record<string, unknown>),
+								await executeTodoUpdate(id, payload as Record<string, unknown>, body),
 							);
 						} catch (err) {
 							reject(err);
@@ -312,8 +386,7 @@ export function useUpdateTodo() {
 				completedAt: normalizeDateTimeValue(body.completedAt),
 				rrule: body.rrule,
 			};
-			const updated = await updateTodoApiTodosTodoIdPut(id, payload as never);
-			return normalizeTodo(updated as unknown as Record<string, unknown>);
+			return executeTodoUpdate(id, payload as Record<string, unknown>, body);
 		},
 		onMutate: async ({ id, input }) => {
 			await queryClient.cancelQueries({ queryKey: queryKeys.todos.all });
@@ -364,8 +437,14 @@ export function useDeleteTodo() {
 
 	return useMutation({
 		mutationFn: async (id: number) => {
-			await deleteTodoApiTodosTodoIdDelete(id);
-			return id;
+			if (isOffline()) return offlineDeleteTodo(id);
+			try {
+				await deleteTodoApiTodosTodoIdDelete(id);
+				return id;
+			} catch (err) {
+				if (isOfflineError(err)) return offlineDeleteTodo(id);
+				throw err;
+			}
 		},
 		onMutate: async (id) => {
 			await queryClient.cancelQueries({ queryKey: queryKeys.todos.all });
@@ -469,6 +548,10 @@ export function useReorderTodos() {
 
 	return useMutation({
 		mutationFn: async (items: ReorderTodoItem[]) => {
+			// 排序的 order 重放在 v1 不支持离线，离线时直接失败回滚乐观更新
+			if (isOffline()) {
+				throw new Error("离线暂不支持排序，联网后再试");
+			}
 			// Fetcher will auto-convert camelCase -> snake_case
 			return reorderTodosApiTodosReorderPost({ items } as never);
 		},

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class HabitCreate(BaseModel):
     """创建习惯请求模型"""
 
+    uid: str | None = Field(None, max_length=64, description="客户端生成的稳定标识")
     name: str = Field(..., max_length=200, description="习惯名称")
     icon: str = Field("✅", max_length=32, description="图标（emoji）")
     frequency: str = Field("daily", max_length=20, description="daily/weekly/monthly")

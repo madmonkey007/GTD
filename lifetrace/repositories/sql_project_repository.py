@@ -6,12 +6,12 @@
 独立关系表，不复用 JournalTodoRelation（避免被 origin/role 同步逻辑误触发）。
 """
 
-from datetime import datetime
 from typing import Any
 
 from lifetrace.storage.database_base import DatabaseBase
 from lifetrace.storage.models import Project, ProjectNoteRelation, ProjectTodoRelation
 from lifetrace.util.logging_config import get_logger
+from lifetrace.util.time_utils import get_utc_now
 
 logger = get_logger()
 
@@ -81,6 +81,11 @@ class SqlProjectRepository:
             )
             return _project_to_dict(p, todo_count, note_count)
 
+    def get_by_uid(self, uid: str) -> dict[str, Any] | None:
+        with self.db_base.get_session() as session:
+            project = session.query(Project).filter_by(uid=uid, deleted_at=None).first()
+            return _project_to_dict(project) if project else None
+
     def create(self, fields: dict[str, Any]) -> dict[str, Any]:
         with self.db_base.get_session() as session:
             p = Project(**fields)
@@ -117,7 +122,7 @@ class SqlProjectRepository:
             p = session.query(Project).filter_by(id=project_id, deleted_at=None).first()
             if not p:
                 return False
-            now = datetime.utcnow()
+            now = get_utc_now()
             p.deleted_at = now
             # 级联软删成员关系
             session.query(ProjectTodoRelation).filter_by(
@@ -170,7 +175,7 @@ class SqlProjectRepository:
             )
             if not rel:
                 return False
-            rel.deleted_at = datetime.utcnow()
+            rel.deleted_at = get_utc_now()
             session.commit()
             return True
 
@@ -215,7 +220,7 @@ class SqlProjectRepository:
             )
             if not rel:
                 return False
-            rel.deleted_at = datetime.utcnow()
+            rel.deleted_at = get_utc_now()
             session.commit()
             return True
 
@@ -226,7 +231,7 @@ class SqlProjectRepository:
             count = (
                 session.query(ProjectTodoRelation)
                 .filter_by(todo_id=todo_id, deleted_at=None)
-                .update({ProjectTodoRelation.deleted_at: datetime.utcnow()}, synchronize_session=False)
+                .update({ProjectTodoRelation.deleted_at: get_utc_now()}, synchronize_session=False)
             )
             session.commit()
             return count
@@ -236,7 +241,7 @@ class SqlProjectRepository:
             count = (
                 session.query(ProjectNoteRelation)
                 .filter_by(journal_id=journal_id, deleted_at=None)
-                .update({ProjectNoteRelation.deleted_at: datetime.utcnow()}, synchronize_session=False)
+                .update({ProjectNoteRelation.deleted_at: get_utc_now()}, synchronize_session=False)
             )
             session.commit()
             return count

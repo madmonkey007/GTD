@@ -1,13 +1,14 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { unwrapApiData } from "@/lib/api/fetcher";
+import { isOfflineError, unwrapApiData } from "@/lib/api/fetcher";
 import {
 	autoLinkJournalApiJournalsAutoLinkPost,
 	createJournalApiJournalsPost,
 	deleteJournalApiJournalsJournalIdDelete,
 	generateAiJournalApiJournalsGenerateAiPost,
 	generateObjectiveJournalApiJournalsGenerateObjectivePost,
+	listJournalsApiJournalsGet,
 	updateJournalApiJournalsJournalIdPut,
 	useListJournalsApiJournalsGet,
 } from "@/lib/generated/journals/journals";
@@ -22,6 +23,15 @@ import type {
 	JournalUpdate,
 	ListJournalsApiJournalsGetParams,
 } from "@/lib/generated/schemas";
+import { listMirrorEntities } from "@/lib/offline/db";
+import { saveServerList } from "@/lib/offline/mirror";
+import {
+	isOffline,
+	offlineCreateJournal,
+	offlineDeleteJournal,
+	offlineUpdateJournal,
+	saveJournalToMirror,
+} from "@/lib/offline/writes";
 import { queryKeys } from "./keys";
 
 interface UseJournalsParams {
@@ -40,7 +50,7 @@ function extractTagsFromContent(userNotes: string): string[] {
 	return [...new Set(matches.map((m) => m.slice(1).trimEnd()))];
 }
 
-const normalizeJournal = (raw: Record<string, unknown>) => {
+export const normalizeJournal = (raw: Record<string, unknown>) => {
 	const userNotes = (raw.userNotes as string) ?? "";
 	// 标签始终从正文 #tag 提取，不显示 DB 中旧的独立标签（用户已确认不需要独立标签体系）
 	const contentTags = extractTagsFromContent(userNotes);
@@ -101,9 +111,40 @@ export function useJournals(params?: UseJournalsParams) {
 		query: {
 			queryKey: queryKeys.journals.list(params),
 			staleTime: 30 * 1000,
-			retry: 3,
+			retry: (count, err) => (isOfflineError(err) ? false : count < 3),
 			retryDelay: (attemptIndex) =>
 				Math.min(1000 * 2 ** attemptIndex, 10000),
+			queryFn: async ({ signal }) => {
+				try {
+					const res = await listJournalsApiJournalsGet(queryParams, {
+						signal,
+					});
+					const data = unwrapApiData<JournalListResponse>(res);
+					const rows = (data?.journals ?? []) as unknown as Record<
+						string,
+						unknown
+					>[];
+					await saveServerList(
+						"journal",
+						"journal",
+						rows.map((raw) => ({
+							...normalizeJournal(raw),
+							uid: (raw.uid as string) ?? `srv-${raw.id}`,
+						})),
+					);
+					return res;
+				} catch (err) {
+					if (isOfflineError(err)) {
+						const mirrorRows = await listMirrorEntities<
+							Record<string, unknown>
+						>("journal");
+						return { total: mirrorRows.length, journals: mirrorRows } as unknown as Awaited<
+							ReturnType<typeof listJournalsApiJournalsGet>
+						>;
+					}
+					throw err;
+				}
+			},
 			select: (data: unknown) => {
 				const response =
 					unwrapApiData<JournalListResponse>(data) ?? {
@@ -122,16 +163,49 @@ export function useJournals(params?: UseJournalsParams) {
 	});
 }
 
-const createJournal = async (input: JournalCreate) => {
-	const response = await createJournalApiJournalsPost(input);
-	const data = unwrapApiData<JournalResponse>(response);
-	return data ? normalizeJournal(data as unknown as Record<string, unknown>) : null;
+const createJournal = async (input: JournalCreate): Promise<JournalView | null> => {
+	if (isOffline()) {
+		return normalizeJournal(
+			await offlineCreateJournal(input as unknown as Record<string, unknown>),
+		);
+	}
+	try {
+		const response = await createJournalApiJournalsPost(input);
+		const data = unwrapApiData<JournalResponse>(response);
+		if (!data) return null;
+		await saveJournalToMirror(
+			normalizeJournal(data as unknown as Record<string, unknown>),
+		);
+		return normalizeJournal(data as unknown as Record<string, unknown>);
+	} catch (err) {
+		if (isOfflineError(err)) {
+			return normalizeJournal(
+				await offlineCreateJournal(input as unknown as Record<string, unknown>),
+			);
+		}
+		throw err;
+	}
 };
 
-const updateJournal = async (id: number, input: JournalUpdate) => {
-	const response = await updateJournalApiJournalsJournalIdPut(id, input);
-	const data = unwrapApiData<JournalResponse>(response);
-	return data ? normalizeJournal(data as unknown as Record<string, unknown>) : null;
+const updateJournal = async (id: number, input: JournalUpdate): Promise<JournalView | null> => {
+	if (isOffline()) {
+		return normalizeJournal(
+			await offlineUpdateJournal(id, input as unknown as Record<string, unknown>),
+		);
+	}
+	try {
+		const response = await updateJournalApiJournalsJournalIdPut(id, input);
+		const data = unwrapApiData<JournalResponse>(response);
+		if (!data) return null;
+		return normalizeJournal(data as unknown as Record<string, unknown>);
+	} catch (err) {
+		if (isOfflineError(err)) {
+			return normalizeJournal(
+				await offlineUpdateJournal(id, input as unknown as Record<string, unknown>),
+			);
+		}
+		throw err;
+	}
 };
 
 const autoLinkJournal = async (input: JournalAutoLinkRequest) => {
@@ -157,7 +231,19 @@ const generateAiView = async (input: JournalGenerateRequest) => {
 };
 
 const deleteJournal = async (journalId: number) => {
-	await deleteJournalApiJournalsJournalIdDelete(journalId);
+	if (isOffline()) {
+		await offlineDeleteJournal(journalId);
+		return;
+	}
+	try {
+		await deleteJournalApiJournalsJournalIdDelete(journalId);
+	} catch (err) {
+		if (isOfflineError(err)) {
+			await offlineDeleteJournal(journalId);
+			return;
+		}
+		throw err;
+	}
 };
 
 export function useJournalMutations() {
