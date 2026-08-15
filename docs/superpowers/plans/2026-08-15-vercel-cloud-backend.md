@@ -4,7 +4,7 @@
 
 **Goal:** 将 LifeTrace 的网页所需 API、RAG 和完成录音后的转写部署到 Vercel，同时保持现有离线优先同步和用户隔离。
 
-**Architecture:** 新建无副作用的 Vercel FastAPI 入口，仅注册云端模块。Neon 通过 pgvector 保存每个用户的笔记向量；现有云端 Embedding API 保持不变。音频文件在客户端与 Supabase Storage 间直传，Vercel 只签发受保护的上传/下载链接并协调 DashScope 异步转写。
+**Architecture:** 新建无副作用的 Vercel FastAPI 入口，仅注册云端模块，并作为仓库根目录的独立 Vercel 后端项目部署；现有前端项目继续以 `lifetrace-frontend` 为根目录，使用 `NEXT_PUBLIC_API_URL` 代理后端。Neon 通过 pgvector 保存每个用户的笔记向量；现有云端 Embedding API 保持不变。音频文件在客户端与 Supabase Storage 间直传，Vercel 只签发受保护的上传/下载链接并协调 DashScope 异步转写。
 
 **Tech Stack:** Next.js 16、FastAPI、SQLModel/SQLAlchemy、Neon PostgreSQL + pgvector、Supabase Storage、DashScope 非实时 ASR、Vercel Functions。
 
@@ -53,7 +53,7 @@ app = FastAPI(title="LifeTrace Cloud API")
 register_modules(app, CLOUD_MODULE_IDS)
 ```
 
-入口不得调用 `get_job_manager()`、`StaticFiles`、延迟模块注册或本机数据目录初始化。`api/index.py` 只导出 `from lifetrace.vercel_app import app`。`requirements-vercel.txt` 只列云端运行依赖；不得列入 `chromadb`、`rapidocr-onnxruntime`、`numpy`、`scipy`、`hdbscan`、`mss`、`pyobjc`、`pywin32` 或服务端 `websockets`。`vercel.json` 将 Python API 设为后端入口，并保留 Next.js 构建。
+入口不得调用 `get_job_manager()`、`StaticFiles`、延迟模块注册或本机数据目录初始化。`api/index.py` 只导出 `from lifetrace.vercel_app import app`。`requirements-vercel.txt` 只列云端运行依赖；不得列入 `chromadb`、`rapidocr-onnxruntime`、`numpy`、`scipy`、`hdbscan`、`mss`、`pyobjc`、`pywin32` 或服务端 `websockets`。仓库根目录的 `vercel.json` 只配置 Python 后端入口；前端仍由其现有的 `lifetrace-frontend` Vercel 项目构建。
 
 - [ ] **Step 4: 运行入口测试与导入检查**
 
@@ -245,7 +245,7 @@ Expected: FAIL，直到部署配置固定 Python 入口。
 
 - [ ] **Step 3: 固化同域 API 与部署指引**
 
-前端生产环境使用相对 `/api` 请求，避免将 `NEXT_PUBLIC_API_URL` 指向另一台服务器。README 明确列出 Vercel、Neon、Supabase Storage 和 DashScope 的环境变量，以及必须先在 Neon 执行的 `CREATE EXTENSION vector;`。
+README 明确列出两个 Vercel 项目：后端项目根目录为仓库根目录，前端项目根目录为 `lifetrace-frontend`；前端将 `NEXT_PUBLIC_API_URL` 设置为后端 Vercel URL。README 也列出 Neon、Supabase Storage 和 DashScope 的环境变量，以及必须先在 Neon 执行的 `CREATE EXTENSION vector;`。
 
 - [ ] **Step 4: 运行完整验证**
 

@@ -12,7 +12,7 @@
 
 ## 架构
 
-Vercel 使用独立的 FastAPI 入口加载云端模块集合。入口不启动任务调度器，也不启动本地采集或延迟注册线程。Vercel 的重写规则将前端 `/api/*` 指向同一部署中的 Python API，避免浏览器跨域调用。
+Vercel 使用两个同仓库项目：现有前端项目继续以 `lifetrace-frontend` 为根目录；新增后端项目以仓库根目录为根目录，并使用独立的 FastAPI 入口加载云端模块集合。入口不启动任务调度器，也不启动本地采集或延迟注册线程。前端项目的 `NEXT_PUBLIC_API_URL` 指向后端项目 URL，Next.js 重写规则继续代理 `/api/*`，避免浏览器跨域调用。
 
 数据库继续使用 Neon PostgreSQL。现有 `User`、业务表及同步表继续按 `user_id` 隔离。新的迁移启用 `pgvector`，创建用户隔离的笔记向量表；向量由已有 SiliconFlow Embedding API 生成，索引和检索都在 Neon 完成。
 
@@ -33,7 +33,7 @@ Supabase 仅承担短期音频对象存储，不用于数据库或身份认证�
 
 ## Vercel 部署
 
-云端 Python 依赖单独列在 `requirements-vercel.txt`，不包含 ChromaDB、OCR、ONNX、SciPy、HDBSCAN、桌面 SDK 或 WebSocket 服务端依赖。`pyproject.toml` 提供 Vercel 入口配置，`vercel.json` 将 Python API 与 Next.js 前端放到同一项目。部署环境还需要 `DATABASE_URL`、`JWT_SECRET_KEY`、`SILICONFLOW_API_KEY`、LLM 配置、上述 Supabase 与 DashScope 密钥，以及生产站点的 `CORS_ORIGINS`。
+云端 Python 依赖单独列在 `requirements-vercel.txt`，不包含 ChromaDB、OCR、ONNX、SciPy、HDBSCAN、桌面 SDK 或 WebSocket 服务端依赖。仓库根目录的 `vercel.json` 只配置后端项目入口；前端项目保持它现有的 Next.js 配置。后端部署环境需要 `DATABASE_URL`、`JWT_SECRET_KEY`、`SILICONFLOW_API_KEY`、LLM 配置、上述 Supabase 与 DashScope 密钥，以及生产站点的 `CORS_ORIGINS`；前端部署环境需要 `NEXT_PUBLIC_API_URL`。
 
 ## 错误处理与安全
 
