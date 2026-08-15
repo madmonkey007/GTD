@@ -6,8 +6,8 @@
 from __future__ import annotations
 
 import re
-import threading
 from datetime import datetime, time, timedelta
+from inspect import signature
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
@@ -68,7 +68,8 @@ class JournalService:
         self.user_id = int(getattr(repository, "user_id", 1))
         self.journal_manager = JournalManager(db_base, user_id=self.user_id)
         # 向量库（用于笔记语义检索，可能为 None）
-        self._vector_db = create_vector_db()
+        vector_factory_params = signature(create_vector_db).parameters
+        self._vector_db = create_vector_db(db_base) if vector_factory_params else create_vector_db()
         if self._vector_db is None:
             logger.info("Journal 向量检索不可用（vector_db 未初始化）")
         # 镜像笔记回写待办的同步服务（反向同步）
@@ -131,13 +132,30 @@ class JournalService:
         user_notes: str,
         tags: list[str] | None,
     ) -> None:
-        """把笔记写入向量库（失败只记日志，不抛异常）"""
+        """把笔记写入向量库
+
+        云端 PostgreSQL 向量库（propagate_index_errors=True）失败时抛出异常，
+        让同步接口返回可重试错误；桌面 ChromaDB 路径只记日志，不阻断保存。
+        """
         if self._vector_db is None:
             return
         try:
-            self._vector_db.upsert_journal(journal_id, name or "", user_notes or "", tags)
+            self._vector_db.upsert_journal(self.user_id, journal_id, name or "", user_notes or "", tags)
         except Exception as e:
+            if getattr(self._vector_db, "propagate_index_errors", False):
+                raise RuntimeError(f"索引笔记 {journal_id} 到云端向量库失败: {e}") from e
             logger.warning(f"索引笔记 {journal_id} 到向量库失败: {e}")
+
+    def _remove_journal_index(self, journal_id: int) -> None:
+        """从向量库删除笔记索引（失败处理策略同 _index_journal）"""
+        if self._vector_db is None:
+            return
+        try:
+            self._vector_db.delete_journal(self.user_id, journal_id)
+        except Exception as e:
+            if getattr(self._vector_db, "propagate_index_errors", False):
+                raise RuntimeError(f"从云端向量库删除笔记 {journal_id} 索引失败: {e}") from e
+            logger.warning(f"从向量库删除笔记 {journal_id} 索引失败: {e}")
 
     def _index_journal_async(
         self,
@@ -146,26 +164,23 @@ class JournalService:
         user_notes: str,
         tags: list[str] | None,
     ) -> None:
-        """后台线程索引笔记，不阻塞主请求（embedding API 较慢，约 1-2s）
-
-        笔记创建/更新立即返回，索引在后台完成后写入向量库。
-        """
+        """索引笔记；云端 PostgreSQL 写入必须在请求生命周期内完成。"""
         if self._vector_db is None:
             return
 
-        # 复制 tags 避免线程间共享可变对象
-        tags_copy = list(tags) if tags else None
-        def _run() -> None:
-            try:
-                self._vector_db.upsert_journal(journal_id, name or "", user_notes or "", tags_copy)
-            except Exception as e:
-                logger.warning(f"后台索引笔记 {journal_id} 到向量库失败: {e}")
+        self._index_journal(journal_id, name, user_notes, tags)
 
-        thread = threading.Thread(
-            target=_run,
-            daemon=True,
+    def ensure_journal_index(self, journal_id: int) -> None:
+        """用已保存的笔记内容补建云端向量索引。"""
+        journal = self.repository.get_by_id(journal_id)
+        if not journal:
+            raise HTTPException(status_code=404, detail="日记不存在")
+        self._index_journal_async(
+            journal_id,
+            journal.get("name", ""),
+            journal.get("user_notes", ""),
+            journal.get("tags", []),
         )
-        thread.start()
 
     def get_insight_context(
         self,
@@ -219,6 +234,7 @@ class JournalService:
         # 检索（多取一些用于分层）
         retrieve_k = max(50, similar_count + cross_domain_count + 10)
         raw = self._vector_db.search_similar_journals(
+            user_id=self.user_id,
             query_text=query_text,
             top_k=retrieve_k,
             exclude_journal_id=journal_id,
@@ -561,9 +577,8 @@ class JournalService:
         if not self.repository.delete(journal_id):
             raise HTTPException(status_code=500, detail="删除日记失败")
 
-        # 从向量库删除
-        if self._vector_db is not None:
-            self._vector_db.delete_journal(journal_id)
+        # 从向量库删除（笔记已落库删除；云端向量删除失败会抛出可重试错误）
+        self._remove_journal_index(journal_id)
 
         # 级联清理 NoteLink（刚删除的笔记可能被其他笔记链接）
         try:

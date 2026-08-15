@@ -116,6 +116,9 @@ class SyncService:
     def _create(self, entity_type: SyncBaseEntityType, op: SyncOp) -> SyncOpResult:
         existing = self._find(entity_type, op.uid)
         if existing:
+            # 创建已落库、但云端索引失败时，客户端重试同一操作应补建索引。
+            if entity_type == "journal":
+                self.journal_service.ensure_journal_index(existing.id)
             self._delete_tombstone(entity_type, op.uid)
             return self._result(op, entity_type, "applied", existing.id, existing)
 

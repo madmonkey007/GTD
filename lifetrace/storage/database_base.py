@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session, SQLModel
 
 from lifetrace.util.logging_config import get_logger
-from lifetrace.util.path_utils import get_database_path
+from lifetrace.util.path_utils import get_database_path, get_database_url
 from lifetrace.util.utils import ensure_dir
 
 logger = get_logger()
@@ -36,15 +36,16 @@ class DatabaseBase:
     def _init_database(self):
         """初始化数据库"""
         try:
-            db_path = str(get_database_path())
-            # 检查数据库文件是否已存在
-            db_exists = os.path.exists(db_path)
+            database_url = get_database_url()
+            is_sqlite = database_url.startswith("sqlite:///")
+            db_path = str(get_database_path()) if is_sqlite else database_url
+            db_exists = os.path.exists(db_path) if is_sqlite else True
 
-            # 确保数据库目录存在
-            ensure_dir(os.path.dirname(db_path))
+            if is_sqlite:
+                ensure_dir(os.path.dirname(db_path))
 
             # 创建引擎
-            self.engine = create_engine("sqlite:///" + db_path, echo=False, pool_pre_ping=True)
+            self.engine = create_engine(database_url, echo=False, pool_pre_ping=True)
 
             # 创建会话工厂（兼容旧代码）
             self.SessionLocal = sessionmaker(bind=self.engine)
@@ -72,6 +73,9 @@ class DatabaseBase:
 
     def _run_migrations(self) -> None:
         """运行 Alembic 迁移（如可用）"""
+        if os.environ.get("LIFETRACE_SKIP_MIGRATIONS", "").lower() in {"1", "true", "yes"}:
+            logger.info("LIFETRACE_SKIP_MIGRATIONS 已启用，跳过运行时迁移")
+            return
         if command is None or Config is None:
             logger.warning("Alembic 未就绪，跳过迁移")
             return
@@ -85,7 +89,7 @@ class DatabaseBase:
 
         config = Config(str(alembic_ini))
         config.set_main_option("script_location", str(migrations_dir))
-        config.set_main_option("sqlalchemy.url", f"sqlite:///{get_database_path()}")
+        config.set_main_option("sqlalchemy.url", get_database_url())
 
         try:
             command.upgrade(config, "head")
@@ -99,6 +103,9 @@ class DatabaseBase:
         try:
             if self.engine is None:
                 raise RuntimeError("Database engine is not initialized.")
+            if self.engine.dialect.name != "sqlite":
+                logger.info("非 SQLite 数据库使用模型与迁移定义的索引")
+                return
             with self.engine.connect() as conn:
                 # 获取现有索引列表（只获取索引名称）
                 existing_indexes = [

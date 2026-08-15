@@ -38,16 +38,86 @@ class _TestDatabase:
             session.close()
 
 
-@pytest.fixture
-def sync_service(monkeypatch: pytest.MonkeyPatch) -> SyncService:
+class _FailingCloudVectorDB:
+    """模拟云端 PostgreSQL 向量库：索引失败必须向调用者传播。"""
+
+    propagate_index_errors = True
+
+    def upsert_journal(
+        self,
+        _user_id: int,
+        _journal_id: int,
+        _name: str,
+        _user_notes: str,
+        _tags: list[Any] | None = None,
+    ) -> bool:
+        raise RuntimeError("pgvector unavailable")
+
+    def delete_journal(self, _user_id: int, _journal_id: int) -> bool:
+        raise RuntimeError("pgvector unavailable")
+
+
+class _FailingDesktopVectorDB:
+    """模拟桌面 ChromaDB 向量库：索引失败只记日志，不阻断保存。"""
+
+    def upsert_journal(
+        self,
+        _user_id: int,
+        _journal_id: int,
+        _name: str,
+        _user_notes: str,
+        _tags: list[Any] | None = None,
+    ) -> bool:
+        raise RuntimeError("chroma down")
+
+    def delete_journal(self, _user_id: int, _journal_id: int) -> bool:
+        raise RuntimeError("chroma down")
+
+
+class _FailOnceCloudVectorDB:
+    """第一次云端建索引失败，重试后恢复。"""
+
+    propagate_index_errors = True
+
+    def __init__(self) -> None:
+        self.upsert_calls = 0
+
+    def upsert_journal(
+        self,
+        _user_id: int,
+        _journal_id: int,
+        _name: str,
+        _user_notes: str,
+        _tags: list[Any] | None = None,
+    ) -> bool:
+        self.upsert_calls += 1
+        if self.upsert_calls == 1:
+            raise RuntimeError("pgvector temporarily unavailable")
+        return True
+
+    def delete_journal(self, _user_id: int, _journal_id: int) -> bool:
+        return True
+
+
+def _make_sync_service(
+    monkeypatch: pytest.MonkeyPatch, vector_db: Any | None = None
+) -> SyncService:
     monkeypatch.setattr(
         "lifetrace.services.todo_service.refresh_todo_reminders", lambda *_args, **_kwargs: None
     )
     monkeypatch.setattr(
         "lifetrace.services.todo_service.remove_todo_reminder_jobs", lambda *_args, **_kwargs: None
     )
-    monkeypatch.setattr("lifetrace.services.journal_service.create_vector_db", lambda: None)
+    monkeypatch.setattr(
+        "lifetrace.services.journal_service.create_vector_db",
+        lambda: vector_db,
+    )
     return SyncService(_TestDatabase())  # type: ignore[arg-type]
+
+
+@pytest.fixture
+def sync_service(monkeypatch: pytest.MonkeyPatch) -> SyncService:
+    return _make_sync_service(monkeypatch)
 
 
 def _request(client_id: str, *ops: dict[str, Any]) -> SyncPushRequest:
@@ -215,3 +285,154 @@ def test_todo_dependencies_resolve_parent_uid(sync_service: SyncService) -> None
         parent = session.query(Todo).filter_by(uid="todo-parent").one()
         child = session.query(Todo).filter_by(uid="todo-child").one()
         assert child.parent_todo_id == parent.id
+
+
+def test_journal_create_reports_error_when_cloud_index_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _make_sync_service(monkeypatch, _FailingCloudVectorDB())
+
+    response = service.push(
+        _request(
+            "phone",
+            _op(
+                "create-note",
+                "journal.create",
+                "journal-1",
+                {
+                    "name": "Note",
+                    "userNotes": "同步的笔记正文",
+                    "date": "2026-08-15T10:00:00+00:00",
+                },
+            ),
+        )
+    )
+
+    result = response.results[0]
+    assert result.status == "error"
+    assert "pgvector unavailable" in (result.error or "")
+    # 向量失败不能回滚用户数据：正文必须已经落库
+    with service.db_base.get_session() as session:
+        journal = session.query(Journal).filter_by(uid="journal-1").one()
+        assert journal.user_notes == "同步的笔记正文"
+
+
+def test_journal_create_retry_rebuilds_cloud_index_after_prior_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    vector_db = _FailOnceCloudVectorDB()
+    service = _make_sync_service(monkeypatch, vector_db)
+    request = _request(
+        "phone",
+        _op(
+            "create-note",
+            "journal.create",
+            "journal-1",
+            {
+                "name": "Note",
+                "userNotes": "同步的笔记正文",
+                "date": "2026-08-15T10:00:00+00:00",
+            },
+        ),
+    )
+
+    first = service.push(request)
+    second = service.push(request)
+
+    assert first.results[0].status == "error"
+    assert second.results[0].status == "applied"
+    assert vector_db.upsert_calls == len((first, second))
+
+
+def test_journal_update_reports_error_when_cloud_index_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _make_sync_service(monkeypatch, _FailingCloudVectorDB())
+    now = datetime.now(UTC)
+    with service.db_base.get_session() as session:
+        session.add(
+            Journal(
+                user_id=1,
+                uid="journal-1",
+                name="Note",
+                user_notes="old text",
+                date=now,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+
+    response = service.push(
+        _request(
+            "phone",
+            _op("update-note", "journal.update", "journal-1", {"userNotes": "new text"}),
+        )
+    )
+
+    result = response.results[0]
+    assert result.status == "error"
+    assert "pgvector unavailable" in (result.error or "")
+    with service.db_base.get_session() as session:
+        journal = session.query(Journal).filter_by(uid="journal-1").one()
+        assert journal.user_notes == "new text"
+
+
+def test_journal_delete_reports_error_when_cloud_vector_delete_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _make_sync_service(monkeypatch, _FailingCloudVectorDB())
+    now = datetime.now(UTC)
+    with service.db_base.get_session() as session:
+        session.add(
+            Journal(
+                user_id=1,
+                uid="journal-1",
+                name="Note",
+                user_notes="to be deleted",
+                date=now,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+
+    response = service.push(
+        _request("phone", _op("delete-note", "journal.delete", "journal-1", {}))
+    )
+
+    result = response.results[0]
+    assert result.status == "error"
+    assert "pgvector unavailable" in (result.error or "")
+    # 笔记删除已落库，向量删除失败只影响可重试的同步结果
+    with service.db_base.get_session() as session:
+        assert session.query(Journal).filter_by(uid="journal-1").count() == 0
+
+
+def test_journal_operations_survive_desktop_vector_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _make_sync_service(monkeypatch, _FailingDesktopVectorDB())
+
+    created = service.push(
+        _request(
+            "phone",
+            _op(
+                "create-note",
+                "journal.create",
+                "journal-1",
+                {"name": "Note", "userNotes": "正文", "date": "2026-08-15T10:00:00+00:00"},
+            ),
+        )
+    )
+    updated = service.push(
+        _request("phone", _op("update-note", "journal.update", "journal-1", {"userNotes": "改后"}))
+    )
+    deleted = service.push(
+        _request("phone", _op("delete-note", "journal.delete", "journal-1", {}))
+    )
+
+    # 桌面 ChromaDB 路径：向量失败只记日志，保存/删除不被阻断
+    assert created.results[0].status == "applied"
+    assert updated.results[0].status == "applied"
+    assert deleted.results[0].status == "applied"
+    with service.db_base.get_session() as session:
+        assert session.query(Journal).filter_by(uid="journal-1").count() == 0

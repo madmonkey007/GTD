@@ -33,7 +33,7 @@ from lifetrace.storage.models import (  # noqa: F401, E402
     TodoTagRelation,
     TokenUsage,
 )
-from lifetrace.util.path_utils import get_database_path  # noqa: E402
+from lifetrace.util.path_utils import get_database_url  # noqa: E402
 
 # Alembic Config 对象
 config = context.config
@@ -48,7 +48,7 @@ target_metadata = SQLModel.metadata
 
 def get_url():
     """获取数据库 URL"""
-    return f"sqlite:///{get_database_path()}"
+    return get_database_url()
 
 
 def run_migrations_offline() -> None:

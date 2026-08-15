@@ -179,6 +179,8 @@ def register_modules(
     app: FastAPI,
     module_ids: Iterable[str],
     states: dict[str, ModuleState] | None = None,
+    *,
+    force_enabled: bool = False,
 ) -> list[str]:
     if states is None:
         states = get_module_states()
@@ -190,7 +192,7 @@ def register_modules(
         if module.id not in module_id_set:
             continue
         state = states.get(module.id)
-        if not state or not state.enabled:
+        if not state or (not force_enabled and not state.enabled):
             continue
         if not state.available:
             logger.warning(

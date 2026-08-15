@@ -664,6 +664,20 @@ class Transcription(TimestampMixin, table=True):
         return f"<Transcription(id={self.id}, audio_recording_id={self.audio_recording_id})>"
 
 
+class CloudTranscriptionTask(TimestampMixin, table=True):
+    """Serverless audio transcription task, isolated by authenticated user."""
+
+    __tablename__: ClassVar[str] = "cloud_transcription_tasks"
+
+    id: str = Field(max_length=64, primary_key=True)
+    user_id: int = Field(index=True)
+    object_key: str = Field(max_length=512)
+    status: str = Field(default="uploaded", max_length=24)
+    provider_task_id: str | None = Field(default=None, max_length=256)
+    result_text: str | None = Field(default=None, sa_column=Column(Text))
+    error_message: str | None = Field(default=None, sa_column=Column(Text))
+
+
 class ZeroThinkCard(TimestampMixin, table=True):
     """零秒思考卡片模型"""
 

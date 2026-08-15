@@ -103,18 +103,19 @@ def _ensure_bootstrap_user() -> int:
     if existing:
         return int(existing[0])
 
-    result = connection.execute(
-        sa.text(
-            "INSERT INTO users "
-            "(email, password_hash, display_name, created_at, updated_at) "
-            "VALUES (:email, :password_hash, :display_name, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
-        ),
-        {
-            "email": BOOTSTRAP_EMAIL,
-            "password_hash": BOOTSTRAP_HASH,
-            "display_name": "Bootstrap",
-        },
+    params = {
+        "email": BOOTSTRAP_EMAIL,
+        "password_hash": BOOTSTRAP_HASH,
+        "display_name": "Bootstrap",
+    }
+    statement = (
+        "INSERT INTO users "
+        "(email, password_hash, display_name, created_at, updated_at) "
+        "VALUES (:email, :password_hash, :display_name, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
     )
+    if connection.dialect.name == "postgresql":
+        return int(connection.execute(sa.text(statement + " RETURNING id"), params).scalar_one())
+    result = connection.execute(sa.text(statement), params)
     return int(result.lastrowid)
 
 

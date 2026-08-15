@@ -5,11 +5,13 @@
 """
 
 import hashlib
+from contextlib import suppress
 from typing import Any, cast
 
 from lifetrace.llm.cloud_embeddings import CloudEmbeddingClient
+from lifetrace.llm.postgres_vector_db import PostgresVectorDatabase
 from lifetrace.util.logging_config import get_logger
-from lifetrace.util.path_utils import get_vector_db_dir
+from lifetrace.util.path_utils import get_database_url, get_vector_db_dir
 from lifetrace.util.settings import settings
 from lifetrace.util.time_utils import get_utc_now
 
@@ -32,6 +34,10 @@ class VectorDatabase:
     提供文本嵌入、向量存储和语义检索功能。
     使用 ChromaDB 作为向量数据库后端，SiliconFlow API 生成嵌入。
     """
+
+    # 桌面向量索引是本地增强能力：失败只记日志，不阻断笔记保存
+    # （云端 PostgreSQL 实现为 True，见 PostgresVectorDatabase）。
+    propagate_index_errors = False
 
     def __init__(self):
         """初始化向量数据库"""
@@ -505,7 +511,9 @@ class VectorDatabase:
     def _journal_doc_id(self, journal_id: int) -> str:
         return f"journal_{journal_id}"
 
-    def _build_journal_text(self, name: str, user_notes: str, tags: list[Any] | None) -> str:
+    def _build_journal_text(  # noqa: C901
+        self, name: str, user_notes: str, tags: list[Any] | None
+    ) -> str:
         """构建用于 embedding 的笔记文本（标题 + 标签 + 正文）
 
         tags 可以是字符串列表，也可以是 Tag ORM 对象列表（取 .tag_name）。
@@ -562,10 +570,8 @@ class VectorDatabase:
                 return False
             doc_id = self._journal_doc_id(journal_id)
             # 先删后加，避免重复 id 报错
-            try:
+            with suppress(Exception):
                 collection.delete(ids=[doc_id])
-            except Exception:
-                pass
             collection.add(
                 documents=[text],
                 embeddings=[embedding],
@@ -645,12 +651,18 @@ class VectorDatabase:
             return []
 
 
-def create_vector_db() -> VectorDatabase | None:
+def create_vector_db(database: Any | None = None) -> VectorDatabase | PostgresVectorDatabase | None:  # noqa: PLR0911
     """创建向量数据库实例
 
     Returns:
         向量数据库实例，如果依赖不可用则返回 None
     """
+    if get_database_url().startswith(("postgres://", "postgresql://")):
+        if database is None:
+            logger.warning("PostgreSQL journal vector search needs a database instance")
+            return None
+        return PostgresVectorDatabase(database)
+
     if not all([chromadb, np, Settings]):
         logger.warning("Vector database dependencies (chromadb/numpy) not available")
         return None
