@@ -39,6 +39,18 @@ class UserResponse(BaseModel):
     display_name: str | None = None
 
 
+class UserProfileUpdate(BaseModel):
+    display_name: str | None = Field(default=None, max_length=120)
+
+    @field_validator("display_name")
+    @classmethod
+    def validate_display_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped if stripped else None
+
+
 class AuthTokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

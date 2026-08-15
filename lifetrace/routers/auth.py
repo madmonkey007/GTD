@@ -9,6 +9,7 @@ from lifetrace.core.dependencies import get_auth_service, get_current_user
 from lifetrace.schemas.auth import (
     AuthTokenResponse,
     UserLoginRequest,
+    UserProfileUpdate,
     UserRegisterRequest,
     UserResponse,
 )
@@ -56,6 +57,18 @@ async def login(
 @router.get("/me", response_model=UserResponse)
 async def me(current_user: User = Depends(get_current_user)) -> UserResponse:
     return UserResponse.model_validate(current_user)
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    payload: UserProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+) -> UserResponse:
+    user = service.update_display_name(
+        current_user, display_name=payload.display_name
+    )
+    return UserResponse.model_validate(user)
 
 
 def _token_response(user: User) -> AuthTokenResponse:

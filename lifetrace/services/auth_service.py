@@ -88,6 +88,13 @@ class AuthService:
             .first()
         )
 
+    def update_display_name(self, user: User, *, display_name: str | None) -> User:
+        user.display_name = display_name.strip() if display_name else None
+        self.session.add(user)
+        self.session.flush()
+        self.session.refresh(user)
+        return user
+
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()

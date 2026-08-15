@@ -13,6 +13,7 @@ interface AuthState {
 	token: string | null;
 	user: AuthUser | null;
 	setSession: (token: string, user: AuthUser) => void;
+	updateUser: (user: Partial<AuthUser>) => void;
 	clearSession: () => void;
 }
 
@@ -30,6 +31,16 @@ export const useAuthStore = create<AuthState>()(
 					window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
 				}
 				set({ token, user });
+			},
+			updateUser: (partial) => {
+				set((state) => {
+					if (!state.user) return state;
+					const user = { ...state.user, ...partial };
+					if (typeof window !== "undefined") {
+						window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+					}
+					return { user };
+				});
 			},
 			clearSession: () => {
 				if (typeof window !== "undefined") {
