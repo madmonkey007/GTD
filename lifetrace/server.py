@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import os
 import socket
 from contextlib import asynccontextmanager, suppress
 
@@ -85,6 +86,10 @@ def get_cors_origins() -> list[str]:
     为了支持 Build 版和开发版同时运行，需要允许端口范围：
     - 前端端口范围：3000-3200（包括 3200，Build 版默认端口）
     - 后端端口范围：8000-8200（包括 8200，Build 版默认端口）
+
+    部署到公网时，通过 CORS_ORIGINS 环境变量追加额外的来源，
+    多个来源用英文逗号分隔，例如：
+    CORS_ORIGINS=https://lifetrace-flame.vercel.app,https://example.com
     """
     origins = []
     # 前端端口范围 3000-3200（包括 3200）
@@ -93,6 +98,10 @@ def get_cors_origins() -> list[str]:
     # 后端端口范围 8000-8200（包括 8200）
     for port in range(8000, 8201):
         origins.extend([f"http://localhost:{port}", f"http://127.0.0.1:{port}"])
+    # 公网部署：环境变量追加额外来源
+    extra = os.environ.get("CORS_ORIGINS", "").strip()
+    if extra:
+        origins.extend(o.strip() for o in extra.split(",") if o.strip())
     return origins
 
 
