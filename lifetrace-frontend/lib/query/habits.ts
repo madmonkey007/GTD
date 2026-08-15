@@ -2,6 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, isOfflineError } from "@/lib/api/fetcher";
+import { authHeaders, useAuthStore } from "@/lib/auth/session";
+import { listMirrorEntities } from "@/lib/offline/db";
+import { saveServerList } from "@/lib/offline/mirror";
 import {
 	isOffline,
 	offlineCreateHabit,
@@ -10,8 +13,6 @@ import {
 	offlineUpdateHabit,
 	saveHabitToMirror,
 } from "@/lib/offline/writes";
-import { listMirrorEntities } from "@/lib/offline/db";
-import { saveServerList } from "@/lib/offline/mirror";
 import { queryKeys } from "./keys";
 
 // 客户端走相对路径（Next rewrites 代理），SSR 用环境变量——与 customFetcher 一致。
@@ -89,13 +90,19 @@ function mapRecord(r: ServerRecord): HabitRecord {
 }
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
+	const { headers, ...fetchInit } = init ?? {};
+	const finalHeaders = authHeaders(headers);
+	if (!Object.keys(finalHeaders).some((key) => key.toLowerCase() === "content-type")) {
+		finalHeaders["Content-Type"] = "application/json";
+	}
 	const res = await fetch(`${API_BASE}${path}`, {
-		headers: { "Content-Type": "application/json" },
-		...init,
+		...fetchInit,
+		headers: finalHeaders,
 	});
 	if (!res.ok) {
 		// 用 ApiError 让离线判断（status 503）生效
 		if (res.status === 503) throw new ApiError(503);
+		if (res.status === 401) useAuthStore.getState().clearSession();
 		const text = await res.text().catch(() => "");
 		throw new Error(`${res.status} ${res.statusText} ${text}`);
 	}

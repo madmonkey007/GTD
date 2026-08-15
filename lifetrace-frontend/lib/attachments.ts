@@ -1,5 +1,6 @@
 "use client";
 
+import { authHeaders } from "@/lib/auth/session";
 import { snakeToCamel } from "@/lib/generated/case-transform";
 import type { TodoAttachment } from "@/lib/types";
 
@@ -29,6 +30,7 @@ export async function uploadTodoAttachments(
 
 	const response = await fetch(`${baseUrl}/api/todos/${todoId}/attachments`, {
 		method: "POST",
+		headers: authHeaders(),
 		body: formData,
 	});
 
@@ -49,6 +51,7 @@ export async function removeTodoAttachment(
 		`${baseUrl}/api/todos/${todoId}/attachments/${attachmentId}`,
 		{
 			method: "DELETE",
+			headers: authHeaders(),
 		},
 	);
 

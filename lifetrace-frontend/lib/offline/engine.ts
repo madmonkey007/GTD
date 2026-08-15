@@ -1,3 +1,4 @@
+import { authHeaders, useAuthStore } from "@/lib/auth/session";
 import { queryKeys } from "@/lib/query/keys";
 import { getQueryClient } from "@/lib/query/provider";
 import {
@@ -56,8 +57,14 @@ function camelize(value: unknown): unknown {
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-	const response = await fetch(url, init);
-	if (!response.ok) throw new Error(`Sync request failed (${response.status})`);
+	const response = await fetch(url, {
+		...init,
+		headers: authHeaders(init?.headers),
+	});
+	if (!response.ok) {
+		if (response.status === 401) useAuthStore.getState().clearSession();
+		throw new Error(`Sync request failed (${response.status})`);
+	}
 	return camelize(await response.json()) as T;
 }
 

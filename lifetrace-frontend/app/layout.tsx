@@ -1,15 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { getLocale, getMessages } from "next-intl/server";
 import { ThemeProvider } from "@/components/common/theme/ThemeProvider";
+import { AuthGate } from "@/components/common/ui/AuthGate";
 import { BackendReadyGate } from "@/components/common/ui/BackendReadyGate";
-import { CapabilitiesSync } from "@/components/common/ui/CapabilitiesSync";
-import { DockTriggerZone } from "@/components/common/ui/DockTriggerZone";
 import { IntlErrorBoundary } from "@/components/common/ui/IntlErrorBoundary";
 import { LocaleSync } from "@/components/common/ui/LocaleSync";
 import { OfflineBadge } from "@/components/common/ui/OfflineBadge";
 import { PwaRegister } from "@/components/common/ui/PwaRegister";
 import { ScrollbarController } from "@/components/common/ui/ScrollbarController";
-import { SyncController } from "@/components/common/ui/SyncController";
 import { QueryProvider } from "@/lib/query/provider";
 import "./globals.css";
 import "driver.js/dist/driver.css";
@@ -51,14 +49,13 @@ export default async function RootLayout({ children }: RootLayoutProps) {
 				<ScrollbarController />
 				<PwaRegister />
 				<QueryProvider>
-					<SyncController />
 					<OfflineBadge />
 					<IntlErrorBoundary messages={messages} locale={locale}>
 						<LocaleSync />
-						<CapabilitiesSync />
-						<DockTriggerZone />
 						<ThemeProvider>
-							<BackendReadyGate>{children}</BackendReadyGate>
+							<BackendReadyGate>
+								<AuthGate>{children}</AuthGate>
+							</BackendReadyGate>
 						</ThemeProvider>
 					</IntlErrorBoundary>
 				</QueryProvider>

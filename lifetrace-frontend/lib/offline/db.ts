@@ -1,6 +1,7 @@
 // 离线优先本地存储：IndexedDB 实体镜像 + outbox 操作队列 + meta（同步游标等）
 // react-query 仍是内存读层；这里只是断网时的兜底数据源与待同步操作日志
 import { type IDBPDatabase, openDB } from "idb";
+import { getStoredAuthUser } from "@/lib/auth/session";
 
 export type OutboxOpKind =
 	| "todo.create"
@@ -30,17 +31,25 @@ export interface OutboxOp {
 
 export type MirrorStore = "todo" | "journal" | "habit" | "habitRecord";
 
-const DB_NAME = "lifetrace-offline";
+const DB_NAME_PREFIX = "lifetrace-offline";
 const DB_VERSION = 1;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
+let activeDbName: string | null = null;
+
+function getDbName(): string {
+	const user = getStoredAuthUser();
+	return user?.id ? `${DB_NAME_PREFIX}-user-${user.id}` : `${DB_NAME_PREFIX}-anonymous`;
+}
 
 export function getDb(): Promise<IDBPDatabase> {
 	if (typeof indexedDB === "undefined") {
 		return Promise.reject(new Error("IndexedDB unavailable"));
 	}
-	if (!dbPromise) {
-		dbPromise = openDB(DB_NAME, DB_VERSION, {
+	const dbName = getDbName();
+	if (!dbPromise || activeDbName !== dbName) {
+		activeDbName = dbName;
+		dbPromise = openDB(dbName, DB_VERSION, {
 			upgrade(db) {
 				if (!db.objectStoreNames.contains("todo")) {
 					db.createObjectStore("todo", { keyPath: "uid" });

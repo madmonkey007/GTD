@@ -2,6 +2,8 @@
  * 获取流式 API 的基础 URL
  * 流式请求直接调用后端 API，绕过 Next.js 代理，避免 gzip 压缩破坏流式传输
  */
+import { authHeaders } from "@/lib/auth/session";
+
 function getStreamApiBaseUrl(): string {
 	// 流式请求始终直接调用后端，避免 Next.js 代理导致的缓冲/压缩问题
 	return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
@@ -27,6 +29,7 @@ export async function uploadJournalImage(file: File): Promise<UploadImageResult>
 	form.append("file", file);
 	const res = await fetch("/api/journals/upload-image", {
 		method: "POST",
+		headers: authHeaders(),
 		body: form,
 	});
 	if (!res.ok) {
@@ -232,10 +235,10 @@ export async function sendChatMessageStream(
 
 		response = await fetch(apiUrl, {
 			method: "POST",
-			headers: {
+			headers: authHeaders({
 				"Content-Type": "application/json",
 				"Accept-Language": locale || "en",
-			},
+			}),
 			body: JSON.stringify(requestBody),
 			signal,
 		});
@@ -374,9 +377,9 @@ export async function planQuestionnaireStream(
 		`${baseUrl}/api/chat/plan/questionnaire/stream`,
 		{
 			method: "POST",
-			headers: {
+			headers: authHeaders({
 				"Content-Type": "application/json",
-			},
+			}),
 			body: JSON.stringify({
 				todo_name: todoName,
 				todo_id: todoId,
@@ -420,9 +423,9 @@ export async function planSummaryStream(
 	const baseUrl = getStreamApiBaseUrl();
 	const response = await fetch(`${baseUrl}/api/chat/plan/summary/stream`, {
 		method: "POST",
-		headers: {
+		headers: authHeaders({
 			"Content-Type": "application/json",
-		},
+		}),
 		body: JSON.stringify({
 			todo_name: todoName,
 			answers: answers,

@@ -1,4 +1,5 @@
 import type { ZodType } from "zod";
+import { authHeaders, useAuthStore } from "@/lib/auth/session";
 import { camelToSnake, snakeToCamel } from "../generated/case-transform";
 
 type CustomFetcherOptions<T> = RequestInit & {
@@ -134,7 +135,7 @@ export async function customFetcher<T>(
 		}
 	}
 
-	const finalHeaders = normalizeHeaders(headers);
+	const finalHeaders = authHeaders(normalizeHeaders(headers));
 	if (isJsonBody) {
 		const hasContentType = Object.keys(finalHeaders).some(
 			(key) => key.toLowerCase() === "content-type",
@@ -155,6 +156,13 @@ export async function customFetcher<T>(
 	const response = await fetch(`${baseUrl}${finalUrl}`, fetchInit);
 
 	if (!response.ok) {
+		if (
+			response.status === 401 &&
+			!finalUrl.startsWith("/api/auth/login") &&
+			!finalUrl.startsWith("/api/auth/register")
+		) {
+			useAuthStore.getState().clearSession();
+		}
 		throw new ApiError(response.status);
 	}
 
