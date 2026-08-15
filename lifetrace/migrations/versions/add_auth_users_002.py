@@ -163,10 +163,10 @@ def _replace_sync_unique_constraints() -> None:
             )
     if _has_table("habit_records"):
         with op.batch_alter_table("habit_records") as batch:
-            if _has_unique("habit_records", "uq_habit_record_date") or _has_index(
-                "habit_records", "uq_habit_record_date"
-            ):
+            if _has_unique("habit_records", "uq_habit_record_date"):
                 batch.drop_constraint("uq_habit_record_date", type_="unique")
+            elif _has_index("habit_records", "uq_habit_record_date"):
+                batch.drop_index("uq_habit_record_date")
             batch.create_unique_constraint(
                 "uq_habit_record_date",
                 ["user_id", "habit_id", "record_date"],

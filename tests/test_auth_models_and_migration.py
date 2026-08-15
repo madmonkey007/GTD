@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import importlib
+
+from alembic.operations import Operations
+from alembic.runtime.migration import MigrationContext
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel
@@ -78,3 +82,31 @@ def test_user_scoped_indexes_exist() -> None:
     assert "ix_journals_user_id_uid" in journal_indexes
     assert "ix_habits_user_id_uid" in habit_indexes
     assert "ix_projects_user_id_uid" in project_indexes
+
+
+def test_auth_migration_replaces_legacy_habit_unique_index() -> None:
+    """Existing SQLite installations store this as an index, not a constraint."""
+    engine = create_engine("sqlite://")
+    migration = importlib.import_module(
+        "lifetrace.migrations.versions.add_auth_users_002"
+    )
+
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            "CREATE TABLE habit_records ("
+            "id INTEGER PRIMARY KEY, habit_id INTEGER NOT NULL, "
+            "record_date DATETIME NOT NULL, user_id INTEGER NOT NULL)"
+        )
+        connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX uq_habit_record_date "
+            "ON habit_records (habit_id, record_date)"
+        )
+        migration.op = Operations(MigrationContext.configure(connection))
+        migration._replace_sync_unique_constraints()
+
+    unique_constraints = inspect(engine).get_unique_constraints("habit_records")
+    assert any(
+        constraint["name"] == "uq_habit_record_date"
+        and constraint["column_names"] == ["user_id", "habit_id", "record_date"]
+        for constraint in unique_constraints
+    )
