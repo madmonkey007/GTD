@@ -1,6 +1,7 @@
 // 开发环境：直接透传所有请求，不做任何缓存，避免 ServiceWorker 缓存旧代码干扰开发
-// 生产环境：cache-first 静态资源，network-first API
-const CACHE_NAME = "lifetrace-v1";
+// 生产环境：带哈希的静态资源 cache-first，页面 HTML 与 API network-first
+// （HTML 引用的 /_next/static 块带内容哈希，旧 HTML 部署后会 404，因此 HTML 绝不能 cache-first）
+const CACHE_NAME = "lifetrace-v2";
 const STATIC_ASSETS = ["/", "/manifest.json", "/logo.png"];
 const IS_DEV = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
 
@@ -48,8 +49,20 @@ self.addEventListener("fetch", (event) => {
 		return;
 	}
 
-	// Static assets & page: cache first, network fallback
-	event.respondWith(cacheFirst(request));
+	// 页面导航（HTML 文档）：network-first，避免部署新版后旧 HTML 引用已失效的 JS 块
+	if (request.mode === "navigate") {
+		event.respondWith(networkFirst(request));
+		return;
+	}
+
+	// 带内容哈希的静态资源与图标：cache-first（内容不变，可长期缓存）
+	if (url.pathname.startsWith("/_next/static/") || /\.(png|svg|ico|woff2?)$/.test(url.pathname)) {
+		event.respondWith(cacheFirst(request));
+		return;
+	}
+
+	// 其余资源：network-first，失败时回退缓存
+	event.respondWith(networkFirst(request));
 });
 
 async function cacheFirst(request) {
