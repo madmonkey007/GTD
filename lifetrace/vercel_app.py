@@ -7,6 +7,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+os.environ.setdefault("LIFETRACE_SKIP_MIGRATIONS", "1")
+
 from lifetrace.core.module_registry import get_module_states, register_modules
 
 CLOUD_MODULE_IDS = frozenset(
@@ -23,8 +25,6 @@ CLOUD_MODULE_IDS = frozenset(
         "chat",
         "todo_extraction",
         "zero_think",
-        "vector",
-        "rag",
     }
 )
 

@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import re
-import threading
 from datetime import datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -68,7 +67,7 @@ class JournalService:
         self.user_id = int(getattr(repository, "user_id", 1))
         self.journal_manager = JournalManager(db_base, user_id=self.user_id)
         # 向量库（用于笔记语义检索，可能为 None）
-        self._vector_db = create_vector_db()
+        self._vector_db = create_vector_db(db_base)
         if self._vector_db is None:
             logger.info("Journal 向量检索不可用（vector_db 未初始化）")
         # 镜像笔记回写待办的同步服务（反向同步）
@@ -135,7 +134,7 @@ class JournalService:
         if self._vector_db is None:
             return
         try:
-            self._vector_db.upsert_journal(journal_id, name or "", user_notes or "", tags)
+            self._vector_db.upsert_journal(self.user_id, journal_id, name or "", user_notes or "", tags)
         except Exception as e:
             logger.warning(f"索引笔记 {journal_id} 到向量库失败: {e}")
 
@@ -146,26 +145,11 @@ class JournalService:
         user_notes: str,
         tags: list[str] | None,
     ) -> None:
-        """后台线程索引笔记，不阻塞主请求（embedding API 较慢，约 1-2s）
-
-        笔记创建/更新立即返回，索引在后台完成后写入向量库。
-        """
+        """索引笔记；云端 PostgreSQL 写入必须在请求生命周期内完成。"""
         if self._vector_db is None:
             return
 
-        # 复制 tags 避免线程间共享可变对象
-        tags_copy = list(tags) if tags else None
-        def _run() -> None:
-            try:
-                self._vector_db.upsert_journal(journal_id, name or "", user_notes or "", tags_copy)
-            except Exception as e:
-                logger.warning(f"后台索引笔记 {journal_id} 到向量库失败: {e}")
-
-        thread = threading.Thread(
-            target=_run,
-            daemon=True,
-        )
-        thread.start()
+        self._index_journal(journal_id, name, user_notes, tags)
 
     def get_insight_context(
         self,
@@ -219,6 +203,7 @@ class JournalService:
         # 检索（多取一些用于分层）
         retrieve_k = max(50, similar_count + cross_domain_count + 10)
         raw = self._vector_db.search_similar_journals(
+            user_id=self.user_id,
             query_text=query_text,
             top_k=retrieve_k,
             exclude_journal_id=journal_id,
@@ -563,7 +548,7 @@ class JournalService:
 
         # 从向量库删除
         if self._vector_db is not None:
-            self._vector_db.delete_journal(journal_id)
+            self._vector_db.delete_journal(self.user_id, journal_id)
 
         # 级联清理 NoteLink（刚删除的笔记可能被其他笔记链接）
         try:

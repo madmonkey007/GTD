@@ -69,7 +69,8 @@ class NoteLinkService:
         self.journal_repository = journal_repository
         self.db_base = db_base
         # 复用与 JournalService 相同的向量库（语义检索候选笔记）
-        self._vector_db = create_vector_db()
+        self._vector_db = create_vector_db(db_base)
+        self.user_id = int(getattr(journal_repository, "user_id", 1))
         if self._vector_db is None:
             logger.info("NoteLink 向量检索不可用（vector_db 未初始化），候选推荐将返回空")
 
@@ -208,6 +209,7 @@ class NoteLinkService:
         # 扩大检索范围到 8x，让短文本笔记也能进入候选池
         retrieve_k = max(80, top_k * 8 + len(already_linked) + 10)
         raw = self._vector_db.search_similar_journals(
+            user_id=self.user_id,
             query_text=query_text,
             top_k=retrieve_k,
             exclude_journal_id=source_note_id,

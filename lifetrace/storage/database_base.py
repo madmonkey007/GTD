@@ -73,6 +73,9 @@ class DatabaseBase:
 
     def _run_migrations(self) -> None:
         """运行 Alembic 迁移（如可用）"""
+        if os.environ.get("LIFETRACE_SKIP_MIGRATIONS", "").lower() in {"1", "true", "yes"}:
+            logger.info("LIFETRACE_SKIP_MIGRATIONS 已启用，跳过运行时迁移")
+            return
         if command is None or Config is None:
             logger.warning("Alembic 未就绪，跳过迁移")
             return
