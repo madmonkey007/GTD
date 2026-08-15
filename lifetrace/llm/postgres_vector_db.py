@@ -16,6 +16,10 @@ logger = get_logger()
 class PostgresVectorDatabase:
     """Store only journal embeddings in PostgreSQL, scoped by LifeTrace user."""
 
+    # 云端向量索引是同步链路的一环：失败必须向调用者传播，
+    # 由上层决定是否报告为可重试错误（桌面 ChromaDB 路径为 False，只记日志）。
+    propagate_index_errors = True
+
     def __init__(self, database: Any, embedding_client: CloudEmbeddingClient | None = None) -> None:
         self.database = database
         self.embedding_client = embedding_client or CloudEmbeddingClient()
@@ -86,8 +90,7 @@ class PostgresVectorDatabase:
                 )
             return True
         except Exception as exc:
-            logger.warning(f"Failed to index journal {journal_id} in pgvector: {exc}")
-            return False
+            raise RuntimeError(f"Failed to index journal {journal_id} in pgvector: {exc}") from exc
 
     def delete_journal(self, user_id: int, journal_id: int) -> bool:
         try:
@@ -98,8 +101,9 @@ class PostgresVectorDatabase:
                 )
             return True
         except Exception as exc:
-            logger.warning(f"Failed to delete journal {journal_id} from pgvector: {exc}")
-            return False
+            raise RuntimeError(
+                f"Failed to delete journal {journal_id} from pgvector: {exc}"
+            ) from exc
 
     def search_similar_journals(
         self,

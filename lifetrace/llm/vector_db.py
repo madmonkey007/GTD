@@ -35,6 +35,10 @@ class VectorDatabase:
     使用 ChromaDB 作为向量数据库后端，SiliconFlow API 生成嵌入。
     """
 
+    # 桌面向量索引是本地增强能力：失败只记日志，不阻断笔记保存
+    # （云端 PostgreSQL 实现为 True，见 PostgresVectorDatabase）。
+    propagate_index_errors = False
+
     def __init__(self):
         """初始化向量数据库"""
         self.logger = logger

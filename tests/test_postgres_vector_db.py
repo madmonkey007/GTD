@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
+import pytest
+
 from lifetrace.llm.postgres_vector_db import PostgresVectorDatabase
 
 
@@ -53,3 +55,20 @@ def test_postgres_journal_vectors_are_scoped_to_one_user() -> None:
     assert all(params["user_id"] == user_id for _, params in database.session.calls)
     assert "ON CONFLICT (user_id, journal_id)" in database.session.calls[0][0]
     assert "embedding <=> CAST(:embedding AS vector)" in database.session.calls[1][0]
+
+
+class _BrokenDatabase(_Database):
+    @contextmanager
+    def get_session(self):
+        raise RuntimeError("neon connection refused")
+        yield  # pragma: no cover
+
+
+def test_postgres_index_errors_propagate_for_retryable_sync() -> None:
+    vector_db = PostgresVectorDatabase(_BrokenDatabase(), embedding_client=_EmbeddingClient())
+
+    assert vector_db.propagate_index_errors is True
+    with pytest.raises(RuntimeError, match="neon connection refused"):
+        vector_db.upsert_journal(7, 42, "标题", "正文", ["标签"])
+    with pytest.raises(RuntimeError, match="neon connection refused"):
+        vector_db.delete_journal(7, 42)
