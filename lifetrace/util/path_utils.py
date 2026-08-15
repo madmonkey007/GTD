@@ -28,6 +28,14 @@ def get_database_path() -> Path:
     return Path(db_path)
 
 
+def get_database_url() -> str:
+    """Return the deployment database URL or the desktop SQLite fallback."""
+    configured_url = os.environ.get("DATABASE_URL", "").strip()
+    if configured_url:
+        return configured_url
+    return f"sqlite:///{get_database_path()}"
+
+
 def get_screenshots_dir() -> Path:
     """获取截图目录
 
