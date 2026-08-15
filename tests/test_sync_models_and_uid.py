@@ -11,7 +11,7 @@ from lifetrace.schemas.habit import HabitCreate
 from lifetrace.schemas.project import ProjectCreate
 from lifetrace.services.habit_service import HabitService
 from lifetrace.services.project_service import ProjectService
-from lifetrace.storage.models import SyncOpLog, SyncTombstone
+from lifetrace.storage.models import SyncOpLog, SyncTombstone, User
 
 
 class _HabitRepository:
@@ -66,14 +66,20 @@ def test_sync_log_and_tombstone_uniqueness() -> None:
     now = datetime.now(UTC)
 
     with Session(engine) as session:
-        session.add(SyncOpLog(client_id="phone", op_id="op-1", result_json="{}", created_at=now))
-        session.add(SyncTombstone(entity_type="todo", uid="uid-1", deleted_at=now))
+        session.add(User(email="sync@example.com", password_hash="hash"))
+        session.commit()
+        session.add(
+            SyncOpLog(user_id=1, client_id="phone", op_id="op-1", result_json="{}", created_at=now)
+        )
+        session.add(SyncTombstone(user_id=1, entity_type="todo", uid="uid-1", deleted_at=now))
         session.commit()
 
         assert session.exec(select(SyncOpLog)).one().op_id == "op-1"
         assert session.exec(select(SyncTombstone)).one().uid == "uid-1"
 
-        session.add(SyncOpLog(client_id="phone", op_id="op-1", result_json="{}", created_at=now))
+        session.add(
+            SyncOpLog(user_id=1, client_id="phone", op_id="op-1", result_json="{}", created_at=now)
+        )
         try:
             session.commit()
         except IntegrityError:
@@ -81,7 +87,7 @@ def test_sync_log_and_tombstone_uniqueness() -> None:
         else:
             raise AssertionError("duplicate (client_id, op_id) must be rejected")
 
-        session.add(SyncTombstone(entity_type="todo", uid="uid-1", deleted_at=now))
+        session.add(SyncTombstone(user_id=1, entity_type="todo", uid="uid-1", deleted_at=now))
         try:
             session.commit()
         except IntegrityError:

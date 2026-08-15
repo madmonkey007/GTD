@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import ClassVar
 from uuid import uuid4
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import Index, UniqueConstraint
 from sqlmodel import Column, Field, SQLModel, Text
 
 from lifetrace.util.time_utils import get_utc_now
@@ -114,8 +114,10 @@ class Todo(TimestampMixin, table=True):
     """待办事项模型"""
 
     __tablename__: ClassVar[str] = "todos"
+    __table_args__ = (Index("ix_todos_user_id_uid", "user_id", "uid"),)
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
     uid: str = Field(
         default_factory=lambda: str(uuid4()), max_length=64, index=True
     )  # iCalendar UID
@@ -254,8 +256,10 @@ class Journal(TimestampMixin, table=True):
     """日记模型"""
 
     __tablename__: ClassVar[str] = "journals"
+    __table_args__ = (Index("ix_journals_user_id_uid", "user_id", "uid"),)
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
     uid: str = Field(
         default_factory=lambda: str(uuid4()), max_length=64, index=True
     )  # iCalendar UID
@@ -334,8 +338,10 @@ class Project(TimestampMixin, table=True):
     """
 
     __tablename__: ClassVar[str] = "projects"
+    __table_args__ = (Index("ix_projects_user_id_uid", "user_id", "uid"),)
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
     uid: str = Field(
         default_factory=lambda: str(uuid4()), max_length=64, index=True
     )
@@ -442,8 +448,10 @@ class Habit(TimestampMixin, table=True):
     """习惯模型"""
 
     __tablename__: ClassVar[str] = "habits"
+    __table_args__ = (Index("ix_habits_user_id_uid", "user_id", "uid"),)
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
     uid: str = Field(
         default_factory=lambda: str(uuid4()), max_length=64, index=True
     )  # 唯一标识
@@ -464,10 +472,11 @@ class HabitRecord(SQLModel, table=True):
 
     __tablename__: ClassVar[str] = "habit_records"
     __table_args__ = (
-        UniqueConstraint("habit_id", "record_date", name="uq_habit_record_date"),
+        UniqueConstraint("user_id", "habit_id", "record_date", name="uq_habit_record_date"),
     )
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
     habit_id: int = Field(index=True)  # 关联的习惯ID
     record_date: datetime = Field(index=True)  # 打卡日期（归一到当天 00:00）
     created_at: datetime = Field(default_factory=get_utc_time)
@@ -482,10 +491,11 @@ class SyncTombstone(SQLModel, table=True):
 
     __tablename__: ClassVar[str] = "sync_tombstones"
     __table_args__ = (
-        UniqueConstraint("entity_type", "uid", name="uq_sync_tombstone_entity_uid"),
+        UniqueConstraint("user_id", "entity_type", "uid", name="uq_sync_tombstone_entity_uid"),
     )
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
     entity_type: str = Field(max_length=32, index=True)
     uid: str = Field(max_length=128)
     deleted_at: datetime = Field(default_factory=get_utc_time, index=True)
@@ -496,10 +506,11 @@ class SyncOpLog(SQLModel, table=True):
 
     __tablename__: ClassVar[str] = "sync_op_log"
     __table_args__ = (
-        UniqueConstraint("client_id", "op_id", name="uq_sync_op_log_client_op"),
+        UniqueConstraint("user_id", "client_id", "op_id", name="uq_sync_op_log_client_op"),
     )
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
     client_id: str = Field(max_length=128, index=True)
     op_id: str = Field(max_length=128)
     result_json: str = Field(sa_column=Column(Text))
