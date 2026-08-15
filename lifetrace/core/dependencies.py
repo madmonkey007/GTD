@@ -174,9 +174,12 @@ def get_habit_service(
 
 def get_sync_service(
     db_base: DatabaseBase = Depends(get_db_base),
+    current_user: User = Depends(get_current_user),
 ) -> SyncService:
     """Return the batch offline synchronization service."""
-    return SyncService(db_base)
+    if current_user.id is None:
+        raise HTTPException(status_code=401, detail="未登录")
+    return SyncService(db_base, user_id=current_user.id)
 
 
 # ========== NoteLink 模块依赖注入 ==========

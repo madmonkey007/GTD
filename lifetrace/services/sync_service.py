@@ -62,11 +62,12 @@ def _parse_datetime(value: str | datetime) -> datetime:
 class SyncService:
     """Apply idempotent client operations and expose incremental changes."""
 
-    def __init__(self, db_base: Any):
+    def __init__(self, db_base: Any, user_id: int = 1):
         self.db_base = db_base
-        self.todo_repository = SqlTodoRepository(db_base)
-        self.journal_repository = SqlJournalRepository(db_base)
-        self.habit_repository = SqlHabitRepository(db_base)
+        self.user_id = user_id
+        self.todo_repository = SqlTodoRepository(db_base, user_id=user_id)
+        self.journal_repository = SqlJournalRepository(db_base, user_id=user_id)
+        self.habit_repository = SqlHabitRepository(db_base, user_id=user_id)
         self.todo_service = TodoService(self.todo_repository, db_base=db_base)
         self.journal_service = JournalService(
             self.journal_repository,
@@ -258,19 +259,31 @@ class SyncService:
         with self.db_base.get_session() as session:
             todos = (
                 session.query(Todo)
-                .filter(col(Todo.deleted_at).is_(None), col(Todo.updated_at) > since)
+                .filter(
+                    col(Todo.user_id) == self.user_id,
+                    col(Todo.deleted_at).is_(None),
+                    col(Todo.updated_at) > since,
+                )
                 .order_by(col(Todo.updated_at).asc())
                 .all()
             )
             journals = (
                 session.query(Journal)
-                .filter(col(Journal.deleted_at).is_(None), col(Journal.updated_at) > since)
+                .filter(
+                    col(Journal.user_id) == self.user_id,
+                    col(Journal.deleted_at).is_(None),
+                    col(Journal.updated_at) > since,
+                )
                 .order_by(col(Journal.updated_at).asc())
                 .all()
             )
             habits = (
                 session.query(Habit)
-                .filter(col(Habit.deleted_at).is_(None), col(Habit.updated_at) > since)
+                .filter(
+                    col(Habit.user_id) == self.user_id,
+                    col(Habit.deleted_at).is_(None),
+                    col(Habit.updated_at) > since,
+                )
                 .order_by(col(Habit.updated_at).asc())
                 .all()
             )
@@ -278,6 +291,7 @@ class SyncService:
                 session.query(HabitRecord)
                 .filter(
                     col(HabitRecord.deleted_at).is_(None),
+                    col(HabitRecord.user_id) == self.user_id,
                     col(HabitRecord.created_at) > since,
                 )
                 .order_by(col(HabitRecord.created_at).asc())
@@ -285,14 +299,20 @@ class SyncService:
             )
             tombstones = (
                 session.query(SyncTombstone)
-                .filter(col(SyncTombstone.deleted_at) > since)
+                .filter(
+                    col(SyncTombstone.user_id) == self.user_id,
+                    col(SyncTombstone.deleted_at) > since,
+                )
                 .order_by(col(SyncTombstone.deleted_at).asc())
                 .all()
             )
             habit_uids = {
                 habit.id: habit.uid
                 for habit in session.query(Habit)
-                .filter(col(Habit.id).in_([r.habit_id for r in records]))
+                .filter(
+                    col(Habit.user_id) == self.user_id,
+                    col(Habit.id).in_([r.habit_id for r in records]),
+                )
                 .all()
             } if records else {}
 
@@ -321,10 +341,16 @@ class SyncService:
     def prune_old_sync_state(self, retention_days: int = 30) -> None:
         cutoff = get_utc_now() - timedelta(days=retention_days)
         with self.db_base.get_session() as session:
-            session.query(SyncOpLog).filter(SyncOpLog.created_at < cutoff).delete(
+            session.query(SyncOpLog).filter(
+                SyncOpLog.user_id == self.user_id,
+                SyncOpLog.created_at < cutoff,
+            ).delete(
                 synchronize_session=False
             )
-            session.query(SyncTombstone).filter(SyncTombstone.deleted_at < cutoff).delete(
+            session.query(SyncTombstone).filter(
+                SyncTombstone.user_id == self.user_id,
+                SyncTombstone.deleted_at < cutoff,
+            ).delete(
                 synchronize_session=False
             )
 
@@ -333,7 +359,11 @@ class SyncService:
         if model is None:
             raise ValueError(f"unsupported entity type: {entity_type}")
         with self.db_base.get_session() as session:
-            row = session.query(model).filter_by(uid=uid, deleted_at=None).first()
+            row = session.query(model).filter_by(
+                uid=uid,
+                user_id=self.user_id,
+                deleted_at=None,
+            ).first()
             if row is not None:
                 # DatabaseBase commits when the context exits. Detach first so
                 # the already-loaded scalar values remain usable afterwards.
@@ -352,30 +382,40 @@ class SyncService:
         now = get_utc_now()
         with self.db_base.get_session() as session:
             row = session.query(SyncTombstone).filter_by(
-                entity_type=entity_type, uid=uid
+                user_id=self.user_id, entity_type=entity_type, uid=uid
             ).first()
             if row:
                 row.deleted_at = now
             else:
                 session.add(
-                    SyncTombstone(entity_type=entity_type, uid=uid, deleted_at=now)
+                    SyncTombstone(
+                        user_id=self.user_id,
+                        entity_type=entity_type,
+                        uid=uid,
+                        deleted_at=now,
+                    )
                 )
 
     def _delete_tombstone(self, entity_type: SyncEntityType, uid: str) -> None:
         with self.db_base.get_session() as session:
             session.query(SyncTombstone).filter_by(
-                entity_type=entity_type, uid=uid
+                user_id=self.user_id, entity_type=entity_type, uid=uid
             ).delete(synchronize_session=False)
 
     def _load_duplicate(self, client_id: str, op_id: str) -> SyncOpResult | None:
         with self.db_base.get_session() as session:
-            row = session.query(SyncOpLog).filter_by(client_id=client_id, op_id=op_id).first()
+            row = session.query(SyncOpLog).filter_by(
+                user_id=self.user_id,
+                client_id=client_id,
+                op_id=op_id,
+            ).first()
             return SyncOpResult.model_validate_json(row.result_json) if row else None
 
     def _remember_result(self, client_id: str, result: SyncOpResult) -> None:
         with self.db_base.get_session() as session:
             session.add(
                 SyncOpLog(
+                    user_id=self.user_id,
                     client_id=client_id,
                     op_id=result.op_id,
                     result_json=result.model_dump_json(by_alias=True),

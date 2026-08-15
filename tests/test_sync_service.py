@@ -130,6 +130,7 @@ def test_journal_conflict_preserves_server_text_in_backup(sync_service: SyncServ
     with sync_service.db_base.get_session() as session:
         session.add(
             Journal(
+                user_id=1,
                 uid="journal-1",
                 name="Note",
                 user_notes="server text",
