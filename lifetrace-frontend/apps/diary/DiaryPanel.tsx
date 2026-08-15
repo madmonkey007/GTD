@@ -723,6 +723,22 @@ const handleSaveCardEdit = async (
 		setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "" }));
 		clearAfterSubmit.current = true;
 	};
+	// 聊天工具改动了笔记：若正是当前打开的笔记，重新拉取并只同步标签（不触碰正文/标题，避免覆盖编辑中内容）
+	// 注意必须放在 journalError 提前 return 之前，否则错误态渲染会少跑这个 hook 导致 React 崩溃
+	const handleNoteMutated = useCallback(async (noteId: number) => {
+		// AI 创建/修改了笔记，但该笔记不是当前编辑中的笔记
+		// → 阻止 sync 将新笔记内容加载到编辑器 draft 中
+		if (activeJournal?.id !== noteId) {
+			clearAfterSubmit.current = true;
+			return;
+		}
+		const res = await refetch();
+		const j = res.data?.journals?.[0];
+		if (!j || j.id !== noteId) return;
+		const tags = (j.tags ?? []).map((t) => t.tagName);
+		setDraft((prev) => ({ ...prev, tags }));
+		setTagInput(tags.join(", "));
+	}, [activeJournal?.id, refetch]);
 	if (journalError) {
 		const errorMessage =
 			journalError instanceof Error
@@ -760,21 +776,6 @@ const handleSaveCardEdit = async (
 			</motion.div>
 		);
 	}
-	// 聊天工具改动了笔记：若正是当前打开的笔记，重新拉取并只同步标签（不触碰正文/标题，避免覆盖编辑中内容）
-	const handleNoteMutated = useCallback(async (noteId: number) => {
-		// AI 创建/修改了笔记，但该笔记不是当前编辑中的笔记
-		// → 阻止 sync 将新笔记内容加载到编辑器 draft 中
-		if (activeJournal?.id !== noteId) {
-			clearAfterSubmit.current = true;
-			return;
-		}
-		const res = await refetch();
-		const j = res.data?.journals?.[0];
-		if (!j || j.id !== noteId) return;
-		const tags = (j.tags ?? []).map((t) => t.tagName);
-		setDraft((prev) => ({ ...prev, tags }));
-		setTagInput(tags.join(", "));
-	}, [activeJournal?.id, refetch]);
 		return ( <>
 			<div className="flex h-full flex-col overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20">
 			<div ref={containerRef} className={cn("flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-3 relative", isMobile && "px-0")}>
