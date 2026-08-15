@@ -153,17 +153,16 @@ class JournalService:
         if self._vector_db is None:
             return
 
+        # 复制 tags 避免线程间共享可变对象
+        tags_copy = list(tags) if tags else None
         def _run() -> None:
             try:
-                self._vector_db.upsert_journal(journal_id, name or "", user_notes or "", tags)
+                self._vector_db.upsert_journal(journal_id, name or "", user_notes or "", tags_copy)
             except Exception as e:
                 logger.warning(f"后台索引笔记 {journal_id} 到向量库失败: {e}")
 
-        # 复制 tags 避免线程间共享可变对象
-        tags_copy = list(tags) if tags else None
         thread = threading.Thread(
             target=_run,
-            args=(journal_id, name, user_notes, tags_copy),
             daemon=True,
         )
         thread.start()
