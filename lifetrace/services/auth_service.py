@@ -7,9 +7,15 @@ import json
 import os
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy.exc import IntegrityError
 
 from lifetrace.schemas.auth import AccessTokenClaims
+from lifetrace.storage.models import User
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 _HASH_ALGORITHM = "pbkdf2_sha256"
 _HASH_ITERATIONS = 210_000
@@ -22,6 +28,65 @@ class AuthTokenError(Exception):
 
 class AuthTokenExpiredError(AuthTokenError):
     """Raised when an access token is valid but expired."""
+
+
+class DuplicateUserEmailError(Exception):
+    """Raised when registering an email that already exists."""
+
+
+class InvalidCredentialsError(Exception):
+    """Raised when login credentials do not match any account."""
+
+
+class AuthService:
+    """Database-backed user registration and login service."""
+
+    def __init__(self, session: Session):
+        self.session = session
+
+    def register_user(
+        self,
+        *,
+        email: str,
+        password: str,
+        display_name: str | None = None,
+    ) -> User:
+        normalized = normalize_email(email)
+        existing = self.get_user_by_email(normalized)
+        if existing:
+            raise DuplicateUserEmailError(normalized)
+        user = User(
+            email=normalized,
+            password_hash=hash_password(password),
+            display_name=display_name.strip() if display_name else None,
+        )
+        self.session.add(user)
+        try:
+            self.session.flush()
+        except IntegrityError as exc:
+            raise DuplicateUserEmailError(normalized) from exc
+        self.session.refresh(user)
+        return user
+
+    def authenticate_user(self, *, email: str, password: str) -> User:
+        user = self.get_user_by_email(normalize_email(email))
+        if not user or not verify_password(password, user.password_hash):
+            raise InvalidCredentialsError("invalid email or password")
+        return user
+
+    def get_user_by_email(self, email: str) -> User | None:
+        return (
+            self.session.query(User)
+            .filter(User.email == normalize_email(email), User.deleted_at.is_(None))
+            .first()
+        )
+
+    def get_user_by_id(self, user_id: int) -> User | None:
+        return (
+            self.session.query(User)
+            .filter(User.id == user_id, User.deleted_at.is_(None))
+            .first()
+        )
 
 
 def normalize_email(email: str) -> str:

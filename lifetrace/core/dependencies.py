@@ -5,7 +5,8 @@
 
 from collections.abc import Generator
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from lifetrace.core.lazy_services import (
@@ -32,6 +33,11 @@ from lifetrace.repositories.sql_note_link_repository import SqlNoteLinkRepositor
 from lifetrace.repositories.sql_project_repository import SqlProjectRepository
 from lifetrace.repositories.sql_todo_repository import SqlTodoRepository
 from lifetrace.services.activity_service import ActivityService
+from lifetrace.services.auth_service import (
+    AuthService,
+    AuthTokenError,
+    verify_access_token,
+)
 from lifetrace.services.chat_service import ChatService
 from lifetrace.services.collection_service import CollectionService
 from lifetrace.services.event_service import EventService
@@ -43,8 +49,11 @@ from lifetrace.services.sync_service import SyncService
 from lifetrace.services.todo_service import TodoService
 from lifetrace.services.zero_think_service import ZeroThinkService
 from lifetrace.storage.database_base import DatabaseBase
+from lifetrace.storage.models import User
 from lifetrace.storage.zero_think_manager import ZeroThinkManager
 from lifetrace.util.settings import settings
+
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_db_base() -> DatabaseBase:
@@ -69,6 +78,31 @@ def get_db_session(
         raise
     finally:
         session.close()
+
+
+# ========== Auth module dependencies ==========
+
+
+def get_auth_service(session: Session = Depends(get_db_session)) -> AuthService:
+    """Return the request-scoped authentication service."""
+    return AuthService(session)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> User:
+    """Resolve the authenticated user from a bearer access token."""
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(status_code=401, detail="未登录")
+    try:
+        claims = verify_access_token(credentials.credentials)
+    except AuthTokenError as exc:
+        raise HTTPException(status_code=401, detail="登录已过期或无效") from exc
+    user = auth_service.get_user_by_id(claims.user_id)
+    if user is None:
+        raise HTTPException(status_code=401, detail="登录已过期或无效")
+    return user
 
 
 # ========== Todo 模块依赖注入 ==========
