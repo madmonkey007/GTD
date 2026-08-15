@@ -34,6 +34,20 @@ class TimestampMixin(SQLModel):
 # ========== 核心业务模型 ==========
 
 
+class User(TimestampMixin, table=True):
+    """Application user account."""
+
+    __tablename__: ClassVar[str] = "users"
+
+    id: int | None = Field(default=None, primary_key=True)
+    email: str = Field(max_length=320, unique=True, index=True)
+    password_hash: str = Field(max_length=512)
+    display_name: str | None = Field(default=None, max_length=120)
+
+    def __repr__(self):
+        return f"<User(id={self.id}, email={self.email})>"
+
+
 class Screenshot(TimestampMixin, table=True):
     """截图记录模型"""
 
