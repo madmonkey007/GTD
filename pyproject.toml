@@ -59,7 +59,7 @@ dependencies = [
     "arize-phoenix-otel>=0.14.0",  # Phoenix OTEL 集成
     "openinference-instrumentation>=0.1.0",  # OpenInference 基础工具（using_session 等）
     "openinference-instrumentation-agno>=0.1.0",  # Agno 自动 instrument
-    "opentelemetry-sdk>=1.39.0",
+    "opentelemetry-sdk>=1.44.0",
     "opentelemetry-exporter-otlp-proto-http>=1.39.0",
     # macOS specific dependencies (only install on macOS)
     "pyobjc-framework-Cocoa>=12.1; sys_platform == 'darwin'",
