@@ -74,6 +74,31 @@ class _FailingDesktopVectorDB:
         raise RuntimeError("chroma down")
 
 
+class _FailOnceCloudVectorDB:
+    """第一次云端建索引失败，重试后恢复。"""
+
+    propagate_index_errors = True
+
+    def __init__(self) -> None:
+        self.upsert_calls = 0
+
+    def upsert_journal(
+        self,
+        _user_id: int,
+        _journal_id: int,
+        _name: str,
+        _user_notes: str,
+        _tags: list[Any] | None = None,
+    ) -> bool:
+        self.upsert_calls += 1
+        if self.upsert_calls == 1:
+            raise RuntimeError("pgvector temporarily unavailable")
+        return True
+
+    def delete_journal(self, _user_id: int, _journal_id: int) -> bool:
+        return True
+
+
 def _make_sync_service(
     monkeypatch: pytest.MonkeyPatch, vector_db: Any | None = None
 ) -> SyncService:
@@ -290,6 +315,33 @@ def test_journal_create_reports_error_when_cloud_index_fails(
     with service.db_base.get_session() as session:
         journal = session.query(Journal).filter_by(uid="journal-1").one()
         assert journal.user_notes == "同步的笔记正文"
+
+
+def test_journal_create_retry_rebuilds_cloud_index_after_prior_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    vector_db = _FailOnceCloudVectorDB()
+    service = _make_sync_service(monkeypatch, vector_db)
+    request = _request(
+        "phone",
+        _op(
+            "create-note",
+            "journal.create",
+            "journal-1",
+            {
+                "name": "Note",
+                "userNotes": "同步的笔记正文",
+                "date": "2026-08-15T10:00:00+00:00",
+            },
+        ),
+    )
+
+    first = service.push(request)
+    second = service.push(request)
+
+    assert first.results[0].status == "error"
+    assert second.results[0].status == "applied"
+    assert vector_db.upsert_calls == len((first, second))
 
 
 def test_journal_update_reports_error_when_cloud_index_fails(

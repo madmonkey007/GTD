@@ -170,6 +170,18 @@ class JournalService:
 
         self._index_journal(journal_id, name, user_notes, tags)
 
+    def ensure_journal_index(self, journal_id: int) -> None:
+        """用已保存的笔记内容补建云端向量索引。"""
+        journal = self.repository.get_by_id(journal_id)
+        if not journal:
+            raise HTTPException(status_code=404, detail="日记不存在")
+        self._index_journal_async(
+            journal_id,
+            journal.get("name", ""),
+            journal.get("user_notes", ""),
+            journal.get("tags", []),
+        )
+
     def get_insight_context(
         self,
         journal_id: int,
