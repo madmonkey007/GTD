@@ -95,6 +95,17 @@ class AuthService:
         self.session.refresh(user)
         return user
 
+    def change_password(
+        self, user: User, *, old_password: str, new_password: str
+    ) -> User:
+        if not verify_password(old_password, user.password_hash):
+            raise InvalidCredentialsError("incorrect old password")
+        user.password_hash = hash_password(new_password)
+        self.session.add(user)
+        self.session.flush()
+        self.session.refresh(user)
+        return user
+
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()

@@ -40,3 +40,17 @@ export function fetchCurrentUser(): Promise<AuthUser> {
 	return customFetcher<AuthUser>("/api/auth/me");
 }
 
+export function updateDisplayName(displayName: string): Promise<AuthUser> {
+	return customFetcher<AuthUser>("/api/auth/me", {
+		method: "PATCH",
+		data: { displayName },
+	});
+}
+
+export function changePassword(oldPassword: string, newPassword: string): Promise<void> {
+	return customFetcher<void>("/api/auth/password", {
+		method: "PUT",
+		data: { oldPassword, newPassword },
+	});
+}
+

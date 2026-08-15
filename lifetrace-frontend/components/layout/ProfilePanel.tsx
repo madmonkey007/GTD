@@ -6,6 +6,7 @@ import {
 	CalendarDays,
 	Check,
 	Heart,
+	KeyRound,
 	LayoutGrid,
 	ChevronRight,
 	LogOut,
@@ -14,8 +15,12 @@ import {
 	X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { changePassword, updateDisplayName } from "@/lib/auth/api";
 import { useAuthStore } from "@/lib/auth/session";
+import { customFetcher } from "@/lib/api/fetcher";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useOpenSettings } from "@/lib/hooks/useOpenSettings";
 import { toast } from "@/lib/toast";
@@ -26,38 +31,175 @@ interface ProfilePanelProps {
 	setActiveView?: (view: string) => void;
 }
 
-async function saveDisplayName(name: string): Promise<string | null> {
-	try {
-		const res = await fetch("/api/auth/me", {
-			method: "PATCH",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${localStorage.getItem("lifetrace.auth.token") ?? ""}`,
-			},
-			body: JSON.stringify({ display_name: name }),
-		});
-		if (!res.ok) throw new Error(`${res.status}`);
-		const data = (await res.json()) as { display_name?: string | null };
-		return data.display_name ?? null;
-	} catch (err) {
-		console.error("[ProfilePanel] 更新昵称失败", err);
-		toast("昵称保存失败，请稍后再试", { type: "error" });
-		return null;
-	}
+interface ProfileStats {
+	journals: number;
+	todos: number;
+	projects: number;
+	habits: number;
+}
+
+/** 拉取当前用户的总量统计（笔记/待办/项目/习惯） */
+async function fetchProfileStats(): Promise<ProfileStats> {
+	const [journals, todos, projects, habits] = await Promise.all([
+		customFetcher<Record<string, unknown>>("/api/journals?limit=1"),
+		customFetcher<Record<string, unknown>>("/api/todos?limit=1"),
+		customFetcher<Record<string, unknown>>("/api/projects"),
+		customFetcher<Record<string, unknown>>("/api/habits?limit=1"),
+	]);
+	const unwrap = (v: unknown): Record<string, unknown> =>
+		v && typeof v === "object" && "data" in (v as Record<string, unknown>)
+			? ((v as Record<string, unknown>).data as Record<string, unknown>)
+			: (v as Record<string, unknown>);
+	const j = unwrap(journals);
+	const t = unwrap(todos);
+	const h = unwrap(habits);
+	const p = projects;
+	return {
+		journals: Number(j?.total ?? (j?.journals as unknown[] | undefined)?.length ?? 0),
+		todos: Number(t?.total ?? (t?.todos as unknown[] | undefined)?.length ?? 0),
+		projects: Array.isArray(p) ? p.length : 0,
+		habits: Number(h?.total ?? (h?.habits as unknown[] | undefined)?.length ?? 0),
+	};
+}
+
+const STAT_ITEMS: { key: keyof ProfileStats; label: string }[] = [
+	{ key: "journals", label: "笔记" },
+	{ key: "todos", label: "待办" },
+	{ key: "projects", label: "项目" },
+	{ key: "habits", label: "习惯" },
+];
+
+function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
+	const [oldPassword, setOldPassword] = useState("");
+	const [newPassword, setNewPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
+	const [saving, setSaving] = useState(false);
+	const oldInputRef = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		oldInputRef.current?.focus();
+	}, []);
+
+	const submit = async () => {
+		if (saving) return;
+		if (newPassword.length < 8) {
+			toast("新密码至少 8 位", { type: "warning" });
+			return;
+		}
+		if (newPassword !== confirmPassword) {
+			toast("两次输入的新密码不一致", { type: "warning" });
+			return;
+		}
+		setSaving(true);
+		try {
+			await changePassword(oldPassword, newPassword);
+			toast("密码已修改");
+			onClose();
+		} catch (err) {
+			const status = (err as { status?: number }).status;
+			toast(status === 400 ? "原密码不正确" : "修改失败，请稍后再试", {
+				type: "error",
+			});
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	const inputClass =
+		"h-9 w-full rounded-md border border-border/40 bg-background px-3 text-sm text-foreground focus:outline-none focus:border-primary/40";
+
+	return (
+		<div
+			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+			onClick={onClose}
+		>
+			<div
+				className="w-full max-w-sm rounded-xl border border-border/50 bg-popover p-5 shadow-xl"
+				onClick={(e) => e.stopPropagation()}
+			>
+				<div className="mb-4 flex items-center justify-between">
+					<h3 className="text-sm font-semibold text-foreground">修改密码</h3>
+					<button
+						type="button"
+						onClick={onClose}
+						className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40"
+					>
+						<X className="h-4 w-4" />
+					</button>
+				</div>
+				<div className="space-y-3">
+					<input
+						ref={oldInputRef}
+						type="password"
+						value={oldPassword}
+						onChange={(e) => setOldPassword(e.target.value)}
+						placeholder="原密码"
+						autoComplete="current-password"
+						className={inputClass}
+					/>
+					<input
+						type="password"
+						value={newPassword}
+						onChange={(e) => setNewPassword(e.target.value)}
+						placeholder="新密码（至少 8 位）"
+						autoComplete="new-password"
+						className={inputClass}
+					/>
+					<input
+						type="password"
+						value={confirmPassword}
+						onChange={(e) => setConfirmPassword(e.target.value)}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" && !e.nativeEvent.isComposing) void submit();
+						}}
+						placeholder="确认新密码"
+						autoComplete="new-password"
+						className={inputClass}
+					/>
+				</div>
+				<div className="mt-4 flex justify-end gap-2">
+					<button
+						type="button"
+						onClick={onClose}
+						className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/40"
+					>
+						取消
+					</button>
+					<button
+						type="button"
+						onClick={() => void submit()}
+						disabled={saving || !oldPassword || !newPassword || !confirmPassword}
+						className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+					>
+						{saving ? "保存中…" : "确认修改"}
+					</button>
+				</div>
+			</div>
+		</div>
+	);
 }
 
 export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 	const t = useTranslations();
+	const router = useRouter();
 	const { openSettings } = useOpenSettings();
 	const { setActiveView: storeSetActiveView } = useUiStore();
 	const isMobile = useIsMobile();
 	const user = useAuthStore((s) => s.user);
 	const updateUser = useAuthStore((s) => s.updateUser);
+	const clearSession = useAuthStore((s) => s.clearSession);
 
 	const [editingName, setEditingName] = useState(false);
 	const [nameDraft, setNameDraft] = useState("");
 	const [savingName, setSavingName] = useState(false);
 	const nameInputRef = useRef<HTMLInputElement>(null);
+	const [passwordOpen, setPasswordOpen] = useState(false);
+
+	const { data: stats } = useQuery({
+		queryKey: ["profile-stats"],
+		queryFn: fetchProfileStats,
+		staleTime: 60 * 1000,
+	});
 
 	useEffect(() => {
 		if (editingName) nameInputRef.current?.focus();
@@ -78,13 +220,21 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 			return;
 		}
 		setSavingName(true);
-		const saved = await saveDisplayName(trimmed);
-		setSavingName(false);
-		if (saved !== null) {
-			updateUser({ displayName: saved });
+		try {
+			const saved = await updateDisplayName(trimmed);
+			updateUser({ displayName: saved.displayName ?? null });
 			toast("昵称已更新");
+		} catch {
+			toast("昵称保存失败，请稍后再试", { type: "error" });
+		} finally {
+			setSavingName(false);
+			setEditingName(false);
 		}
-		setEditingName(false);
+	};
+
+	const handleLogout = () => {
+		clearSession();
+		router.push("/login");
 	};
 
 	const navigate = (view: SidebarView) => {
@@ -137,6 +287,22 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 			onClick: () => navigate("zeroThink"),
 		},
 		{
+			id: "password",
+			label: "修改密码",
+			icon: KeyRound,
+			color: "text-indigo-500",
+			bg: "bg-indigo-500/10",
+			onClick: () => setPasswordOpen(true),
+		},
+		{
+			id: "logout",
+			label: "退出登录",
+			icon: LogOut,
+			color: "text-destructive",
+			bg: "bg-destructive/10",
+			onClick: handleLogout,
+		},
+		{
 			id: "settings",
 			label: t("bottomDock.settings"),
 			icon: Settings,
@@ -147,15 +313,17 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 	];
 
 	// 日历/四象限/习惯等入口是给移动端底部 tab 放不下时收纳用的，
-	// PC 端侧边栏已有全部入口，只保留设置，避免重复
+	// PC 端侧边栏已有全部入口；账号操作（改密码/退出/设置）两端都显示
 	const menuItems = isMobile
 		? MENU_ITEMS
-		: MENU_ITEMS.filter((item) => item.id === "settings");
+		: MENU_ITEMS.filter((item) =>
+				["password", "logout", "settings"].includes(item.id),
+			);
 
 	return (
 		<div className="flex h-full flex-col overflow-y-auto">
 			{/* Profile Header */}
-			<div className="flex flex-col items-center gap-4 px-6 pt-8 pb-6">
+			<div className="flex flex-col items-center gap-4 px-6 pt-8 pb-2">
 				<div className="relative">
 					<div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-2xl font-semibold text-primary ring-4 ring-background">
 						{displayName.slice(0, 1).toUpperCase()}
@@ -215,10 +383,27 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 						<p className="mt-1 text-xs text-muted-foreground/50">点击昵称可编辑</p>
 					)}
 				</div>
+
+				{/* 数据统计 */}
+				{stats && (
+					<div className="grid w-full max-w-xs grid-cols-4 gap-2 pt-2">
+						{STAT_ITEMS.map(({ key, label }) => (
+							<div
+								key={key}
+								className="flex flex-col items-center rounded-lg border border-border/30 bg-card/30 py-2"
+							>
+								<span className="text-base font-semibold tabular-nums text-foreground">
+									{stats[key]}
+								</span>
+								<span className="text-[10px] text-muted-foreground">{label}</span>
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 
 			{/* Menu Items */}
-			<div className="mx-4 flex-1">
+			<div className="mx-4 flex-1 py-4">
 				<div className="rounded-xl border border-border/40 bg-card/30 divide-y divide-border/30">
 					{menuItems.map((item) => {
 						const Icon = item.icon;
@@ -247,10 +432,13 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 			{/* Footer */}
 			<div className="px-6 py-4">
 				<div className="flex items-center justify-center gap-2 text-xs text-muted-foreground/40">
-					<LogOut className="h-3 w-3" />
 					<span>LifeTrace v1.0</span>
 				</div>
 			</div>
+
+			{passwordOpen && (
+				<PasswordChangeDialog onClose={() => setPasswordOpen(false)} />
+			)}
 		</div>
 	);
 }

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from lifetrace.core.dependencies import get_auth_service, get_current_user
 from lifetrace.schemas.auth import (
     AuthTokenResponse,
+    PasswordChangeRequest,
     UserLoginRequest,
     UserProfileUpdate,
     UserRegisterRequest,
@@ -69,6 +70,22 @@ async def update_me(
         current_user, display_name=payload.display_name
     )
     return UserResponse.model_validate(user)
+
+
+@router.put("/password", status_code=204)
+async def change_password(
+    payload: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+) -> None:
+    try:
+        service.change_password(
+            current_user,
+            old_password=payload.old_password,
+            new_password=payload.new_password,
+        )
+    except InvalidCredentialsError as exc:
+        raise HTTPException(status_code=400, detail="原密码不正确") from exc
 
 
 def _token_response(user: User) -> AuthTokenResponse:
