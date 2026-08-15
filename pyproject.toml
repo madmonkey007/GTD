@@ -45,7 +45,7 @@ dependencies = [
     # DashScope API (阿里云百炼)
     "dashscope>=1.25.0",
     # Agno Agent Framework
-    "agno>=2.4.8",
+    "agno>=2.8.6",
     # DuckDuckGo search for Agno Agent
     "ddgs>=9.10.0",
     # Tavily API for web search
