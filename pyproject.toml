@@ -47,7 +47,7 @@ dependencies = [
     # Agno Agent Framework
     "agno>=2.4.8",
     # DuckDuckGo search for Agno Agent
-    "ddgs>=9.10.0",
+    "ddgs>=8.0.0",
     # Tavily API for web search
     "tavily-python>=0.7.0",
     # Configuration management with hot reload support (includes yaml support)
