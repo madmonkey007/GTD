@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import ClassVar
 from uuid import uuid4
 
-from sqlalchemy import Index, UniqueConstraint
+from sqlalchemy import Index, LargeBinary, UniqueConstraint
 from sqlmodel import Column, Field, SQLModel, Text
 
 from lifetrace.util.time_utils import get_utc_now
@@ -43,6 +43,12 @@ class User(TimestampMixin, table=True):
     email: str = Field(max_length=320, unique=True, index=True)
     password_hash: str = Field(max_length=512)
     display_name: str | None = Field(default=None, max_length=120)
+    avatar_data: bytes | None = Field(default=None, sa_column=Column(LargeBinary))
+    avatar_mime: str | None = Field(default=None, max_length=64)
+
+    @property
+    def has_avatar(self) -> bool:
+        return self.avatar_data is not None
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email})>"

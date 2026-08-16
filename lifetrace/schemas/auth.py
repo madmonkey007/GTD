@@ -37,6 +37,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     display_name: str | None = None
+    has_avatar: bool = False
 
 
 class UserProfileUpdate(BaseModel):

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 
 from lifetrace.core.dependencies import get_auth_service, get_current_user
 from lifetrace.schemas.auth import (
@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     from lifetrace.storage.models import User
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+MAX_AVATAR_BYTES = 2 * 1024 * 1024
+ALLOWED_AVATAR_MIME = {"image/png", "image/jpeg", "image/webp", "image/gif"}
 
 
 @router.post("/register", response_model=AuthTokenResponse, status_code=201)
@@ -86,6 +89,44 @@ async def change_password(
         )
     except InvalidCredentialsError as exc:
         raise HTTPException(status_code=400, detail="原密码不正确") from exc
+
+
+@router.put("/avatar", response_model=UserResponse)
+async def upload_avatar(
+    file: UploadFile = File(..., description="头像图片"),
+    current_user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+) -> UserResponse:
+    mime = (file.content_type or "").lower()
+    if mime not in ALLOWED_AVATAR_MIME:
+        raise HTTPException(status_code=400, detail="仅支持 PNG/JPEG/WebP/GIF 图片")
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="图片内容为空")
+    if len(data) > MAX_AVATAR_BYTES:
+        raise HTTPException(status_code=413, detail="图片不能超过 2MB")
+    user = service.update_avatar(current_user, data=data, mime=mime)
+    return UserResponse.model_validate(user)
+
+
+@router.delete("/avatar", status_code=204)
+async def delete_avatar(
+    current_user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+) -> None:
+    service.clear_avatar(current_user)
+
+
+@router.get("/avatar/{user_id}")
+async def get_avatar(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+) -> Response:
+    target = service.get_user_by_id(user_id)
+    if not target or not target.avatar_data:
+        raise HTTPException(status_code=404, detail="头像不存在")
+    return Response(content=bytes(target.avatar_data), media_type=target.avatar_mime)
 
 
 def _token_response(user: User) -> AuthTokenResponse:

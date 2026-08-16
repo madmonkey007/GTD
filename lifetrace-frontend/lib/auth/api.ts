@@ -1,6 +1,7 @@
 "use client";
 
 import { customFetcher } from "@/lib/api/fetcher";
+import { authHeaders } from "./session";
 import type { AuthUser } from "./session";
 
 interface AuthResponse {
@@ -52,5 +53,30 @@ export function changePassword(oldPassword: string, newPassword: string): Promis
 		method: "PUT",
 		data: { oldPassword, newPassword },
 	});
+}
+
+export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+
+export function uploadAvatar(file: File): Promise<AuthUser> {
+	const formData = new FormData();
+	formData.append("file", file);
+	return customFetcher<AuthUser>("/api/auth/avatar", {
+		method: "PUT",
+		body: formData,
+	});
+}
+
+export function deleteAvatar(): Promise<void> {
+	return customFetcher<void>("/api/auth/avatar", { method: "DELETE" });
+}
+
+/** 拉取头像并转成本地 blob URL；无头像或失败返回 null */
+export async function fetchAvatarUrl(userId: number): Promise<string | null> {
+	const response = await fetch(`/api/auth/avatar/${userId}`, {
+		headers: authHeaders(),
+	});
+	if (!response.ok) return null;
+	const blob = await response.blob();
+	return URL.createObjectURL(blob);
 }
 

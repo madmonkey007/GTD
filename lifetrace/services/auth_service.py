@@ -95,6 +95,22 @@ class AuthService:
         self.session.refresh(user)
         return user
 
+    def update_avatar(self, user: User, *, data: bytes, mime: str) -> User:
+        user.avatar_data = data
+        user.avatar_mime = mime
+        self.session.add(user)
+        self.session.flush()
+        self.session.refresh(user)
+        return user
+
+    def clear_avatar(self, user: User) -> User:
+        user.avatar_data = None
+        user.avatar_mime = None
+        self.session.add(user)
+        self.session.flush()
+        self.session.refresh(user)
+        return user
+
     def change_password(
         self, user: User, *, old_password: str, new_password: str
     ) -> User:

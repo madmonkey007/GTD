@@ -7,6 +7,7 @@ export interface AuthUser {
 	id: number;
 	email: string;
 	displayName?: string | null;
+	hasAvatar?: boolean | null;
 }
 
 interface AuthState {
