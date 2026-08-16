@@ -47,8 +47,8 @@ def _init_config_files() -> list[str]:
     if not user_default_config_path.exists() and default_config_path.exists():
         shutil.copy2(default_config_path, user_default_config_path)
 
-    # 如果用户目录没有 config.yaml，从 default_config.yaml 复制
-    if not user_config_path.exists():
+    # 部署包中的配置目录可能是只读的；此时直接使用默认配置，不创建副本。
+    if not user_config_path.exists() and user_config_dir != default_config_dir:
         source = (
             user_default_config_path if user_default_config_path.exists() else default_config_path
         )
