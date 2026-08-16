@@ -73,9 +73,9 @@ export function PwaRegister() {
 	};
 
 	return (
-		<div className="fixed bottom-4 left-4 z-[9999] max-w-[calc(100vw-2rem)]">
+		<div className="fixed inset-x-0 top-0 z-[9999] flex justify-center px-3 pt-3">
 			{showIosHelp && (
-				<div className="mb-2 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white shadow-lg">
+				<div className="mr-2 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white shadow-lg">
 					点击浏览器的“分享”按钮，然后选择“添加到主屏幕”。
 				</div>
 			)}
