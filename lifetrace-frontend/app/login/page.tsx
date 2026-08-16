@@ -4,6 +4,7 @@ import type { Route } from "next";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { PasswordInput } from "@/components/common/ui/PasswordInput";
 import { ApiError } from "@/lib/api/fetcher";
 import { login, register } from "@/lib/auth/api";
 import { useAuthStore } from "@/lib/auth/session";
@@ -110,8 +111,7 @@ export default function LoginPage() {
 
 							<label className="block text-sm font-medium">
 								密码
-								<input
-									type="password"
+								<PasswordInput
 									value={password}
 									onChange={(event) => setPassword(event.target.value)}
 									required

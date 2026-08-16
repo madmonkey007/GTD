@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { changePassword, updateDisplayName } from "@/lib/auth/api";
 import { useAuthStore } from "@/lib/auth/session";
 import { customFetcher } from "@/lib/api/fetcher";
+import { PasswordInput } from "@/components/common/ui/PasswordInput";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useOpenSettings } from "@/lib/hooks/useOpenSettings";
 import { toast } from "@/lib/toast";
@@ -128,25 +129,22 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 					</button>
 				</div>
 				<div className="space-y-3">
-					<input
-						ref={oldInputRef}
-						type="password"
+					<PasswordInput
+						inputRef={oldInputRef}
 						value={oldPassword}
 						onChange={(e) => setOldPassword(e.target.value)}
 						placeholder="原密码"
 						autoComplete="current-password"
 						className={inputClass}
 					/>
-					<input
-						type="password"
+					<PasswordInput
 						value={newPassword}
 						onChange={(e) => setNewPassword(e.target.value)}
 						placeholder="新密码（至少 8 位）"
 						autoComplete="new-password"
 						className={inputClass}
 					/>
-					<input
-						type="password"
+					<PasswordInput
 						value={confirmPassword}
 						onChange={(e) => setConfirmPassword(e.target.value)}
 						onKeyDown={(e) => {
