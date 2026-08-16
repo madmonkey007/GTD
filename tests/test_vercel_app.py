@@ -5,6 +5,8 @@ from pathlib import Path
 
 from lifetrace.vercel_app import app
 
+MAX_DURATION_SECONDS = 60
+
 
 def test_vercel_app_registers_cloud_modules_only():
     paths = {route.path for route in app.routes}
@@ -19,4 +21,4 @@ def test_vercel_app_registers_cloud_modules_only():
 def test_vercel_config_has_a_python_api_entrypoint():
     config = json.loads(Path("vercel.json").read_text())
 
-    assert config["functions"]["api/index.py"]["runtime"] == "python3.12"
+    assert config["functions"]["api/index.py"]["maxDuration"] == MAX_DURATION_SECONDS
