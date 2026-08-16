@@ -872,8 +872,11 @@ export function DiaryEditor({
 												</DropdownMenuContent>
 											</DropdownMenu>
 										</div>
-										<div
-											className="text-xs text-muted-foreground leading-relaxed cursor-pointer"
+						<div
+							className={cn(
+								"text-xs leading-relaxed text-muted-foreground cursor-pointer",
+								isMobile && "text-sm",
+							)}
 											onDoubleClick={() => startEditing(note)}
 										>
 											<NoteMarkdown content={displayContent.join("\n")} />
