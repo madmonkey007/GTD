@@ -388,7 +388,7 @@ export function TimeMachineNoteCard({
 			<div className={`relative z-10 mt-auto border-t border-dashed pt-3 ${dividerClass}`}>
 				{/* 引用网络（对齐参考 .card-quote：分隔线/背景块 + 左竖线，置于标签上方，紧跟正文） */}
 				{refTotal > 0 && (
-					<div className={`relative z-10 text-xs leading-[1.85] ${cfg.refWrap}`}>
+					<div className={`relative z-10 text-sm leading-[1.85] ${cfg.refWrap}`}>
 						{refsIsExpandable && (
 							<button
 								type="button"

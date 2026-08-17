@@ -170,13 +170,13 @@ function LinkCard({
 	return (
 		<div className="group rounded-lg border border-border/50 bg-card/40 px-3 py-2.5 transition-colors hover:border-border/80 hover:bg-card">
 			{/* 标题：对端笔记名（仅一次；方向由所在分组标题承载，不再重复箭头） */}
-			<div className="truncate text-xs font-medium text-foreground/90">
+			<div className="truncate text-sm font-medium text-foreground/90">
 				{cp?.name || "无标题"}
 			</div>
 
 			{/* 内容预览（已剔除图片语法，图片由下方缩略图承载） */}
 			{noteText && (
-				<div className="mt-1 text-xs leading-relaxed text-foreground/70">
+				<div className="mt-1 text-sm leading-relaxed text-foreground/70">
 					{renderContentWithTags(noteText)}
 				</div>
 			)}
