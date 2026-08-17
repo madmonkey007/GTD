@@ -3,6 +3,7 @@
 import { Award, Star, Target, Trophy } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PanelHeader } from "@/components/common/layout/PanelHeader";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 /**
  * 成就面板组件
@@ -11,11 +12,12 @@ import { PanelHeader } from "@/components/common/layout/PanelHeader";
 export function AchievementsPanel() {
 	const t = useTranslations("page");
 	const tAchievements = useTranslations("achievements");
+	const isMobile = useIsMobile();
 
 	return (
 		<div className="relative flex h-full flex-col overflow-hidden bg-background">
-			{/* 顶部标题栏 */}
-			<PanelHeader icon={Award} title={t("achievementsLabel")} />
+			{/* 顶部标题栏（移动端由 MobileTopBar 承接，隐藏避免双标题） */}
+			{!isMobile && <PanelHeader icon={Award} title={t("achievementsLabel")} />}
 
 			{/* 成就内容区域 */}
 			<div className="flex-1 overflow-y-auto px-4 py-6">

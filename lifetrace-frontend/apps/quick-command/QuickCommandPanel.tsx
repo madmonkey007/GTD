@@ -13,6 +13,7 @@ import { sendChatMessageStream, type ToolCallEvent } from "@/lib/api";
 import type { ChatMessage, ToolCallStep } from "@/apps/chat/types";
 import { useLocaleStore } from "@/lib/store/locale";
 import { useUiStore } from "@/lib/store/ui-store";
+import { useMobileToolbarStore } from "@/lib/store/mobile-toolbar-store";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useTodoStore } from "@/lib/store/todo-store";
 import { useFocusTarget } from "@/lib/store/focus-target-store";
@@ -236,8 +237,9 @@ export function QuickCommandPanel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  // 历史记录
-  const [historyOpen, setHistoryOpen] = useState(false);
+  // 历史记录（移动端由 MobileTopBar 的 History 按钮驱动，状态上提到全局 store）
+  const { agentHistoryOpen: historyOpen, setAgentHistoryOpen: setHistoryOpen } =
+    useMobileToolbarStore();
   const [loadTarget, setLoadTarget] = useState<string | null>(null);
   const { data: sessionsData, isLoading: sessionsLoading } = useChatSessions({
     chatType: "quickCommand",
@@ -413,18 +415,20 @@ export function QuickCommandPanel() {
 
   return (
     <div className="relative flex h-full flex-col">
-      {/* 标题 */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30">
-        <button
-          type="button"
-          onClick={() => setHistoryOpen((v) => !v)}
-          title={locale === "zh" ? "历史记录" : "History"}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${historyOpen ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"}`}
-        >
-          <History className="h-4 w-4" />
-        </button>
-        <Sparkles className="w-4 h-4 text-primary/70" />
-      </div>
+      {/* 标题（移动端由 MobileTopBar 承接 History 按钮，隐藏避免双标题） */}
+      {!isMobile && (
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(!historyOpen)}
+            title={locale === "zh" ? "历史记录" : "History"}
+            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${historyOpen ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"}`}
+          >
+            <History className="h-4 w-4" />
+          </button>
+          <Sparkles className="w-4 h-4 text-primary/70" />
+        </div>
+      )}
 
       {/* 消息区 */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
@@ -553,7 +557,7 @@ export function QuickCommandPanel() {
             className="absolute inset-0 z-30 bg-black/30"
             onClick={() => setHistoryOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 z-30 flex w-[85vw] max-w-64 flex-col border-r border-border bg-background shadow-lg">
+          <div className={`absolute inset-y-0 left-0 z-30 flex flex-col border-r border-border bg-background shadow-lg ${isMobile ? "w-[80vw]" : "w-[85vw] max-w-64"}`}>
             <div className="flex items-center justify-between px-3 py-3 border-b border-border/30">
               <span className="text-sm font-semibold">{locale === "zh" ? "历史记录" : "History"}</span>
               <div className="flex items-center gap-1">

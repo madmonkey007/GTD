@@ -34,9 +34,9 @@ export function HabitStatsPanel({
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
-			{/* Header */}
+			{/* Header（移动端由 MobileTopBar 承接，隐藏标题避免双标题） */}
 			<div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
-				<h2 className="text-sm font-semibold">{t("statsTitle")}</h2>
+				{!isMobile && <h2 className="text-sm font-semibold">{t("statsTitle")}</h2>}
 				<button
 					type="button"
 					onClick={onAddClick}

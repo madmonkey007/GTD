@@ -43,6 +43,7 @@ import { ProjectHeader } from "@/apps/project/ProjectHeader";
 import { ProjectNoteManager } from "@/apps/project/ProjectNoteManager";
 import { useProject } from "@/lib/query";
 import { useUiStore } from "@/lib/store/ui-store";
+import { useMobileToolbarStore } from "@/lib/store/mobile-toolbar-store";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 const emptyDraft = (date: Date): JournalDraft => ({
 	id: null,
@@ -108,8 +109,12 @@ export function DiaryPanel() {
 	// Responsive layout
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [containerWidth, setContainerWidth] = useState(0);
-	const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
-	const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
+	const {
+		diaryLeftOpen: leftDrawerOpen,
+		setDiaryLeftOpen: setLeftDrawerOpen,
+		diaryRightOpen: rightDrawerOpen,
+		setDiaryRightOpen: setRightDrawerOpen,
+	} = useMobileToolbarStore();
 	useEffect(() => {
 		const el = containerRef.current;
 		if (!el) return;
@@ -827,8 +832,8 @@ const handleSaveCardEdit = async (
 							showRightToggle={!showRightInline}
 							isLeftOpen={leftDrawerOpen}
 							isRightOpen={rightDrawerOpen}
-							onToggleLeft={() => setLeftDrawerOpen((prev) => !prev)}
-							onToggleRight={() => setRightDrawerOpen((prev) => !prev)}
+							onToggleLeft={() => setLeftDrawerOpen(!leftDrawerOpen)}
+							onToggleRight={() => setRightDrawerOpen(!rightDrawerOpen)}
 							filterJournalIds={projectFilterJournalIds}
 							headerSlot={
 								<ProjectHeader
@@ -902,8 +907,8 @@ const handleSaveCardEdit = async (
 							showRightToggle={!showRightInline}
 							isLeftOpen={leftDrawerOpen}
 							isRightOpen={rightDrawerOpen}
-							onToggleLeft={() => setLeftDrawerOpen(prev => !prev)}
-							onToggleRight={() => setRightDrawerOpen(prev => !prev)}
+							onToggleLeft={() => setLeftDrawerOpen(!leftDrawerOpen)}
+							onToggleRight={() => setRightDrawerOpen(!rightDrawerOpen)}
 						/>
 						</>
 					)}

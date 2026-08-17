@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useTodos } from "@/lib/query";
 import type { Todo } from "@/lib/types";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 
 type QuadrantKey = "q1" | "q2" | "q3" | "q4";
@@ -41,6 +42,7 @@ function formatDeadline(todo: Todo): string | null {
 
 export function QuadrantsView() {
 	const { data: todos = [] } = useTodos();
+	const isMobile = useIsMobile();
 
 	const activeTodos = useMemo(
 		() => todos.filter((t) => t.status !== "completed"),
@@ -64,8 +66,10 @@ export function QuadrantsView() {
 
 	return (
 		<div className="flex h-full flex-col p-4">
-			<h2 className="mb-4 text-lg font-semibold tracking-tight">四象限视图</h2>
-			<div className="grid flex-1 grid-cols-1 gap-3 min-[420px]:grid-cols-2">
+			{!isMobile && (
+				<h2 className="mb-4 text-lg font-semibold tracking-tight">四象限视图</h2>
+			)}
+			<div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-3">
 				{QUADRANTS.map((quadrant) => {
 					const todos = quadrants[quadrant.key];
 					return (

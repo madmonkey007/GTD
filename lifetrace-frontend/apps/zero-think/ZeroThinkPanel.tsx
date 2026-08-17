@@ -12,6 +12,7 @@ import { useZeroThinkSession } from "./hooks/useZeroThinkSession";
 import { ZeroThinkProgress } from "./ZeroThinkProgress";
 import { ZeroThinkQuestionCard } from "./ZeroThinkQuestionCard";
 import { useJournalMutations } from "@/lib/query/journals";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { MAX_QUESTIONS_PER_DAY } from "./constants";
 
 interface ZeroThinkPanelProps {
@@ -19,6 +20,7 @@ interface ZeroThinkPanelProps {
 }
 
 export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
+	const isMobile = useIsMobile();
 	const { mode, setMode, hasCompletedOnboarding, completeOnboarding } =
 		useZeroThinkStore();
 	const {
@@ -150,9 +152,11 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 							</button>
 						)}
 
-						<h1 className="text-sm font-semibold tracking-tight text-foreground">
-							零秒思考
-						</h1>
+						{!isMobile && (
+							<h1 className="text-sm font-semibold tracking-tight text-foreground">
+								零秒思考
+							</h1>
+						)}
 
 						<div className="flex items-center gap-2">
 							<div className="flex items-center gap-1.5 px-3 py-1 bg-muted rounded-full border border-border">

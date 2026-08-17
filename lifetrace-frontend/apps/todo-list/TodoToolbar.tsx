@@ -140,9 +140,11 @@ export function TodoToolbar({
 					) : (
 						<>
 							{!isMobile && <ListTodo className="w-4 h-4 text-primary/70" />}
-							<span className="text-sm font-semibold tracking-tight text-foreground">
-								{tPage("todoListTitle")}
-							</span>
+							{!isMobile && (
+									<span className="text-sm font-semibold tracking-tight text-foreground">
+										{tPage("todoListTitle")}
+									</span>
+								)}
 						</>
 					)}
 				</div>

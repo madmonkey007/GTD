@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useChatSessions, useChatHistory } from "@/lib/query/chat";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { motion, AnimatePresence } from "framer-motion";
 import { sendChatMessageStream } from "@/lib/api";
 import type { ToolCallEvent } from "@/lib/api";
@@ -380,6 +381,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const clearLinkedNotes = useNoteChatStore((s) => s.clearLinkedNotes);
   const { locale } = useLocaleStore();
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
 
   // 历史记录下拉
@@ -627,7 +629,8 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
 
   return (
     <div className="flex h-full flex-col bg-background">
-      {/* Header */}
+      {/* Header（移动端由 MobileTopBar 承接返回+标题，隐藏避免双标题） */}
+      {!isMobile && (
       <div className="flex-shrink-0 px-4 pt-3 pb-2 border-b border-border/30">
         <div className="flex items-center gap-2">
           {showBackButton && (
@@ -712,6 +715,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
           </div>
         </div>
       </div>
+      )}
 
       {/* Messages area */}
       <div className="flex-1 min-h-0 overflow-hidden">

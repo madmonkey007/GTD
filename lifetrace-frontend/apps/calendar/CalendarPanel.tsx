@@ -304,8 +304,8 @@ export function CalendarPanel() {
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden bg-background">
-			{/* 顶部标题栏 */}
-			<PanelHeader icon={Calendar} title={t("title")} />
+			{/* 顶部标题栏（移动端由 MobileTopBar 承接，隐藏避免双标题） */}
+			{!isMobile && <PanelHeader icon={Calendar} title={t("title")} />}
 			{/* 顶部工具栏 */}
 			<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
 				<span className="text-sm font-medium text-foreground">
