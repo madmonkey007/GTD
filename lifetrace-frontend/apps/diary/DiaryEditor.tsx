@@ -795,7 +795,7 @@ export function DiaryEditor({
 										<div className="flex items-start justify-between gap-2">
 											<div className="flex-1 min-w-0">
 												{note.name && (
-													<div className="text-[10px] text-muted-foreground/50 mb-1 truncate">
+													<div className="text-xs text-muted-foreground/50 mb-1 truncate">
 														{pinnedIds.includes(note.id) && (
 															<Pin className="w-3 h-3 inline-block mr-1 text-primary/60 -mt-0.5" />
 														)}
@@ -873,10 +873,7 @@ export function DiaryEditor({
 											</DropdownMenu>
 										</div>
 						<div
-							className={cn(
-								"text-xs leading-relaxed text-muted-foreground cursor-pointer",
-								isMobile && "text-sm",
-							)}
+							className="text-sm leading-relaxed text-muted-foreground cursor-pointer"
 											onDoubleClick={() => startEditing(note)}
 										>
 											<NoteMarkdown content={displayContent.join("\n")} />
