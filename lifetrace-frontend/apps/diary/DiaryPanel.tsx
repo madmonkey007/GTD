@@ -124,8 +124,8 @@ export function DiaryPanel() {
 	// Derived state: when container is wide enough, show sidebars inline
 	// left=288px + right=280px(min) + gaps=8px + middle needs ~400px min
 	// So at containerWidth >= ~976, all 3 panels can fit
-	const showLeftInline = containerWidth >= 1000 || containerWidth === 0;
-	const showRightInline = containerWidth >= 900 || containerWidth === 0;
+	const showLeftInline = !isMobile && (containerWidth >= 1000 || containerWidth === 0);
+	const showRightInline = !isMobile && (containerWidth >= 900 || containerWidth === 0);
 	const [showTrash, setShowTrash] = useState(false);
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
 	// 集合视图：none=正常笔记编辑；gallery=集合画廊；detail=单个集合详情
@@ -947,7 +947,10 @@ const handleSaveCardEdit = async (
 						key="right-drawer"
 						initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
 						transition={{ type: "spring", damping: 30, stiffness: 300 }}
-						className="absolute right-0 top-0 z-40 h-full w-[min(380px,85vw)] shadow-xl"
+						className={cn(
+							"absolute right-0 top-0 z-40 h-full shadow-xl",
+							isMobile ? "w-full" : "w-[min(380px,85vw)]",
+						)}
 					>
 						<DiaryChatPanel noteContent={noteContent} showBackButton onClose={() => setRightDrawerOpen(false)} onNoteMutated={handleNoteMutated} />
 					</motion.div>
