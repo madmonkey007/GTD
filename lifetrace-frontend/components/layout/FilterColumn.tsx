@@ -143,7 +143,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 							type="button"
 							onClick={() => { setTodoProjectFilter(null); setSidebarMode(sidebarMode === item.id ? null : item.id); }}
 							className={cn(
-								"flex items-center gap-2.5 rounded-md px-2.5 text-xs transition-colors",
+								"flex items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors",
 								isMobile ? "min-h-11" : "py-1.5",
 								"hover:bg-muted/40",
 								isActive
@@ -173,7 +173,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 						type="button"
 						onClick={() => setTagsExpanded((v) => !v)}
 						className={cn(
-							"flex items-center gap-1 px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground",
+							"flex items-center gap-1 px-2.5 text-sm font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground",
 							isMobile ? "min-h-11" : "pb-1",
 						)}
 					>
@@ -191,7 +191,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 								type="button"
 								onClick={() => { setTodoProjectFilter(null); setSidebarTag(sidebarTag === tag ? null : tag); }}
 								className={cn(
-									"flex items-center gap-2 rounded-md px-2.5 text-xs transition-colors",
+									"flex items-center gap-2 rounded-md px-2.5 text-sm transition-colors",
 									isMobile ? "min-h-11" : "py-1.5",
 									"hover:bg-muted/40",
 									sidebarTag === tag

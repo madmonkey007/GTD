@@ -50,7 +50,7 @@ function NoteImage({ src, alt }: React.ImgHTMLAttributes<HTMLImageElement>) {
 export function NoteMarkdown({ content }: { content: string }) {
 	const segments = useMemo(() => segmentContent(content), [content]);
 	return (
-		<div className="text-xs text-muted-foreground leading-relaxed space-y-1">
+		<div className="text-sm text-muted-foreground leading-relaxed space-y-1">
 			{segments.map((seg, i) =>
 				seg.type === "images" ? (
 					<NoteImageGrid key={i} images={seg.images} />

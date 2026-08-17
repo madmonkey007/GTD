@@ -47,7 +47,7 @@ export function DiaryFilterBar({ filterMode, onFilterModeChange, hideActive, tim
 							title={tooltipKey ? t(tooltipKey) : undefined}
 							onClick={() => onFilterModeChange(key)}
 							className={cn(
-								"rounded-lg px-2 py-1.5 text-xs transition-colors w-full text-left flex items-center gap-1.5",
+								"rounded-lg px-2 py-1.5 text-sm transition-colors w-full text-left flex items-center gap-1.5",
 								isActive
 									? "bg-primary/8 text-primary font-medium border border-primary/15"
 									: "text-muted-foreground/70 hover:bg-muted/20 hover:text-foreground",
@@ -64,7 +64,7 @@ export function DiaryFilterBar({ filterMode, onFilterModeChange, hideActive, tim
 								onClick={onTimeMachine}
 								title={t("timeMachineTooltip")}
 								className={cn(
-									"rounded-lg px-2 py-1.5 text-xs transition-colors w-full text-left flex items-center gap-1.5",
+									"rounded-lg px-2 py-1.5 text-sm transition-colors w-full text-left flex items-center gap-1.5",
 									!hideActive && timeMachineActive
 										? "bg-primary/8 text-primary font-medium border border-primary/15"
 										: "text-muted-foreground/70 hover:bg-muted/20 hover:text-foreground",

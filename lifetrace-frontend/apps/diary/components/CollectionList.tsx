@@ -30,7 +30,7 @@ export function CollectionList({
 				<button
 					type="button"
 					onClick={() => setCollapsed((v) => !v)}
-					className="flex items-center gap-1.5 px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
+					className="flex items-center gap-1.5 px-2.5 text-sm font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
 					title={collapsed ? t("expand") : t("collapse")}
 				>
 					{t("entryTitle")}
@@ -67,7 +67,7 @@ export function CollectionList({
 									type="button"
 									onClick={() => onSelectCollection?.(c.id)}
 									className={cn(
-										"flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-xs transition-colors",
+										"flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-sm transition-colors",
 										isSelected
 											? "bg-primary/10 text-primary font-medium"
 											: "text-muted-foreground hover:bg-muted/30",

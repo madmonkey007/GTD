@@ -136,7 +136,7 @@ export function ProjectList({
 					type="button"
 					onClick={() => setCollapsed((v) => !v)}
 					className={cn(
-						"flex items-center gap-1.5 px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground",
+						"flex items-center gap-1.5 px-2.5 text-sm font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground",
 						isMobile && "min-h-11",
 					)}
 					title={collapsed ? t("expand") : t("collapse")}
@@ -231,7 +231,7 @@ function ProjectItem({
 			type="button"
 			onClick={onClick}
 			className={cn(
-				"flex w-full items-center gap-2 rounded-lg px-1.5 text-xs transition-colors",
+				"flex w-full items-center gap-2 rounded-lg px-1.5 text-sm transition-colors",
 				isMobile ? "min-h-11" : "py-1",
 				isSelected
 					? "bg-primary/10 font-medium text-primary"

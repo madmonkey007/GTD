@@ -26,7 +26,7 @@ export function DiaryTagList({ tagsWithCount, selectedTag, onSelectTag }: DiaryT
 			<button
 				type="button"
 				onClick={() => setExpanded((v) => !v)}
-				className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
+				className="flex items-center gap-1 px-2.5 py-1 text-sm font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
 			>
 				{t("sidebarTags")}
 				<Chevron className="h-3 w-3" />
@@ -45,7 +45,7 @@ export function DiaryTagList({ tagsWithCount, selectedTag, onSelectTag }: DiaryT
 									key={tagName}
 									onClick={() => onSelectTag?.(isSelected ? null : tagName)}
 									className={cn(
-										"flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors",
+										"flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
 										"hover:bg-muted/40",
 										isSelected
 											? "bg-primary/10 text-primary font-medium"
