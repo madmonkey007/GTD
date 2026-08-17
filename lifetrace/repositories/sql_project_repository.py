@@ -159,7 +159,10 @@ class SqlProjectRepository:
             rows = (
                 session.query(ProjectTodoRelation.todo_id)
                 .join(Project, ProjectTodoRelation.project_id == Project.id)
-                .filter_by(project_id=project_id, deleted_at=None)
+                .filter(
+                    ProjectTodoRelation.project_id == project_id,
+                    ProjectTodoRelation.deleted_at.is_(None),
+                )
                 .filter(Project.user_id == self.user_id)
                 .order_by(ProjectTodoRelation.created_at.asc())
                 .all()
@@ -210,7 +213,10 @@ class SqlProjectRepository:
             rows = (
                 session.query(ProjectNoteRelation.journal_id)
                 .join(Project, ProjectNoteRelation.project_id == Project.id)
-                .filter_by(project_id=project_id, deleted_at=None)
+                .filter(
+                    ProjectNoteRelation.project_id == project_id,
+                    ProjectNoteRelation.deleted_at.is_(None),
+                )
                 .filter(Project.user_id == self.user_id)
                 .order_by(ProjectNoteRelation.created_at.asc())
                 .all()
@@ -258,11 +264,19 @@ class SqlProjectRepository:
 
     def delete_by_todo(self, todo_id: int) -> int:
         with self.db_base.get_session() as session:
+            project_ids = [
+                row[0]
+                for row in session.query(Project.id)
+                .filter(Project.user_id == self.user_id)
+                .all()
+            ]
             count = (
                 session.query(ProjectTodoRelation)
-                .join(Project, ProjectTodoRelation.project_id == Project.id)
-                .filter_by(todo_id=todo_id, deleted_at=None)
-                .filter(Project.user_id == self.user_id)
+                .filter(
+                    ProjectTodoRelation.project_id.in_(project_ids),
+                    ProjectTodoRelation.todo_id == todo_id,
+                    ProjectTodoRelation.deleted_at.is_(None),
+                )
                 .update({ProjectTodoRelation.deleted_at: get_utc_now()}, synchronize_session=False)
             )
             session.commit()
@@ -270,11 +284,19 @@ class SqlProjectRepository:
 
     def delete_by_journal(self, journal_id: int) -> int:
         with self.db_base.get_session() as session:
+            project_ids = [
+                row[0]
+                for row in session.query(Project.id)
+                .filter(Project.user_id == self.user_id)
+                .all()
+            ]
             count = (
                 session.query(ProjectNoteRelation)
-                .join(Project, ProjectNoteRelation.project_id == Project.id)
-                .filter_by(journal_id=journal_id, deleted_at=None)
-                .filter(Project.user_id == self.user_id)
+                .filter(
+                    ProjectNoteRelation.project_id.in_(project_ids),
+                    ProjectNoteRelation.journal_id == journal_id,
+                    ProjectNoteRelation.deleted_at.is_(None),
+                )
                 .update({ProjectNoteRelation.deleted_at: get_utc_now()}, synchronize_session=False)
             )
             session.commit()
