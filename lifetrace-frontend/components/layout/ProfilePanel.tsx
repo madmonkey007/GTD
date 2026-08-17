@@ -3,16 +3,14 @@
 import {
 	Award,
 	BrainCircuit,
-	CalendarDays,
 	Camera,
 	Check,
-	Heart,
 	KeyRound,
-	LayoutGrid,
 	ChevronRight,
 	LogOut,
 	Pencil,
 	Settings,
+	Timer,
 	X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -329,28 +327,12 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 
 	const MENU_ITEMS = [
 		{
-			id: "calendar" as const,
-			label: t("bottomDock.calendar"),
-			icon: CalendarDays,
-			color: "text-sky-500",
-			bg: "bg-sky-500/10",
-			onClick: () => navigate("calendar"),
-		},
-		{
-			id: "quadrants" as const,
-			label: t("bottomDock.quadrants"),
-			icon: LayoutGrid,
-			color: "text-cyan-500",
-			bg: "bg-cyan-500/10",
-			onClick: () => navigate("quadrants"),
-		},
-		{
-			id: "habits" as const,
-			label: t("bottomDock.habits"),
-			icon: Heart,
-			color: "text-rose-500",
-			bg: "bg-rose-500/10",
-			onClick: () => navigate("habits"),
+			id: "pomodoro" as const,
+			label: t("bottomDock.pomodoro"),
+			icon: Timer,
+			color: "text-orange-500",
+			bg: "bg-orange-500/10",
+			onClick: () => navigate("pomodoro"),
 		},
 		{
 			id: "achievements" as const,
@@ -394,7 +376,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		},
 	];
 
-	// 日历/四象限/习惯等入口是给移动端底部 tab 放不下时收纳用的，
+	// 番茄时钟/习惯等入口是给移动端底部 tab 放不下时收纳用的，
 	// PC 端侧边栏已有全部入口；账号操作（改密码/退出/设置）两端都显示
 	const menuItems = isMobile
 		? MENU_ITEMS
