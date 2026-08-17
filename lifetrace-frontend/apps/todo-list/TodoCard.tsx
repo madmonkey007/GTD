@@ -160,7 +160,7 @@ export function TodoCard({
 			className={cn(
 				"todo-card group relative flex max-h-32 flex-col justify-start gap-1 rounded-lg px-3 py-2 cursor-pointer",
 				"transition-[background-color,box-shadow] duration-150",
-				"bg-transparent",
+				isMobile ? "bg-background" : "bg-transparent",
 				"select-none",
 				selected
 					? "bg-primary/[0.05] dark:bg-primary/[0.08]"

@@ -422,7 +422,12 @@ export function TodoList() {
 			/>
 
 			<MultiTodoContextMenu selectedTodoIds={selectedTodoIds}>
-				<div className="flex-1 overflow-y-auto">
+				<div
+					className={cn(
+						"flex-1 overflow-y-auto",
+						isMobile && "bg-muted/40",
+					)}
+				>
 					{!isMobile && (
 						<div className="px-6 py-4 pb-4">
 							<NewTodoInlineForm

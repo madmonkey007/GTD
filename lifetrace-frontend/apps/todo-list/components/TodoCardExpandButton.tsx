@@ -18,7 +18,7 @@ export function TodoCardExpandButton({
 	const isMobile = useIsMobile();
 
 	if (!hasChildren) {
-		return <div className={cn("w-4 shrink-0", isMobile && "w-6")} />;
+		return <div className={cn("w-4 shrink-0", isMobile && "w-0")} />;
 	}
 
 	return (
