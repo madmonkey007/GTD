@@ -105,12 +105,12 @@ def upgrade() -> None:
     op.execute("UPDATE audio_recordings SET file_size = 0 WHERE file_size IS NULL")
     op.execute("UPDATE audio_recordings SET duration = 0 WHERE duration IS NULL")
     op.execute("UPDATE audio_recordings SET status = 'recording' WHERE status IS NULL")
-    op.execute("UPDATE audio_recordings SET is_24x7 = 0 WHERE is_24x7 IS NULL")
-    op.execute("UPDATE audio_recordings SET is_transcribed = 0 WHERE is_transcribed IS NULL")
-    op.execute("UPDATE audio_recordings SET is_extracted = 0 WHERE is_extracted IS NULL")
-    op.execute("UPDATE audio_recordings SET is_summarized = 0 WHERE is_summarized IS NULL")
-    op.execute("UPDATE audio_recordings SET is_full_audio = 0 WHERE is_full_audio IS NULL")
-    op.execute("UPDATE audio_recordings SET is_segment_audio = 0 WHERE is_segment_audio IS NULL")
+    op.execute("UPDATE audio_recordings SET is_24x7 = FALSE WHERE is_24x7 IS NULL")
+    op.execute("UPDATE audio_recordings SET is_transcribed = FALSE WHERE is_transcribed IS NULL")
+    op.execute("UPDATE audio_recordings SET is_extracted = FALSE WHERE is_extracted IS NULL")
+    op.execute("UPDATE audio_recordings SET is_summarized = FALSE WHERE is_summarized IS NULL")
+    op.execute("UPDATE audio_recordings SET is_full_audio = FALSE WHERE is_full_audio IS NULL")
+    op.execute("UPDATE audio_recordings SET is_segment_audio = FALSE WHERE is_segment_audio IS NULL")
     op.execute(
         "UPDATE audio_recordings SET transcription_status = 'pending' WHERE transcription_status IS NULL"
     )

@@ -28,7 +28,7 @@ def upgrade() -> None:
     # 已归入项目的待办应移出收集箱
     op.execute(
         """
-        UPDATE todos SET is_inbox = 0
+        UPDATE todos SET is_inbox = FALSE
         WHERE id IN (
             SELECT todo_id FROM project_todo_relations
             WHERE deleted_at IS NULL
