@@ -600,6 +600,7 @@ class VectorDatabase:
         query_text: str,
         top_k: int = 20,
         exclude_journal_id: int | None = None,
+        user_id: int | None = None,
     ) -> list[dict[str, Any]]:
         """语义检索相似笔记
 
@@ -607,11 +608,13 @@ class VectorDatabase:
             query_text: 查询文本（通常是当前笔记内容）
             top_k: 返回数量
             exclude_journal_id: 排除的笔记 ID（当前笔记自身）
+            user_id: 兼容 PostgresVectorDatabase 签名；Chroma 按集合隔离，此处忽略
 
         Returns:
             结果列表，每项含 journal_id, document, distance, score
             （score = 1 - distance，越大越相似）
         """
+        _ = user_id
         if not query_text or not query_text.strip():
             return []
         try:

@@ -75,7 +75,10 @@ async def update_me(
     return UserResponse.model_validate(user)
 
 
-@router.put("/password", status_code=204)
+# 注意：response_model=None 必须显式传入。fastapi 0.115.6 在 `from __future__ import annotations`
+# 下会把字符串注解 "None" 解析成 NoneType 并当作响应模型，与 204 状态码冲突导致模块加载失败
+# （0.116+ 已修复）。降级 fastapi 前保持显式 None。
+@router.put("/password", status_code=204, response_model=None)
 async def change_password(
     payload: PasswordChangeRequest,
     current_user: User = Depends(get_current_user),
@@ -109,7 +112,7 @@ async def upload_avatar(
     return UserResponse.model_validate(user)
 
 
-@router.delete("/avatar", status_code=204)
+@router.delete("/avatar", status_code=204, response_model=None)
 async def delete_avatar(
     current_user: User = Depends(get_current_user),
     service: AuthService = Depends(get_auth_service),
