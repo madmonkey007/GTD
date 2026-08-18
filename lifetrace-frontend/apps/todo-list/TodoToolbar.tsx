@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { SlidersHorizontal, FolderKanban, ListTodo, Search } from "lucide-react";
+import { FolderKanban, ListTodo, Search, SlidersHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, CalendarDays, ChevronDown, ChevronRight, ListTodo, Tag, X } from "lucide-react";
+import { Calendar, CalendarDays, ChevronDown, ChevronRight, Inbox, Tag, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { ProjectList } from "@/apps/project";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 const FILTER_ITEMS = [
 	{ id: "today" as const, label: "今天", icon: Calendar },
 	{ id: "last7days" as const, label: "最近7天", icon: CalendarDays },
-	{ id: "list" as const, label: "全部清单", icon: ListTodo },
+	{ id: "inbox" as const, label: "收集箱", icon: Inbox },
 ] as const;
 
 export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
@@ -32,7 +32,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 	// 计算各个筛选条件的待办数量（只统计未完成的待办项）
 	const counts = useMemo(() => {
 		if (!allTodos || !Array.isArray(allTodos)) {
-			return { today: 0, last7days: 0, list: 0, tags: {} as Record<string, number> };
+			return { today: 0, last7days: 0, inbox: 0, tags: {} as Record<string, number> };
 		}
 		const now = new Date();
 		const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -40,13 +40,15 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 		sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
 		// 只统计未完成的待办
-		const activeTodos = (allTodos as Array<{ startTime?: string | null; endTime?: string | null; tags?: string[]; status?: string }>).filter(t => t.status !== "completed");
+		const activeTodos = (allTodos as Array<{ startTime?: string | null; endTime?: string | null; tags?: string[]; status?: string; isInbox?: boolean }>).filter(t => t.status !== "completed");
 
 		let todayCount = 0;
 		let last7Count = 0;
+		let inboxCount = 0;
 		const tagCount: Record<string, number> = {};
 
 		for (const t of activeTodos) {
+			if (t.isInbox !== false) inboxCount++;
 			const scheduleTime = t.startTime ?? t.endTime;
 			if (scheduleTime) {
 				const deadline = new Date(scheduleTime);
@@ -60,7 +62,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 			}
 		}
 
-		return { today: todayCount, last7days: last7Count, list: activeTodos.length, tags: tagCount };
+		return { today: todayCount, last7days: last7Count, inbox: inboxCount, tags: tagCount };
 	}, [allTodos]);
 
 	const isFilterActive = sidebarMode !== null || sidebarTag !== null;
@@ -135,7 +137,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 					// 全部清单：无模式筛选且未进入项目筛选时才高亮（避免与项目选中态并存）
 					const isActive =
 						sidebarMode === item.id ||
-						(item.id === "list" && sidebarMode === null && !todoProjectFilter);
+						(item.id === "inbox" && sidebarMode === null && !todoProjectFilter);
 					const count = counts[item.id];
 					return (
 						<button
@@ -164,9 +166,9 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 			{/* 项目入口（待办+笔记共享容器），位于标签之上 */}
 			<div className="flex flex-col gap-0.5 border-t border-border/20 px-2 pt-2 mt-1">
 				<ProjectList feature="todo" />
-			</div>
+				</div>
 
-			{/* 标签区域 */}
+
 			{allTags.length > 0 && (
 				<div className="flex flex-col gap-0.5 border-t border-border/20 px-2 pt-2 mt-1">
 					<button
@@ -219,3 +221,4 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 		</div>
 	);
 }
+

@@ -45,10 +45,20 @@ export function TodoList() {
 		if (!todoProjectFilter || !filterProject?.todos) return null;
 		return new Set(filterProject.todos.map((t) => t.id));
 	}, [todoProjectFilter, filterProject]);
-	// 筛选态下只保留项目成员（成员均为父代办），非筛选态展示全部
+
+	// 从侧边栏读取过滤状态
+	const { sidebarMode, sidebarTag } = useUiStore();
+
+// 筛选态下只保留项目成员；收集箱模式（含默认态）只展示未归入项目的待办
 	const visibleTodos = useMemo(
-		() => (projectMemberIds ? todos.filter((t) => projectMemberIds.has(t.id)) : todos),
-		[todos, projectMemberIds],
+		() => {
+			if (projectMemberIds) return todos.filter((t) => projectMemberIds.has(t.id));
+			if (sidebarMode === null || sidebarMode === 'inbox') {
+				return todos.filter((t) => t.isInbox !== false);
+			}
+			return todos;
+		},
+		[todos, projectMemberIds, sidebarMode],
 	);
 
 	// 从 Zustand 获取 UI 状态
@@ -72,9 +82,6 @@ export function TodoList() {
 		dueTime: "all",
 	});
 
-	// 从侧边栏读取过滤状态
-	const { sidebarMode, sidebarTag } = useUiStore();
-
 	// 将侧边栏筛选与本地 filter 合并
 	const effectiveFilter = useMemo((): TodoFilterState => {
 		const effective = { ...filter };
@@ -85,7 +92,7 @@ export function TodoList() {
 		} else if (sidebarMode === "last7days") {
 			effective.dueTime = "last7Days";
 		}
-		// sidebarMode === "list" 或 null 时保持本地 filter 的 dueTime
+		// sidebarMode === "inbox" 或 null 时保持本地 filter 的 dueTime
 
 		// 侧边栏标签覆盖标签筛选
 		if (sidebarTag !== null) {
@@ -360,11 +367,12 @@ export function TodoList() {
 			const created = await createTodo(input);
 			setNewTodoName("");
 			setMobileComposerOpen(false);
-			// 处于项目筛选态时，新代办自动归入该项目（父代办）
-			if (todoProjectFilter && created?.id) {
+			// 处于项目筛选态时，新代办自动归入
+			const filterId = todoProjectFilter;
+			if (filterId && created?.id) {
 				try {
 					await addTodosToProjectAsync({
-						id: todoProjectFilter,
+						id: filterId,
 						todoIds: [created.id],
 					});
 				} catch (attachErr) {
@@ -440,7 +448,7 @@ export function TodoList() {
 					)}
 
 					{filteredTodos.length === 0 ? (
-						todoProjectFilter ? (
+todoProjectFilter ? (
 							<div className="flex h-[200px] flex-col items-center justify-center gap-2 px-4 text-center">
 								<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/5 ring-1 ring-primary/10">
 									<FolderKanban className="h-5 w-5 text-primary/50" />

@@ -141,6 +141,10 @@ export const createUiStoreStorage = () =>
 					}
 
 					// sidebarMode/sidebarTag 现在由侧边栏筛选按钮设置，保留持久化值
+					// 旧版 "list" 模式已改名为收集箱 "inbox"（持久化存储不受类型约束）
+					if ((state.sidebarMode as string) === "list") {
+						state.sidebarMode = "inbox";
+					}
 
 					// 校验 showAgnoToolSelector（默认 false）
 					if (typeof state.showAgnoToolSelector !== "boolean") {

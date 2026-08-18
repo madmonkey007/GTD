@@ -45,6 +45,7 @@ export const useUiStore = create<UiStoreState>()(
 			isSettingsOpen: DEFAULT_PANEL_STATE.isSettingsOpen,
 			selectedProjectId: null,
 			todoProjectFilter: null,
+	
 
 			// 位置槽位 toggle 方法
 			togglePanelA: () =>
@@ -479,6 +480,7 @@ export const useUiStore = create<UiStoreState>()(
 				set(() => ({
 					todoProjectFilter: id,
 				})),
+
 
 			setBackendDisabledFeatures: (features) =>
 				set((state) => {

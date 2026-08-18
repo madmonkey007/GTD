@@ -29,7 +29,7 @@
     "activityPlaceholder": "Placeholder: plug an activity dashboard here",
     "todosLabel": "Todos View",
     "todosPlaceholder": "Placeholder: plug a Todo list here",
-    "todoListTitle": "Todos",
+    "todoListTitle": "Inbox",
     "chatLabel": "AI Chat",
     "chatPlaceholder": "Placeholder: plug an AI chat component here",
     "chatTitle": "GTD - AI Assistant",
@@ -1217,6 +1217,7 @@
   },
   "project": {
     "entryTitle": "Projects",
+    "checklistEntryTitle": "Checklists",
     "createTitle": "New project",
     "create": "Create",
     "namePlaceholder": "Project name",

@@ -1,7 +1,7 @@
 import type { PanelFeature, PanelPosition } from "@/lib/config/panel-config";
 
 // 侧边栏模式类型
-export type SidebarMode = "today" | "last7days" | "list" | null;
+export type SidebarMode = "today" | "last7days" | "inbox" | null;
 
 // 侧边栏导航视图类型
 export type SidebarView = "list" | "calendar" | "quadrants" | "pomodoro" | "habits" | "diary" | "achievements" | "zeroThink" | "quickCommand" | "profile";
@@ -117,4 +117,7 @@ export interface UiStoreState {
 	// 待办侧「按项目筛选」：非空时待办列表只展示该项目的待办（运行时态，不持久化）
 	todoProjectFilter: number | null;
 	setTodoProjectFilter: (id: number | null) => void;
+	// 待办侧「按清单筛选」：类似 todoProjectFilter，与项目筛选互斥
+
+
 }

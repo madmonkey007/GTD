@@ -29,7 +29,7 @@
     "activityPlaceholder": "占位：在这里接入活动流仪表盘",
     "todosLabel": "待办视图",
     "todosPlaceholder": "占位：在这里接入 Todo 待办",
-    "todoListTitle": "待办",
+    "todoListTitle": "收集箱",
     "chatLabel": "AI 聊天",
     "chatPlaceholder": "占位：在这里接入 AI 聊天组件",
     "chatTitle": "GTD - AI 智能助手",
@@ -1217,6 +1217,7 @@
   },
   "project": {
     "entryTitle": "项目",
+    "checklistEntryTitle": "清单",
     "createTitle": "新建项目",
     "create": "创建",
     "namePlaceholder": "项目名称",

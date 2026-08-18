@@ -99,6 +99,7 @@ export function normalizeTodo(raw: Record<string, unknown>): Todo {
 		reminderOffsets: (raw.reminderOffsets as number[] | null) ?? undefined,
 		rrule: (raw.rrule as string | null) ?? undefined,
 		order: (raw.order as number) ?? 0,
+		isInbox: (raw.isInbox as boolean) ?? true,
 		tags: (raw.tags as string[]) ?? [],
 		attachments: (raw.attachments as Todo["attachments"]) ?? [],
 		parentTodoId:
