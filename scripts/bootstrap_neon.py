@@ -7,7 +7,6 @@ import os
 
 from sqlalchemy import text
 
-os.environ.setdefault("LIFETRACE_SKIP_MIGRATIONS", "1")
 importlib.import_module("lifetrace.storage.models")
 
 from lifetrace.storage.database_base import DatabaseBase  # noqa: E402
