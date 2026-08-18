@@ -16,7 +16,7 @@ import {
 	DialogContent,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { type DragData, type DropData } from "@/lib/dnd";
+import type { DragData, DropData } from "@/lib/dnd";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useProjectMutations, useProjects } from "@/lib/query";
 import { useUiStore } from "@/lib/store/ui-store";
@@ -148,7 +148,8 @@ export function ProjectList({
 
 	return (
 		<div className="flex flex-col gap-1">
-			{checklists.length > 0 && (
+			{/* 清单组：待办侧始终展示（空时保留入口和 + 创建），笔记侧仅在已有清单时展示 */}
+			{(checklists.length > 0 || feature === "todo") && (
 				<div className="flex flex-col gap-1">
 					<div className="flex items-center justify-between px-0">
 						<button
@@ -177,18 +178,24 @@ export function ProjectList({
 					</div>
 					{!checklistCollapsed && (
 						<div className="space-y-0.5">
-							{checklists.map((p) => (
-								<ProjectItem
-									key={p.id}
-									projectId={p.id}
-									name={p.name}
-									color={p.color}
-									isSelected={isProjectActive(p.id)}
-									droppable={feature === "todo"}
-									onClick={() => handleClickProject(p.id)}
-									icon={ListChecks}
-								/>
-							))}
+							{isLoading ? null : checklists.length === 0 ? (
+								<p className="px-1.5 py-1 text-xs text-muted-foreground/50">
+									{t("checklistEmpty")}
+								</p>
+							) : (
+								checklists.map((p) => (
+									<ProjectItem
+										key={p.id}
+										projectId={p.id}
+										name={p.name}
+										color={p.color}
+										isSelected={isProjectActive(p.id)}
+										droppable={feature === "todo"}
+										onClick={() => handleClickProject(p.id)}
+										icon={ListChecks}
+									/>
+								))
+							)}
 						</div>
 					)}
 				</div>
