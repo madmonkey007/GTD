@@ -138,6 +138,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
         limit: int = 200,
         offset: int = 0,
         status: str | None = None,
+        inbox: bool | None = None,
     ) -> list[dict[str, Any]]:
         try:
             with self.db_base.get_session() as session:
@@ -148,6 +149,8 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
 
                 if status:
                     q = q.filter(col(Todo.status) == status)
+                if inbox is not None:
+                    q = q.filter(col(Todo.is_inbox).is_(inbox))
 
                 todos = q.order_by(col(Todo.created_at).desc()).offset(offset).limit(limit).all()
                 return [self._todo_to_dict(session, t) for t in todos]
@@ -155,7 +158,7 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
             logger.error(f"列出 todo 失败: {e}")
             return []
 
-    def count_todos(self, *, status: str | None = None) -> int:
+    def count_todos(self, *, status: str | None = None, inbox: bool | None = None) -> int:
         try:
             with self.db_base.get_session() as session:
                 q = session.query(Todo).filter(col(Todo.user_id) == self.user_id)
@@ -163,6 +166,8 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
                     q = q.filter(col(Todo.deleted_at).is_(None))
                 if status:
                     q = q.filter(col(Todo.status) == status)
+                if inbox is not None:
+                    q = q.filter(col(Todo.is_inbox).is_(inbox))
                 return q.count()
         except SQLAlchemyError as e:
             logger.error(f"统计 todo 数量失败: {e}")

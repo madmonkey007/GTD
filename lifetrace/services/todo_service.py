@@ -83,10 +83,12 @@ class TodoService:
         todo = self.repository.get_by_uid(uid)
         return TodoResponse(**todo) if todo else None
 
-    def list_todos(self, limit: int, offset: int, status: str | None) -> dict[str, Any]:
+    def list_todos(
+        self, limit: int, offset: int, status: str | None, inbox: bool | None = None
+    ) -> dict[str, Any]:
         """获取 Todo 列表"""
-        todos = self.repository.list_todos(limit, offset, status)
-        total = self.repository.count(status)
+        todos = self.repository.list_todos(limit, offset, status, inbox=inbox)
+        total = self.repository.count(status, inbox=inbox)
         return {"total": total, "todos": [TodoResponse(**t) for t in todos]}
 
     def create_todo(self, data: TodoCreate) -> TodoResponse:
@@ -153,6 +155,7 @@ class TodoService:
             percent_complete=data.percent_complete,
             rrule=data.rrule,
             order=data.order,
+            is_inbox=data.is_inbox,
             tags=data.tags,
             related_activities=data.related_activities,
         )

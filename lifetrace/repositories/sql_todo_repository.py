@@ -23,11 +23,13 @@ class SqlTodoRepository(ITodoRepository):
     def get_by_uid(self, uid: str) -> dict[str, Any] | None:
         return self._manager.get_todo_by_uid(uid)
 
-    def list_todos(self, limit: int, offset: int, status: str | None) -> list[dict[str, Any]]:
-        return self._manager.list_todos(limit=limit, offset=offset, status=status)
+    def list_todos(
+        self, limit: int, offset: int, status: str | None, inbox: bool | None = None
+    ) -> list[dict[str, Any]]:
+        return self._manager.list_todos(limit=limit, offset=offset, status=status, inbox=inbox)
 
-    def count(self, status: str | None) -> int:
-        return self._manager.count_todos(status=status)
+    def count(self, status: str | None, inbox: bool | None = None) -> int:
+        return self._manager.count_todos(status=status, inbox=inbox)
 
     def create(self, **kwargs) -> int | None:
         return self._manager.create_todo(**kwargs)

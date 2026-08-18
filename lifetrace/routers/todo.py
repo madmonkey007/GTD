@@ -39,10 +39,11 @@ async def list_todos(
     limit: int = Query(200, ge=1, le=2000, description="返回数量限制"),
     offset: int = Query(0, ge=0, description="偏移量"),
     status: str | None = Query(None, description="状态筛选：active/completed/canceled"),
+    inbox: bool | None = Query(None, description="收集箱筛选：true 仅收集箱 / false 仅已归类"),
     service: TodoService = Depends(get_todo_service),
 ):
     """获取待办列表"""
-    return service.list_todos(limit, offset, status)
+    return service.list_todos(limit, offset, status, inbox=inbox)
 
 
 @router.get("/{todo_id}", response_model=TodoResponse)

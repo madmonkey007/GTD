@@ -112,6 +112,7 @@ class TodoIcalMixin:
             ),
             "rrule": getattr(todo, "rrule", None),
             "order": getattr(todo, "order", 0),
+            "is_inbox": bool(getattr(todo, "is_inbox", True)),
             "tags": self._get_todo_tags(session, todo_id),
             "attachments": self._get_todo_attachments(session, todo_id),
             "related_activities": _safe_int_list(todo.related_activities),
@@ -162,6 +163,7 @@ class TodoIcalMixin:
         rrule: str | None = None,
         uid: str | None = None,
         order: int = 0,
+        is_inbox: bool = True,
         tags: list[str] | None = None,
         related_activities: list[int] | None = None,
     ) -> int | None:
@@ -242,6 +244,7 @@ class TodoIcalMixin:
                     "percent_complete": resolved_percent,
                     "rrule": cleaned_rrule,
                     "order": order,
+                    "is_inbox": is_inbox,
                     "related_activities": json.dumps(_safe_int_list(related_activities)),
                 }
                 if cleaned_uid:
@@ -302,6 +305,7 @@ class TodoIcalMixin:
         percent_complete: int | Any = _UNSET,
         rrule: str | None | Any = _UNSET,
         order: int | Any = _UNSET,
+        is_inbox: bool | Any = _UNSET,
         related_activities: list[int] | Any = _UNSET,
     ) -> None:
         """应用待办字段更新."""
@@ -346,6 +350,7 @@ class TodoIcalMixin:
             "percent_complete": percent_complete,
             "rrule": rrule,
             "order": order,
+            "is_inbox": is_inbox,
         }
 
         for attr, value in updates.items():
@@ -398,6 +403,7 @@ class TodoIcalMixin:
         percent_complete: int | Any = _UNSET,
         rrule: str | None | Any = _UNSET,
         order: int | Any = _UNSET,
+        is_inbox: bool | Any = _UNSET,
         tags: list[str] | Any = _UNSET,
         related_activities: list[int] | Any = _UNSET,
     ) -> bool:
@@ -496,6 +502,7 @@ class TodoIcalMixin:
                     percent_complete=resolved_percent,
                     rrule=rrule,
                     order=order,
+                    is_inbox=is_inbox,
                     related_activities=related_activities,
                 )
 

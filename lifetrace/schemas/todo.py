@@ -92,6 +92,7 @@ class TodoCreate(BaseModel):
     percent_complete: int | None = Field(None, ge=0, le=100, description="完成百分比（0-100）")
     rrule: str | None = Field(None, description="iCalendar RRULE")
     order: int = Field(0, description="同级待办之间的展示排序")
+    is_inbox: bool = Field(True, description="是否位于收集箱（未归入项目）")
     tags: list[str] = Field(default_factory=list, description="标签名称列表")
     related_activities: list[int] = Field(default_factory=list, description="关联活动ID列表")
 
@@ -145,6 +146,7 @@ class TodoUpdate(BaseModel):
     percent_complete: int | None = Field(None, ge=0, le=100, description="完成百分比（0-100）")
     rrule: str | None = Field(None, description="iCalendar RRULE（显式传 null 可清空）")
     order: int | None = Field(None, description="同级待办之间的展示排序")
+    is_inbox: bool | None = Field(None, description="是否位于收集箱（显式传 false 移出收集箱）")
     tags: list[str] | None = Field(None, description="标签名称列表（显式传空数组将清空）")
     related_activities: list[int] | None = Field(
         None, description="关联活动ID列表（显式传空数组将清空）"
@@ -194,6 +196,7 @@ class TodoResponse(BaseModel):
     percent_complete: int = Field(0, description="完成百分比（0-100）")
     rrule: str | None = Field(None, description="iCalendar RRULE")
     order: int = Field(0, description="同级待办之间的展示排序")
+    is_inbox: bool = Field(True, description="是否位于收集箱（未归入项目）")
     tags: list[str] = Field(default_factory=list, description="标签名称列表")
     attachments: list[TodoAttachmentResponse] = Field(default_factory=list, description="附件列表")
     related_activities: list[int] = Field(default_factory=list, description="关联活动ID列表")
