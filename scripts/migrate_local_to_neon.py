@@ -104,7 +104,20 @@ def migrate(  # noqa: C901, PLR0912, PLR0915
 
         todo_table = dst_meta.tables["todos"]
         if "parent_todo_id" in todo_table.c:
+            root_ids = [
+                ids["todos"][row["id"]]
+                for row in rows["todos"]
+                if row.get("parent_todo_id") is None
+            ]
+            if root_ids:
+                dst.execute(
+                    todo_table.update()
+                    .where(todo_table.c.id.in_(root_ids))
+                    .values(parent_todo_id=None)
+                )
             for row in rows["todos"]:
+                if row.get("parent_todo_id") is None:
+                    continue
                 parent_id = ids["todos"].get(row.get("parent_todo_id"))
                 dst.execute(
                     todo_table.update()
