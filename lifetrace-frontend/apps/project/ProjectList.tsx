@@ -5,6 +5,7 @@ import {
 	ChevronDown,
 	ChevronRight,
 	FolderKanban,
+	ListChecks,
 	Loader2,
 	Plus,
 } from "lucide-react";
@@ -31,6 +32,8 @@ interface ProjectListProps {
 	onSelectProject?: (id: number) => void;
 	/** 再次点击已选中项目时关闭（笔记侧用，替代返回按钮） */
 	onCloseProject?: () => void;
+	/** 按 projectType 过滤（默认全部，笔记侧传 "project" 排除 checklist） */
+	type?: string;
 }
 
 /** 侧边栏的「项目」入口：待办侧/笔记侧共用（待办侧=按项目筛选，笔记侧=主区内联项目详情）。 */
@@ -39,12 +42,15 @@ export function ProjectList({
 	selectedProjectId: selectedProjectIdProp,
 	onSelectProject,
 	onCloseProject,
+	type: projectTypeFilter,
 }: ProjectListProps) {
 	const t = useTranslations("project");
-	const { data: projects = [], isLoading } = useProjects();
+	const { data: projects = [], isLoading } = useProjects(projectTypeFilter);
 	const { createProjectAsync, addTodosAsync } = useProjectMutations();
 	const [collapsed, setCollapsed] = useState(true);
+	const [checklistCollapsed, setChecklistCollapsed] = useState(false);
 	const [showCreate, setShowCreate] = useState(false);
+	const [showCreateChecklist, setShowCreateChecklist] = useState(false);
 	const isMobile = useIsMobile();
 	const storeSelectedId = useUiStore((s) => s.selectedProjectId);
 	const storeSetSelectedProjectId = useUiStore((s) => s.setSelectedProjectId);
@@ -52,7 +58,7 @@ export function ProjectList({
 	const storeSetTodoProjectFilter = useUiStore((s) => s.setTodoProjectFilter);
 	const storeSetSidebarMode = useUiStore((s) => s.setSidebarMode);
 	const storeSetSidebarTag = useUiStore((s) => s.setSidebarTag);
-
+	
 	// 从待办列表拖拽待办到项目文件夹：自动将该待办加入项目
 	const handleDragEnd = useCallback(
 		async (event: DragEndEvent) => {
@@ -85,6 +91,16 @@ export function ProjectList({
 
 	const selectedProjectId = selectedProjectIdProp ?? storeSelectedId;
 
+	// 清单与项目分组：清单（checklist）独立展示，其余归项目组
+	const checklists = useMemo(
+		() => projects.filter((p) => p.projectType === "checklist"),
+		[projects],
+	);
+	const regularProjects = useMemo(
+		() => projects.filter((p) => p.projectType !== "checklist"),
+		[projects],
+	);
+
 	// 笔记侧：进入项目详情页（DiaryPanel 主区内联）
 	const openProject = (id: number) => {
 		storeSetSelectedProjectId(id);
@@ -100,7 +116,7 @@ export function ProjectList({
 			if (willFilter) {
 				storeSetSidebarMode(null);
 				storeSetSidebarTag(null);
-				const st = useUiStore.getState();
+						const st = useUiStore.getState();
 				if (st.isPanelBOpen && st.panelFeatureMap.panelB === "todoDetail") {
 					st.togglePanelB();
 				}
@@ -128,9 +144,56 @@ export function ProjectList({
 			: selectedProjectId === id;
 
 	const Chevron = collapsed ? ChevronRight : ChevronDown;
+	const ChecklistChevron = checklistCollapsed ? ChevronRight : ChevronDown;
 
 	return (
 		<div className="flex flex-col gap-1">
+			{checklists.length > 0 && (
+				<div className="flex flex-col gap-1">
+					<div className="flex items-center justify-between px-0">
+						<button
+							type="button"
+							onClick={() => setChecklistCollapsed((v) => !v)}
+							className={cn(
+								"flex items-center gap-1.5 px-2.5 text-sm font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground",
+								isMobile && "min-h-11",
+							)}
+							title={checklistCollapsed ? t("expand") : t("collapse")}
+						>
+							{t("checklistEntryTitle")}
+							<ChecklistChevron className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+						</button>
+						<button
+							type="button"
+							onClick={() => setShowCreateChecklist(true)}
+							className={cn(
+								"text-xs text-muted-foreground/50 transition-colors hover:text-foreground",
+								isMobile ? "flex h-9 w-9 items-center justify-center" : "",
+							)}
+							title={t("createTitle")}
+						>
+							<Plus className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+						</button>
+					</div>
+					{!checklistCollapsed && (
+						<div className="space-y-0.5">
+							{checklists.map((p) => (
+								<ProjectItem
+									key={p.id}
+									projectId={p.id}
+									name={p.name}
+									color={p.color}
+									isSelected={isProjectActive(p.id)}
+									droppable={feature === "todo"}
+									onClick={() => handleClickProject(p.id)}
+									icon={ListChecks}
+								/>
+							))}
+						</div>
+					)}
+				</div>
+			)}
+
 			<div className="flex items-center justify-between px-0">
 				<button
 					type="button"
@@ -159,13 +222,13 @@ export function ProjectList({
 
 			{!collapsed && (
 				<div className="space-y-0.5">
-					{isLoading ? null : projects.length === 0 ? (
+					{isLoading ? null : regularProjects.length === 0 ? (
 						// 空状态：只给一行文案，不用「创建你的第一个项目」按钮（创建走 + 号弹窗）
 						<p className="px-1.5 py-1 text-xs text-muted-foreground/50">
 							{t("empty")}
 						</p>
 					) : (
-						projects.slice(0, 12).map((p) => (
+						regularProjects.slice(0, 12).map((p) => (
 							<ProjectItem
 								key={p.id}
 								projectId={p.id}
@@ -192,6 +255,19 @@ export function ProjectList({
 					}
 				}}
 				createProjectAsync={createProjectAsync}
+				projectType={projectTypeFilter}
+			/>
+			<CreateProjectDialog
+				open={showCreateChecklist}
+				onClose={() => setShowCreateChecklist(false)}
+				onCreated={(id) => {
+					setChecklistCollapsed(false);
+					if (feature === "todo") {
+						storeSetTodoProjectFilter(id);
+					}
+				}}
+				createProjectAsync={createProjectAsync}
+				projectType="checklist"
 			/>
 		</div>
 	);
@@ -205,6 +281,7 @@ function ProjectItem({
 	isSelected,
 	droppable,
 	onClick,
+	icon: Icon = FolderKanban,
 }: {
 	projectId: number;
 	name: string;
@@ -213,6 +290,8 @@ function ProjectItem({
 	/** 是否作为拖拽放置目标（仅待办侧开启） */
 	droppable: boolean;
 	onClick: () => void;
+	/** 条目图标（清单用 ListChecks，普通项目默认文件夹） */
+	icon?: typeof FolderKanban;
 }) {
 	const isMobile = useIsMobile();
 	const dropData: DropData = useMemo(
@@ -246,7 +325,7 @@ function ProjectItem({
 				)}
 				style={color ? { backgroundColor: color } : undefined}
 			>
-				<FolderKanban
+				<Icon
 					className={cn(isMobile ? "h-3.5 w-3.5" : "h-3 w-3")}
 					style={{
 						color: color ? "white" : undefined,
@@ -264,15 +343,17 @@ function CreateProjectDialog({
 	onClose,
 	onCreated,
 	createProjectAsync,
+	projectType,
 }: {
 	open: boolean;
 	onClose: () => void;
 	onCreated: (id: number) => void;
-	createProjectAsync: (input: { name: string }) => Promise<
+	createProjectAsync: (input: { name: string; projectType?: string }) => Promise<
 		| { id: number; uid: string; name: string }
 		| null
 		| undefined
 	>;
+	projectType?: string;
 }) {
 	const t = useTranslations("project");
 	const [name, setName] = useState("");
@@ -293,7 +374,7 @@ function CreateProjectDialog({
 		if (!trimmed || submitting) return;
 		setSubmitting(true);
 		try {
-			const created = await createProjectAsync({ name: trimmed });
+			const created = await createProjectAsync({ name: trimmed, projectType: projectType });
 			reset();
 			onClose();
 			if (created) onCreated(created.id);
