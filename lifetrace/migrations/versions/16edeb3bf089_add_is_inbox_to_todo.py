@@ -22,7 +22,7 @@ def upgrade() -> None:
     # 新待办默认进收集箱；SQLite 中已有行回填为 True
     with op.batch_alter_table('todos', schema=None) as batch_op:
         batch_op.add_column(
-            sa.Column('is_inbox', sa.Boolean(), nullable=False, server_default=sa.text('1'))
+            sa.Column("is_inbox", sa.Boolean(), nullable=False, server_default=sa.true())
         )
 
     # 已归入项目的待办应移出收集箱
