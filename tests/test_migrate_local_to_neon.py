@@ -36,7 +36,12 @@ def test_migration_reconciles_new_fields_and_tags_without_duplicates(tmp_path):
         connection.execute(text("INSERT INTO journals VALUES (20, 'journal-1', 2)"))
         connection.execute(text("INSERT INTO projects VALUES (30, 'project-1', 2, 'checklist')"))
         connection.execute(text("INSERT INTO tags VALUES (40, '重要', NULL, NULL)"))
+        connection.execute(
+            text("INSERT INTO tags VALUES (41, :name, NULL, NULL)"),
+            {"name": "误识别为标签的长文本" * 10},
+        )
         connection.execute(text("INSERT INTO todo_tag_relations VALUES (50, 10, 40, NULL, NULL)"))
+        connection.execute(text("INSERT INTO todo_tag_relations VALUES (51, 10, 41, NULL, NULL)"))
         connection.execute(text("INSERT INTO journal_tag_relations VALUES (60, 20, 40, NULL, NULL)"))
     with target.begin() as connection:
         connection.execute(text("INSERT INTO users VALUES (7, 'user@example.com')"))

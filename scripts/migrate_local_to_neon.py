@@ -129,6 +129,7 @@ def migrate(  # noqa: C901, PLR0912, PLR0915
                 _insert_relation_once(dst, dst_table, values, identity)
 
         tag_ids: dict[int, int] = {}
+        skipped_tag_ids: set[int] = set()
         source_entity_ids = {name: set(mapping) for name, mapping in ids.items()}
         relevant_tag_relations: dict[str, list[dict]] = {}
         for name, entity_name, id_column in (
@@ -151,11 +152,17 @@ def migrate(  # noqa: C901, PLR0912, PLR0915
                     )
                 ).mappings().one()
                 dst_tags = dst_meta.tables["tags"]
+                tag_name = str(src_tag["tag_name"] or "").strip()
+                max_length = getattr(dst_tags.c.tag_name.type, "length", None) or 50
+                if not tag_name or len(tag_name) > max_length:
+                    skipped_tag_ids.add(source_tag_id)
+                    continue
                 target_tag_id = dst.execute(
-                    select(dst_tags.c.id).where(dst_tags.c.tag_name == src_tag["tag_name"])
+                    select(dst_tags.c.id).where(dst_tags.c.tag_name == tag_name)
                 ).scalar_one_or_none()
                 if target_tag_id is None:
                     values = _values_for_target(dict(src_tag), dst_tags, {"id"})
+                    values["tag_name"] = tag_name
                     target_tag_id = dst.execute(
                         dst_tags.insert().values(**values).returning(dst_tags.c.id)
                     ).scalar_one()
@@ -167,12 +174,16 @@ def migrate(  # noqa: C901, PLR0912, PLR0915
         ):
             dst_table = dst_meta.tables[name]
             for row in relevant_tag_relations[name]:
+                if row["tag_id"] in skipped_tag_ids:
+                    continue
                 values = _values_for_target(row, dst_table, {"id"})
                 values[id_column] = ids[entity_name][row[id_column]]
                 values["tag_id"] = tag_ids[row["tag_id"]]
                 _insert_relation_once(dst, dst_table, values, (id_column, "tag_id"))
 
     print("云端数据校准完成（含收集箱状态、项目类型和标签）")
+    if skipped_tag_ids:
+        print(f"已跳过 {len(skipped_tag_ids)} 个空白或超过 50 字符的无效标签")
 
 
 def main() -> None:
