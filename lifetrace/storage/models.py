@@ -167,6 +167,7 @@ class Todo(TimestampMixin, table=True):
     percent_complete: int = Field(default=0, ge=0, le=100)  # 完成百分比（PERCENT-COMPLETE）
     rrule: str | None = Field(default=None, max_length=500)  # iCalendar RRULE
     order: int = 0  # 同级待办之间的展示排序
+    is_inbox: bool = Field(default=True)  # 是否位于收集箱（未归入项目）
     related_activities: str | None = Field(
         default=None, sa_column=Column(Text)
     )  # 关联活动ID的JSON数组
@@ -355,6 +356,7 @@ class Project(TimestampMixin, table=True):
     description: str | None = Field(default=None, sa_column=Column(Text))
     cover_image_url: str | None = Field(default=None, max_length=500)
     color: str | None = Field(default=None, max_length=20)  # 侧边栏区分用
+    project_type: str = Field(default="project", max_length=20)  # "project" | "checklist"
 
     def __repr__(self):
         return f"<Project(id={self.id}, name={self.name})>"

@@ -118,13 +118,15 @@ class ITodoRepository(ABC):
         pass
 
     @abstractmethod
-    def list_todos(self, limit: int, offset: int, status: str | None) -> list[dict[str, Any]]:
-        """获取todo列表"""
+    def list_todos(
+        self, limit: int, offset: int, status: str | None, inbox: bool | None = None
+    ) -> list[dict[str, Any]]:
+        """获取todo列表（inbox 非 None 时按收集箱过滤）"""
         pass
 
     @abstractmethod
-    def count(self, status: str | None) -> int:
-        """统计todo数量"""
+    def count(self, status: str | None, inbox: bool | None = None) -> int:
+        """统计todo数量（inbox 非 None 时按收集箱过滤）"""
         pass
 
     @abstractmethod

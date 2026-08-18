@@ -86,6 +86,7 @@ export function DiarySidebar({
 			{/* Projects（项目入口：待办+笔记共享容器） */}
 			<ProjectList
 				feature="note"
+				type="project"
 				selectedProjectId={selectedProjectId}
 				onSelectProject={onSelectProject}
 				onCloseProject={onCloseProject}

@@ -58,6 +58,7 @@ def _to_response(
         description=p.get("description"),
         cover_image_url=p.get("cover_image_url"),
         color=p.get("color"),
+        project_type=p.get("project_type", "project"),
         todo_count=p.get("todo_count", 0),
         note_count=p.get("note_count", 0),
         created_at=p["created_at"],
@@ -100,8 +101,8 @@ class ProjectService:
 
     # ---- Project CRUD ----
 
-    def list_projects(self) -> list[ProjectResponse]:
-        return [_to_response(p) for p in self.repository.list_projects()]
+    def list_projects(self, project_type: str | None = None) -> list[ProjectResponse]:
+        return [_to_response(p) for p in self.repository.list_projects(project_type)]
 
     def get_project(self, project_id: int) -> ProjectResponse:
         p = self.repository.get(project_id)
@@ -118,6 +119,8 @@ class ProjectService:
             existing = self.repository.get_by_uid(data.uid)
             if existing:
                 return _to_response(existing)
+        if data.project_type not in ("project", "checklist"):
+            raise HTTPException(status_code=422, detail="无效的项目类型")
         p = self.repository.create(
             {
                 **({"uid": data.uid} if data.uid else {}),
@@ -125,9 +128,10 @@ class ProjectService:
                 "description": data.description,
                 "cover_image_url": data.cover_image_url,
                 "color": data.color,
+                "project_type": data.project_type,
             }
         )
-        logger.info(f"创建项目 #{p['id']}: {p['name']}")
+        logger.info(f"创建项目 #{p['id']}: {p['name']} (type={p['project_type']})")
         return _to_response(p)
 
     def update_project(self, project_id: int, data: ProjectUpdate) -> ProjectResponse:
@@ -142,6 +146,10 @@ class ProjectService:
             fields["cover_image_url"] = data.cover_image_url
         if data.color is not None:
             fields["color"] = data.color
+        if data.project_type is not None:
+            if data.project_type not in ("project", "checklist"):
+                raise HTTPException(status_code=422, detail="无效的项目类型")
+            fields["project_type"] = data.project_type
         p = self.repository.update(project_id, fields)
         if not p:
             raise HTTPException(status_code=404, detail="项目不存在")
@@ -158,26 +166,38 @@ class ProjectService:
             raise HTTPException(status_code=404, detail="项目不存在")
         valid_ids = [tid for tid in data.todo_ids if self.todo_repository.get_by_id(tid)]
         self.repository.add_todos(project_id, valid_ids)
+        # 归入项目后移出收集箱
+        for tid in valid_ids:
+            self.todo_repository.update(tid, is_inbox=False)
         return self.get_project(project_id)
 
     def remove_todo(self, project_id: int, todo_id: int) -> ProjectResponse:
         if not self.repository.get(project_id):
             raise HTTPException(status_code=404, detail="项目不存在")
         self.repository.remove_todo(project_id, todo_id)
+        # 从项目移除后回到收集箱
+        self.todo_repository.update(todo_id, is_inbox=True)
         return self.get_project(project_id)
 
     # ---- 笔记成员 ----
 
-    def add_notes(self, project_id: int, data: ProjectAddNotesRequest) -> ProjectResponse:
-        if not self.repository.get(project_id):
+    def _require_project_not_checklist(self, project_id: int) -> dict[str, Any]:
+        """检查项目非 checklist 类型，否则笔记操作拒绝"""
+        p = self.repository.get(project_id)
+        if not p:
             raise HTTPException(status_code=404, detail="项目不存在")
+        if p.get("project_type") == "checklist":
+            raise HTTPException(status_code=400, detail="清单类型不支持笔记操作")
+        return p
+
+    def add_notes(self, project_id: int, data: ProjectAddNotesRequest) -> ProjectResponse:
+        self._require_project_not_checklist(project_id)
         valid_ids = [jid for jid in data.journal_ids if self.journal_repository.get_by_id(jid)]
         self.repository.add_notes(project_id, valid_ids)
         return self.get_project(project_id)
 
     def remove_note(self, project_id: int, journal_id: int) -> ProjectResponse:
-        if not self.repository.get(project_id):
-            raise HTTPException(status_code=404, detail="项目不存在")
+        self._require_project_not_checklist(project_id)
         self.repository.remove_note(project_id, journal_id)
         return self.get_project(project_id)
 

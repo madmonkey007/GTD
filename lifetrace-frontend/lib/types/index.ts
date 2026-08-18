@@ -58,6 +58,7 @@ export interface Todo {
 	completedAt?: string;
 	percentComplete?: number;
 	order?: number;
+	isInbox?: boolean;
 	tags?: string[];
 	attachments?: TodoAttachment[];
 	relatedActivities?: number[];
@@ -102,6 +103,7 @@ export interface CreateTodoInput {
 	completedAt?: string;
 	percentComplete?: number;
 	order?: number;
+	isInbox?: boolean;
 	tags?: string[];
 	relatedActivities?: number[];
 }

@@ -16,6 +16,7 @@ class ProjectCreate(BaseModel):
     description: str | None = Field(None, description="项目描述")
     cover_image_url: str | None = Field(None, max_length=500, description="封面图地址")
     color: str | None = Field(None, max_length=20, description="侧边栏区分色")
+    project_type: str = Field("project", max_length=20, description="类型: project | checklist")
 
 
 class ProjectUpdate(BaseModel):
@@ -25,6 +26,7 @@ class ProjectUpdate(BaseModel):
     description: str | None = None
     cover_image_url: str | None = Field(None, max_length=500)
     color: str | None = Field(None, max_length=20)
+    project_type: str | None = Field(None, max_length=20)
 
 
 class ProjectTodoItem(BaseModel):
@@ -60,6 +62,7 @@ class ProjectResponse(BaseModel):
     description: str | None = None
     cover_image_url: str | None = None
     color: str | None = None
+    project_type: str = "project"
     todo_count: int = 0
     note_count: int = 0
     created_at: datetime

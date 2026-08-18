@@ -118,7 +118,14 @@ export function AddNoteLinkModal({
 				// 推荐候选缺 createdAt/tags；用全量 Map 补齐以便展示排序一致性
 				createdAt: journalById.get(c.id)?.createdAt,
 				tags: journalById.get(c.id)?.tags,
-			}));
+			}))
+			// 默认排序按时间（最新在前），相似度分数仅作展示
+			.sort((a, b) => {
+				const ta = new Date(a.createdAt ?? 0).getTime();
+				const tb = new Date(b.createdAt ?? 0).getTime();
+				if (Number.isNaN(ta) || Number.isNaN(tb)) return 0;
+				return tb - ta;
+			});
 	}, [
 		candidates,
 		search,

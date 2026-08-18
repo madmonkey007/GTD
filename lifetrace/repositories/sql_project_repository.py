@@ -27,6 +27,7 @@ def _project_to_dict(
         "description": p.description,
         "cover_image_url": p.cover_image_url,
         "color": p.color,
+        "project_type": p.project_type,
         "todo_count": todo_count,
         "note_count": note_count,
         "created_at": p.created_at,
@@ -43,14 +44,15 @@ class SqlProjectRepository:
 
     # ---- Project CRUD ----
 
-    def list_projects(self) -> list[dict[str, Any]]:
+    def list_projects(self, project_type: str | None = None) -> list[dict[str, Any]]:
         with self.db_base.get_session() as session:
-            rows = (
+            query = (
                 session.query(Project)
                 .filter_by(user_id=self.user_id, deleted_at=None)
-                .order_by(Project.updated_at.desc())
-                .all()
             )
+            if project_type:
+                query = query.filter(Project.project_type == project_type)
+            rows = query.order_by(Project.updated_at.desc()).all()
             result = []
             for p in rows:
                 todo_count = (

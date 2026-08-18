@@ -25,6 +25,7 @@ export interface ProjectView {
 	description: string | null;
 	coverImageUrl: string | null;
 	color: string | null;
+	projectType: string;
 	todoCount: number;
 	noteCount: number;
 	createdAt: string;
@@ -39,6 +40,7 @@ export interface ProjectInput {
 	description?: string | null;
 	coverImageUrl?: string | null;
 	color?: string | null;
+	projectType?: string;
 }
 
 const normalizeProject = (raw: Record<string, unknown>): ProjectView => ({
@@ -48,6 +50,7 @@ const normalizeProject = (raw: Record<string, unknown>): ProjectView => ({
 	description: (raw.description as string) ?? null,
 	coverImageUrl: (raw.coverImageUrl as string) ?? null,
 	color: (raw.color as string) ?? null,
+	projectType: (raw.projectType as string) ?? "project",
 	todoCount: (raw.todoCount as number) ?? 0,
 	noteCount: (raw.noteCount as number) ?? 0,
 	createdAt: (raw.createdAt as string) ?? "",
@@ -71,12 +74,17 @@ const normalizeProject = (raw: Record<string, unknown>): ProjectView => ({
 });
 
 /** 所有项目列表（带 todoCount/noteCount，不含成员） */
-export function useProjects() {
+export function useProjects(type?: string) {
 	return useQuery({
-		queryKey: queryKeys.projects.list,
+		queryKey: type
+			? [...queryKeys.projects.list, "type", type]
+			: queryKeys.projects.list,
 		staleTime: 30 * 1000,
 		queryFn: async () => {
-			const data = await customFetcher<ProjectView[]>("/api/projects");
+			const url = type
+				? `/api/projects?type=${encodeURIComponent(type)}`
+				: "/api/projects";
+			const data = await customFetcher<ProjectView[]>(url);
 			return (data ?? []).map((p) =>
 				normalizeProject(p as unknown as Record<string, unknown>),
 			);
