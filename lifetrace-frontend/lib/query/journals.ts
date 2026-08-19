@@ -1,7 +1,7 @@
 "use client";
 
-import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { isOfflineError, unwrapApiData } from "@/lib/api/fetcher";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { customFetcher, isOfflineError, unwrapApiData } from "@/lib/api/fetcher";
 import {
 	autoLinkJournalApiJournalsAutoLinkPost,
 	createJournalApiJournalsPost,
@@ -43,12 +43,64 @@ interface UseJournalsParams {
 	search?: string;
 	origin?: string;
 	origins?: string;
+	/** 延迟加载开关（false 时不发请求） */
+	enabled?: boolean;
 }
 
-function extractTagsFromContent(userNotes: string): string[] {
+export function extractTagsFromContent(userNotes: string): string[] {
 	const matches = userNotes.match(/#([^\s#]+)(\s|$)/g);
 	if (!matches) return [];
 	return [...new Set(matches.map((m) => m.slice(1).trimEnd()))];
+}
+
+export interface JournalLiteRow {
+	id: number;
+	name: string;
+	date: string;
+	createdAt: string;
+	userNotes: string;
+}
+
+export interface JournalLiteListData {
+	total: number;
+	notes: JournalLiteRow[];
+}
+
+interface UseJournalLitesParams {
+	limit?: number;
+	offset?: number;
+	startDate?: string;
+	endDate?: string;
+	enabled?: boolean;
+}
+
+/** 轻量笔记列表：仅 id/name/date/createdAt/userNotes（服务端无 N+1，统计/标签/时光机/聊天上下文用） */
+export function useJournalLites(params?: UseJournalLitesParams) {
+	const { enabled: _enabled, ...keyParams } = params ?? {};
+	const queryParams = {
+		limit: keyParams.limit ?? 1000,
+		offset: keyParams.offset ?? 0,
+		start_date: keyParams.startDate,
+		end_date: keyParams.endDate,
+	};
+
+	return useQuery({
+		queryKey: queryKeys.journals.lite(keyParams),
+		staleTime: 30 * 1000,
+		enabled: params?.enabled ?? true,
+		queryFn: async ({ signal }) => {
+			const search = new URLSearchParams();
+			search.set("limit", String(queryParams.limit));
+			search.set("offset", String(queryParams.offset));
+			if (queryParams.start_date) search.set("start_date", queryParams.start_date);
+			if (queryParams.end_date) search.set("end_date", queryParams.end_date);
+			const res = await customFetcher<JournalLiteListData>(
+				`/api/journals/lite?${search.toString()}`,
+				{ signal },
+			);
+			return unwrapApiData<JournalLiteListData>(res) ?? { total: 0, notes: [] };
+		},
+	});
 }
 
 export const normalizeJournal = (raw: Record<string, unknown>) => {
@@ -107,11 +159,14 @@ export function useJournals(params?: UseJournalsParams) {
 		origin: params?.origin,
 		origins: params?.origins,
 	};
+	// enabled 只控制是否发请求，不参与 queryKey（否则开关翻转会换 key 重新拉取）
+	const { enabled: _enabled, ...keyParams } = params ?? {};
 
 	return useListJournalsApiJournalsGet(queryParams, {
 		query: {
-			queryKey: queryKeys.journals.list(params),
+			queryKey: queryKeys.journals.list(keyParams),
 			staleTime: 30 * 1000,
+			enabled: params?.enabled ?? true,
 			retry: (count, err) => (isOfflineError(err) ? false : count < 3),
 			retryDelay: (attemptIndex) =>
 				Math.min(1000 * 2 ** attemptIndex, 10000),
@@ -282,11 +337,50 @@ function forEachJournalCache(
 	}
 }
 
+/** JournalView 记录 → 轻量行（lite 缓存的形状） */
+function toLiteRow(record: Record<string, unknown>): JournalLiteRow {
+	return {
+		id: record.id as number,
+		name: (record.name as string) ?? "",
+		date: record.date as string,
+		createdAt: (record.createdAt as string) ?? (record.created_at as string) ?? "",
+		userNotes: (record.userNotes as string) ?? (record.user_notes as string) ?? "",
+	};
+}
+
+function rewriteLiteResponse(
+	raw: unknown,
+	mutate: (body: JournalLiteListData) => JournalLiteListData | null,
+): unknown {
+	const body = raw as JournalLiteListData | undefined;
+	if (!body || !Array.isArray(body.notes)) return raw;
+	const next = mutate(body);
+	if (!next) return raw;
+	return next;
+}
+
 /** 新建笔记直接写进所有匹配的列表缓存：列表/统计即时更新，不再全量 refetch */
 function prependJournalToCaches(queryClient: QueryClient, record: Record<string, unknown>) {
 	const id = record.id as number;
 	const noteTime = record.date ? new Date(record.date as string).getTime() : Date.now();
 	forEachJournalCache(queryClient, (key, raw) => {
+		if (key[1] === "lite") {
+			const params = (key[2] ?? {}) as Record<string, unknown>;
+			if (params.search) return raw;
+			if (typeof params.offset === "number" && params.offset > 0) return raw;
+			if (params.start_date && noteTime < new Date(params.start_date as string).getTime()) return raw;
+			if (params.end_date && noteTime > new Date(params.end_date as string).getTime()) return raw;
+			return rewriteLiteResponse(raw, (body) => {
+				const idx = body.notes.findIndex((n) => n.id === id);
+				const row = toLiteRow(record);
+				if (idx >= 0) {
+					const notes = [...body.notes];
+					notes[idx] = row;
+					return { ...body, notes };
+				}
+				return { total: body.total + 1, notes: [row, ...body.notes] };
+			});
+		}
 		if (key[1] !== "list") return raw;
 		const params = (key[2] ?? {}) as Record<string, unknown>;
 		// 搜索词过滤无法本地判断匹配，跳过（等下次自然刷新）
@@ -314,10 +408,19 @@ function prependJournalToCaches(queryClient: QueryClient, record: Record<string,
 	});
 }
 
-/** 编辑笔记就地替换缓存中的同 id 记录（含详情缓存） */
+/** 编辑笔记就地替换缓存中的同 id 记录（含详情与 lite 缓存） */
 function replaceJournalInCaches(queryClient: QueryClient, record: Record<string, unknown>) {
 	const id = record.id as number;
 	forEachJournalCache(queryClient, (key, raw) => {
+		if (key[1] === "lite") {
+			return rewriteLiteResponse(raw, (body) => {
+				const idx = body.notes.findIndex((n) => n.id === id);
+				if (idx < 0) return null;
+				const notes = [...body.notes];
+				notes[idx] = toLiteRow(record);
+				return { ...body, notes };
+			});
+		}
 		if (key[1] === "detail") {
 			if (key[2] !== id) return raw;
 			const body = unwrapApiData<Record<string, unknown>>(raw);

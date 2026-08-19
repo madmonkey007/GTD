@@ -24,6 +24,8 @@ from lifetrace.schemas.journal import (
     JournalGenerateRequest,
     JournalGenerateResponse,
     JournalListResponse,
+    JournalLite,
+    JournalLiteListResponse,
     JournalResponse,
     JournalUpdate,
 )
@@ -449,6 +451,21 @@ class JournalService:
         return JournalListResponse(
             total=total,
             journals=[JournalResponse(**j) for j in journals],
+        )
+
+    def list_journal_lites(
+        self,
+        limit: int = 1000,
+        offset: int = 0,
+        start_date=None,
+        end_date=None,
+    ) -> JournalLiteListResponse:
+        """轻量列出日记：只含 id/name/date/created_at/user_notes，无 N+1 序列化"""
+        rows = self.repository.list_lites(limit, offset, start_date, end_date)
+        total = self.repository.count(start_date, end_date)
+        return JournalLiteListResponse(
+            total=total,
+            notes=[JournalLite(**r) for r in rows],
         )
 
     def create_journal(self, data: JournalCreate) -> JournalResponse:

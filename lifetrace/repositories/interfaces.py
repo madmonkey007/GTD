@@ -211,6 +211,17 @@ class IJournalRepository(ABC):
         pass
 
     @abstractmethod
+    def list_lites(
+        self,
+        limit: int,
+        offset: int,
+        start_date: datetime | None,
+        end_date: datetime | None,
+    ) -> list[dict[str, Any]]:
+        """轻量列出日记（无标签/关联 N+1）"""
+        pass
+
+    @abstractmethod
     def list_journals(
         self,
         limit: int,

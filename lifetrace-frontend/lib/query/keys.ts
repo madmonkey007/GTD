@@ -77,6 +77,13 @@ export const queryKeys = {
 			endDate?: string;
 			search?: string;
 		}) => ["journals", "list", params] as const,
+		/** journal 轻量列表（仅 id/name/date/createdAt/userNotes，无 N+1） */
+		lite: (params?: {
+			limit?: number;
+			offset?: number;
+			startDate?: string;
+			endDate?: string;
+		}) => ["journals", "lite", params] as const,
 		/** 单个 journal 详情 */
 		detail: (id: number) => ["journals", "detail", id] as const,
 	},

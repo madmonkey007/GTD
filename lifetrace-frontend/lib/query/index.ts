@@ -34,8 +34,12 @@ export {
 export { useCostConfig, useCostStats } from "./cost";
 // Journal Hooks
 export {
+	extractTagsFromContent,
 	type JournalAutoLinkResult,
+	type JournalLiteListData,
+	type JournalLiteRow,
 	type JournalView,
+	useJournalLites,
 	useJournalMutations,
 	useJournals,
 } from "./journals";

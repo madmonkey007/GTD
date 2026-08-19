@@ -429,6 +429,55 @@ class JournalManager:
             logger.error(f"列出日记失败: {e}")
             return []
 
+    def list_journal_lites(
+        self,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+        start_date=None,
+        end_date=None,
+    ) -> list[dict[str, Any]]:
+        """轻量列出日记：只取 id/name/date/created_at/user_notes，不做标签/关联的 N+1 查询。
+
+        供侧边栏统计、标签列表、时光机、聊天上下文等只需正文与日期的场景使用，
+        服务端一次扫描即可返回（完整序列化 300+ 条要 1500+ 个查询，这里约 1 个）。
+        """
+        try:
+            with self.db_base.get_session() as session:
+                query = session.query(
+                    Journal.id,
+                    Journal.name,
+                    Journal.date,
+                    Journal.created_at,
+                    Journal.user_notes,
+                ).filter(
+                    col(Journal.user_id) == self.user_id,
+                    col(Journal.deleted_at).is_(None),
+                )
+                if start_date is not None:
+                    query = query.filter(col(Journal.date) >= start_date)
+                if end_date is not None:
+                    query = query.filter(col(Journal.date) <= end_date)
+                rows = (
+                    query.order_by(col(Journal.date).desc(), col(Journal.created_at).desc())
+                    .offset(offset)
+                    .limit(limit)
+                    .all()
+                )
+                return [
+                    {
+                        "id": r.id,
+                        "name": r.name,
+                        "date": r.date,
+                        "created_at": r.created_at,
+                        "user_notes": r.user_notes,
+                    }
+                    for r in rows
+                ]
+        except SQLAlchemyError as e:
+            logger.error(f"轻量列出日记失败: {e}")
+            return []
+
     def count_journals(
         self,
         start_date=None,

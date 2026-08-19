@@ -15,6 +15,7 @@ from lifetrace.schemas.journal import (
     JournalGenerateRequest,
     JournalGenerateResponse,
     JournalListResponse,
+    JournalLiteListResponse,
     JournalResponse,
     JournalUpdate,
 )
@@ -107,6 +108,25 @@ async def create_journal(
     except Exception as e:
         logger.error(f"创建日记失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"创建日记失败: {e!s}") from e
+
+
+@router.get("/api/journals/lite", response_model=JournalLiteListResponse)
+async def list_journals_lite(
+    limit: int = Query(1000, ge=1, le=5000, description="返回数量限制"),
+    offset: int = Query(0, ge=0, description="偏移量"),
+    start_date: datetime | None = Query(None, description="开始日期筛选"),
+    end_date: datetime | None = Query(None, description="结束日期筛选"),
+    service: JournalService = Depends(get_journal_service),
+):
+    """轻量列出日记：仅 id/name/date/created_at/user_notes，无 N+1 关联查询。
+
+    供侧边栏统计、标签、时光机、聊天上下文使用；完整列表请走 /api/journals。
+    """
+    try:
+        return service.list_journal_lites(limit, offset, start_date, end_date)
+    except Exception as e:
+        logger.error(f"获取轻量日记列表失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取轻量日记列表失败: {e!s}") from e
 
 
 @router.get("/api/journals", response_model=JournalListResponse)

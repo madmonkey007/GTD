@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { formatDateInput, parseJournalDate } from "@/apps/diary/journal-utils";
-import { useJournals } from "@/lib/query";
+import { extractTagsFromContent, useJournalLites } from "@/lib/query";
 
 export type DiaryFilterMode = "all" | "last7" | "random" | "todo";
 
@@ -45,27 +45,28 @@ export function useDiaryStats() {
 		);
 	}, []);
 
-	const { data, isLoading, error, refetch } = useJournals({
+	// 轻量端点：只拉 id/date/userNotes（服务端无 N+1 序列化），标签从正文提取
+	const { data, isLoading, error, refetch } = useJournalLites({
 		limit: 1000,
 		startDate: startDate.toISOString(),
 		endDate: endDate.toISOString(),
 	});
 
 	const stats = useMemo<DiaryStatsData | undefined>(() => {
-		if (!data?.journals) return undefined;
+		if (!data?.notes) return undefined;
 
-		const journals = data.journals;
+		const notes = data.notes;
 		const dailyCounts = new Map<string, number>();
 		const tagCountMap = new Map<string, number>();
 		const daySet = new Set<string>();
 
-		for (const journal of journals) {
-			const dateKey = formatDateInput(parseJournalDate(journal.date));
+		for (const note of notes) {
+			const dateKey = formatDateInput(parseJournalDate(note.date));
 			dailyCounts.set(dateKey, (dailyCounts.get(dateKey) ?? 0) + 1);
 			daySet.add(dateKey);
 
-			for (const tag of journal.tags ?? []) {
-				tagCountMap.set(tag.tagName, (tagCountMap.get(tag.tagName) ?? 0) + 1);
+			for (const tag of extractTagsFromContent(note.userNotes ?? "")) {
+				tagCountMap.set(tag, (tagCountMap.get(tag) ?? 0) + 1);
 			}
 		}
 
@@ -87,7 +88,7 @@ export function useDiaryStats() {
 		maxDailyCount = Math.min(maxDailyCount, 5);
 
 		return {
-			totalNotes: journals.length,
+			totalNotes: notes.length,
 			totalTags: tagCountMap.size,
 			totalDays: daySet.size,
 			dailyCounts,

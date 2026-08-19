@@ -20,6 +20,7 @@ import type {
 } from "@/lib/generated/schemas";
 import {
 	type JournalView,
+	useJournalLites,
 	useJournalMutations,
 	useJournals,
 	useProjectMutations,
@@ -206,12 +207,26 @@ export function DiaryPanel() {
 		[journalResponse?.journals],
 	);
 	// Load all notes for the AI chat panel
-	const { data: allNotesData, refetch: refetchAllNotes } = useJournals({ limit: 500, offset: 0 });
+	// 轻量全量笔记（无 N+1，服务端一次扫描）：时光机/标签补全/聊天上下文共用
+	const { data: liteNotesData } = useJournalLites({ limit: 1000, offset: 0 });
+
+	// 重全量列表（含关联/标签序列化，服务端成本高）：延迟加载，
+	// 不参与首屏竞争；仅供笔记引用/关联编辑等需要完整字段的场景使用
+	const [allNotesEnabled, setAllNotesEnabled] = useState(false);
+	useEffect(() => {
+		const timer = setTimeout(() => setAllNotesEnabled(true), 800);
+		return () => clearTimeout(timer);
+	}, []);
+	const { data: allNotesData, refetch: refetchAllNotes } = useJournals({
+		limit: 500,
+		offset: 0,
+		enabled: allNotesEnabled,
+	});
 
 	// 时光机：从所有笔记的日期里随机抽取一天（排除今天），先进入动画展示，
 	// 动画落定后才 commit 为真实筛选日期触发数据加载
 	const handleTimeMachine = useCallback(() => {
-		const journals = allNotesData?.journals ?? [];
+		const journals = liteNotesData?.notes ?? [];
 		const todayKey = formatDateInput(new Date());
 		// 收集“有笔记且非今天”的唯一日期
 		const keys = new Set<string>();
@@ -238,7 +253,7 @@ export function DiaryPanel() {
 		// 先清空已 commit 的日期，再设 pending：动画期间不显示旧笔记
 		setTimeMachineDate(null);
 		setPendingTimeMachineDate(dateByKey.get(picked) ?? null);
-	}, [allNotesData, clearProjectView, setFilterMode]);
+	}, [liteNotesData, clearProjectView, setFilterMode]);
 	// 动画落定：把 pending 日期 commit 为真实筛选日期，触发该日笔记加载
 	// 动画落定：把 pending 日期 commit 为真实筛选日期，触发该日笔记加载；
 	// 同时清空 pending，解除 DiaryEditor 中「动画期间隐藏内容」的拦截
@@ -253,17 +268,17 @@ export function DiaryPanel() {
 		setPendingTimeMachineDate(null);
 	}, []);
 
-	// 按最近使用排序的标签列表（用于自动补全）
+	// 按最近使用排序的标签列表（用于自动补全）——标签从轻量数据的正文提取
 	const [cachedRecentTags, setCachedRecentTags] = useState<string[]>([]);
 	const recentTags = cachedRecentTags;
 	useEffect(() => {
-		if (!allNotesData?.journals) return;
+		if (!liteNotesData?.notes) return;
 		const tagDateMap = new Map<string, string>();
-		for (const journal of allNotesData.journals) {
-			for (const tag of journal.tags ?? []) {
-				const existing = tagDateMap.get(tag.tagName);
-				if (!existing || journal.createdAt > existing) {
-					tagDateMap.set(tag.tagName, journal.createdAt);
+		for (const note of liteNotesData.notes) {
+			for (const tag of extractTagsFromUserNotes(note.userNotes ?? "")) {
+				const existing = tagDateMap.get(tag);
+				if (!existing || note.createdAt > existing) {
+					tagDateMap.set(tag, note.createdAt);
 				}
 			}
 		}
@@ -272,14 +287,14 @@ export function DiaryPanel() {
 				.sort((a, b) => b[1].localeCompare(a[1]))
 				.map(([tag]) => tag)
 		);
-	}, [allNotesData]);
+	}, [liteNotesData]);
 	const noteContent = useMemo(() => {
-		const notes = allNotesData?.journals ?? [];
+		const notes = liteNotesData?.notes ?? [];
 		return notes
 			.map((n) => [n.name, n.userNotes].filter(Boolean).join("\n"))
 			.filter(Boolean)
 			.join("\n\n---\n\n");
-	}, [allNotesData]);
+	}, [liteNotesData]);
 	const {
 		createJournal,
 		updateJournal,

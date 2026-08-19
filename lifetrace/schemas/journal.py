@@ -103,6 +103,23 @@ class JournalListResponse(BaseModel):
     journals: list[JournalResponse] = Field(..., description="日记列表")
 
 
+class JournalLite(BaseModel):
+    """轻量日记行：仅统计/标签/时光机/聊天上下文所需字段"""
+
+    id: int = Field(..., description="日记ID")
+    name: str = Field(..., description="日记标题")
+    date: datetime = Field(..., description="日记日期")
+    created_at: datetime = Field(..., description="创建时间")
+    user_notes: str = Field(..., description="日记内容（富文本）")
+
+
+class JournalLiteListResponse(BaseModel):
+    """轻量日记列表响应"""
+
+    total: int = Field(..., description="总数")
+    notes: list[JournalLite] = Field(..., description="轻量日记列表")
+
+
 class JournalAutoLinkRequest(BaseModel):
     """自动关联请求"""
 

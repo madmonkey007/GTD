@@ -24,6 +24,17 @@ class SqlJournalRepository(IJournalRepository):
     def get_by_uid(self, uid: str) -> dict[str, Any] | None:
         return self._manager.get_journal_by_uid(uid)
 
+    def list_lites(
+        self,
+        limit: int,
+        offset: int,
+        start_date: datetime | None,
+        end_date: datetime | None,
+    ) -> list[dict[str, Any]]:
+        return self._manager.list_journal_lites(
+            limit=limit, offset=offset, start_date=start_date, end_date=end_date
+        )
+
     def list_journals(
         self,
         limit: int,
