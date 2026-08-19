@@ -1289,6 +1289,11 @@
     "archiveSuccess": "{name} archived",
     "archiveError": "Failed to archive",
     "unarchiveSuccess": "{name} unarchived",
+    "unarchiveError": "Failed to unarchive",
+    "unarchive": "Unarchive",
+    "archiveEntryTitle": "Archived projects",
+    "archiveViewTitle": "Archived projects",
+    "archiveViewEmpty": "No archived projects",
     "deleteSuccess": "Deleted",
     "deleteError": "Failed to delete",
     "deleteConfirmAction": "Delete"

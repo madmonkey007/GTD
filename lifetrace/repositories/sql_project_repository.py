@@ -46,7 +46,15 @@ class SqlProjectRepository:
 
     # ---- Project CRUD ----
 
-    def list_projects(self, project_type: str | None = None) -> list[dict[str, Any]]:
+    def list_projects(
+        self, project_type: str | None = None, archived: bool | None = None
+    ) -> list[dict[str, Any]]:
+        """列出项目
+
+        Args:
+            project_type: 可选按类型过滤（project | checklist）
+            archived: None/False 只返回未归档（默认）；True 只返回已归档
+        """
         with self.db_base.get_session() as session:
             query = (
                 session.query(Project)
@@ -54,7 +62,7 @@ class SqlProjectRepository:
             )
             if project_type:
                 query = query.filter(Project.project_type == project_type)
-            query = query.filter(Project.is_archived.is_(False))
+            query = query.filter(Project.is_archived.is_(bool(archived)))
             rows = query.order_by(
                 Project.sort_order.asc(), Project.updated_at.desc()
             ).all()

@@ -103,8 +103,13 @@ class ProjectService:
 
     # ---- Project CRUD ----
 
-    def list_projects(self, project_type: str | None = None) -> list[ProjectResponse]:
-        return [_to_response(p) for p in self.repository.list_projects(project_type)]
+    def list_projects(
+        self, project_type: str | None = None, archived: bool | None = None
+    ) -> list[ProjectResponse]:
+        return [
+            _to_response(p)
+            for p in self.repository.list_projects(project_type, archived)
+        ]
 
     def get_project(self, project_id: int) -> ProjectResponse:
         p = self.repository.get(project_id)

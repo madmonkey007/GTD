@@ -1289,6 +1289,11 @@
     "archiveSuccess": "{name}已归档",
     "archiveError": "归档失败",
     "unarchiveSuccess": "{name}已取消归档",
+    "unarchiveError": "取消归档失败",
+    "unarchive": "取消归档",
+    "archiveEntryTitle": "项目归档",
+    "archiveViewTitle": "已归档项目",
+    "archiveViewEmpty": "没有已归档的项目",
     "deleteSuccess": "删除成功",
     "deleteError": "删除失败",
     "deleteConfirmAction": "删除"

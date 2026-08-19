@@ -23,11 +23,12 @@ router = APIRouter(tags=["project"])
 @router.get("/api/projects", response_model=list[ProjectResponse])
 async def list_projects(
     type: str | None = None,
+    archived: bool | None = None,
     service: ProjectService = Depends(get_project_service),
 ):
-    """列出所有项目（带 todo_count / note_count），可选 type 过滤: project | checklist"""
+    """列出所有项目（带 todo_count / note_count），可选 type 过滤: project | checklist；archived=true 只返回已归档项目"""
     try:
-        return service.list_projects(project_type=type)
+        return service.list_projects(project_type=type, archived=archived)
     except HTTPException:
         raise
     except Exception as e:

@@ -57,6 +57,7 @@ export {
 	type ProjectNoteView,
 	type ProjectTodoView,
 	type ProjectView,
+	useArchivedProjects,
 	useProject,
 	useProjectMutations,
 	useProjects,

@@ -97,6 +97,20 @@ export function useProjects(type?: string) {
 	});
 }
 
+/** 已归档项目列表（笔记侧归档入口用） */
+export function useArchivedProjects() {
+	return useQuery({
+		queryKey: [...queryKeys.projects.list, "archived"],
+		staleTime: 15 * 1000,
+		queryFn: async () => {
+			const data = await customFetcher<ProjectView[]>("/api/projects?archived=true");
+			return (data ?? []).map((p) =>
+				normalizeProject(p as unknown as Record<string, unknown>),
+			);
+		},
+	});
+}
+
 /** 单个项目详情（含 todos + notes） */
 export function useProject(id: number | null | undefined) {
 	return useQuery({

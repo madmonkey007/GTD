@@ -41,7 +41,8 @@ import { CollectionDetail } from "@/apps/diary/components/CollectionDetail";
 import { CollectionGallery } from "@/apps/diary/components/CollectionGallery";
 import { ProjectHeader } from "@/apps/project/ProjectHeader";
 import { ProjectNoteManager } from "@/apps/project/ProjectNoteManager";
-import { useProject } from "@/lib/query";
+import { ProjectArchiveView } from "@/apps/project/ProjectArchiveView";
+import { useArchivedProjects, useProject } from "@/lib/query";
 import { useUiStore } from "@/lib/store/ui-store";
 import { useMobileToolbarStore } from "@/lib/store/mobile-toolbar-store";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
@@ -132,6 +133,9 @@ export function DiaryPanel() {
 	const showLeftInline = !isMobile && (containerWidth >= 1000 || containerWidth === 0);
 	const showRightInline = !isMobile && (containerWidth >= 900 || containerWidth === 0);
 	const [showTrash, setShowTrash] = useState(false);
+	// 项目归档视图：侧边栏「项目归档」入口打开，主区列出已归档项目
+	const [showArchivedProjects, setShowArchivedProjects] = useState(false);
+	const { data: archivedProjects = [] } = useArchivedProjects();
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
 	// 集合视图：none=正常笔记编辑；gallery=集合画廊；detail=单个集合详情
 	const [collectionView, setCollectionView] = useState<"none" | "gallery" | "detail">("none");
@@ -145,6 +149,7 @@ export function DiaryPanel() {
 
 	const openProjectView = useCallback(() => {
 		setShowTrash(false);
+		setShowArchivedProjects(false);
 		setSelectedTag(null);
 		setCollectionView("none");
 		setProjectViewOpen(true);
@@ -224,6 +229,7 @@ export function DiaryPanel() {
 		const pool = [...keys];
 		const picked = pool[Math.floor(Math.random() * pool.length)];
 		setShowTrash(false);
+		setShowArchivedProjects(false);
 		setSelectedTag(null);
 		setCollectionView("none");
 		clearProjectView();
@@ -785,7 +791,7 @@ const handleSaveCardEdit = async (
 			<div className="flex h-full flex-col overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20">
 			<div ref={containerRef} className={cn("flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-3 relative", isMobile && "px-0")}>
 				{/* Left sidebar — inline when wide, otherwise hidden (drawer overlay) */}
-				{showLeftInline && <DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} hideFilterActive={projectViewOpen} onFilterModeChange={(mode) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(true); }} selectedTag={selectedTag} onSelectTag={(tag) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} selectedProjectId={storeSelectedProjectId} onSelectProject={openProjectView} onCloseProject={closeProjectView} timeMachineActive={!!pendingTimeMachineDate || !!timeMachineDate} onTimeMachine={handleTimeMachine} />}
+				{showLeftInline && <DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} hideFilterActive={projectViewOpen} onFilterModeChange={(mode) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(true); }} onShowArchive={() => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowArchivedProjects((v) => !v); }} archiveViewActive={showArchivedProjects} selectedTag={selectedTag} onSelectTag={(tag) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} selectedProjectId={storeSelectedProjectId} onSelectProject={openProjectView} onCloseProject={closeProjectView} timeMachineActive={!!pendingTimeMachineDate || !!timeMachineDate} onTimeMachine={handleTimeMachine} />}
 				<div className={cn("flex-1 min-w-0 flex flex-col", collectionView === "none" && "max-w-[800px]")}>
 					{collectionView === "gallery" ? (
 						<CollectionGallery onSelectCollection={selectCollection} />
@@ -852,6 +858,8 @@ const handleSaveCardEdit = async (
 							/>
 						)}
 						</>
+					) : showArchivedProjects ? (
+						<ProjectArchiveView projects={archivedProjects} />
 					) : showTrash ? (
 						<DiaryTrashView
 							trashEntries={trashEntries}
@@ -934,7 +942,7 @@ const handleSaveCardEdit = async (
 						transition={{ type: "spring", damping: 30, stiffness: 300 }}
 						className="absolute left-0 top-0 z-40 h-full w-72 shadow-xl"
 					>
-						<DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} hideFilterActive={projectViewOpen} onFilterModeChange={(mode) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(true); }} selectedTag={selectedTag} onSelectTag={(tag) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} selectedProjectId={storeSelectedProjectId} onSelectProject={openProjectView} onCloseProject={closeProjectView} timeMachineActive={!!pendingTimeMachineDate || !!timeMachineDate} onTimeMachine={handleTimeMachine} />
+						<DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} hideFilterActive={projectViewOpen} onFilterModeChange={(mode) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(true); }} onShowArchive={() => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowArchivedProjects((v) => !v); }} archiveViewActive={showArchivedProjects} selectedTag={selectedTag} onSelectTag={(tag) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} selectedProjectId={storeSelectedProjectId} onSelectProject={openProjectView} onCloseProject={closeProjectView} timeMachineActive={!!pendingTimeMachineDate || !!timeMachineDate} onTimeMachine={handleTimeMachine} />
 					</motion.div>
 				</>
 			)}

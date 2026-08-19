@@ -10,6 +10,7 @@ import { DiaryStats } from "./DiaryStats";
 import { DiaryTagList } from "./DiaryTagList";
 import type { TrashEntry } from "@/apps/diary/hooks/useJournalTrash";
 import { DiaryTrashList } from "./DiaryTrashList";
+import { ProjectArchiveEntry } from "./ProjectArchiveEntry";
 
 interface DiarySidebarProps {
 	stats: DiaryStatsData;
@@ -31,6 +32,10 @@ interface DiarySidebarProps {
 	timeMachineActive?: boolean;
 	/** 时光机：随机穿越到过去的某一天 */
 	onTimeMachine?: () => void;
+	/** 项目归档视图激活态 */
+	archiveViewActive?: boolean;
+	/** 打开项目归档视图 */
+	onShowArchive?: () => void;
 }
 
 export function DiarySidebar({
@@ -50,6 +55,8 @@ export function DiarySidebar({
 	onCloseProject,
 	timeMachineActive,
 	onTimeMachine,
+	archiveViewActive,
+	onShowArchive,
 }: DiarySidebarProps) {
 	const t = useTranslations("journalPanel");
 
@@ -100,6 +107,9 @@ export function DiarySidebar({
 
 			{/* Tags */}
 			<DiaryTagList tagsWithCount={stats.tagsWithCount} selectedTag={selectedTag} onSelectTag={onSelectTag} />
+
+			{/* 项目归档入口（Trash 之上） */}
+			<ProjectArchiveEntry active={archiveViewActive} onShowArchive={onShowArchive} />
 
 			{/* Trash */}
 			<DiaryTrashList onRestore={onRestore} onShowTrash={onShowTrash} />
