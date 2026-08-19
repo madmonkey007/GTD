@@ -157,8 +157,11 @@ export function useOrderedTodos(
 		};
 
 		if (shouldSplitCompleted) {
+			// 已完成区只统计父待办（无 parentTodoId），子待办不计入
 			const activeRoots = roots.filter((todo) => todo.status !== "completed");
-			const completedRoots = roots.filter((todo) => todo.status === "completed");
+			const completedRoots = roots.filter(
+				(todo) => todo.status === "completed" && !todo.parentTodoId,
+			);
 			traverse(activeRoots, 0, true, ordered);
 			traverse(completedRoots, 0, true, completedOrdered);
 		} else {
@@ -170,7 +173,9 @@ export function useOrderedTodos(
 			orderedTodos: ordered,
 			completedOrderedTodos: completedOrdered,
 			completedRootCount: shouldSplitCompleted
-				? roots.filter((todo) => todo.status === "completed").length
+				? roots.filter(
+						(todo) => todo.status === "completed" && !todo.parentTodoId,
+					).length
 				: 0,
 		};
 	}, [todos, searchQuery, collapsedTodoIds, filter, flatMode]);

@@ -36,7 +36,7 @@ class ProjectTodoItem(BaseModel):
     id: int
     name: str | None = None
     status: str | None = None
-    start_time: str | None = None
+    start_time: datetime | None = None
 
     class Config:
         from_attributes = True

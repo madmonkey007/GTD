@@ -41,8 +41,8 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 		const sevenDaysAgo = new Date(today);
 		sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
-		// 只统计未完成的待办
-		const activeTodos = (allTodos as Array<{ startTime?: string | null; endTime?: string | null; tags?: string[]; status?: string; isInbox?: boolean }>).filter(t => t.status !== "completed");
+		// 只统计未完成的待办（排除子待办，收集箱只计父级）
+		const activeTodos = (allTodos as Array<{ startTime?: string | null; endTime?: string | null; tags?: string[]; status?: string; isInbox?: boolean; parentTodoId?: number | null }>).filter(t => t.status !== "completed" && !t.parentTodoId);
 
 		let todayCount = 0;
 		let last7Count = 0;
@@ -50,7 +50,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 		const tagCount: Record<string, number> = {};
 
 		for (const t of activeTodos) {
-			if (t.isInbox !== false) inboxCount++;
+			if (t.isInbox === true) inboxCount++;
 			const scheduleTime = t.startTime ?? t.endTime;
 			if (scheduleTime) {
 				const deadline = new Date(scheduleTime);

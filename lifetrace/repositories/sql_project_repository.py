@@ -9,7 +9,7 @@
 from typing import Any
 
 from lifetrace.storage.database_base import DatabaseBase
-from lifetrace.storage.models import Project, ProjectNoteRelation, ProjectTodoRelation
+from lifetrace.storage.models import Project, ProjectNoteRelation, ProjectTodoRelation, Todo
 from lifetrace.util.logging_config import get_logger
 from lifetrace.util.time_utils import get_utc_now
 
@@ -35,6 +35,20 @@ def _project_to_dict(
         "created_at": p.created_at,
         "updated_at": p.updated_at,
     }
+
+
+def _count_active_todos(session, project_id: int) -> int:
+    """统计项目下未完成的待办数量（排除已完成）"""
+    return (
+        session.query(ProjectTodoRelation)
+        .join(Todo, ProjectTodoRelation.todo_id == Todo.id)
+        .filter(
+            ProjectTodoRelation.project_id == project_id,
+            ProjectTodoRelation.deleted_at.is_(None),
+            Todo.status != "completed",
+        )
+        .count()
+    )
 
 
 class SqlProjectRepository:
@@ -68,11 +82,7 @@ class SqlProjectRepository:
             ).all()
             result = []
             for p in rows:
-                todo_count = (
-                    session.query(ProjectTodoRelation)
-                    .filter_by(project_id=p.id, deleted_at=None)
-                    .count()
-                )
+                todo_count = _count_active_todos(session, p.id)
                 note_count = (
                     session.query(ProjectNoteRelation)
                     .filter_by(project_id=p.id, deleted_at=None)
@@ -90,11 +100,7 @@ class SqlProjectRepository:
             )
             if not p:
                 return None
-            todo_count = (
-                session.query(ProjectTodoRelation)
-                .filter_by(project_id=p.id, deleted_at=None)
-                .count()
-            )
+            todo_count = _count_active_todos(session, p.id)
             note_count = (
                 session.query(ProjectNoteRelation)
                 .filter_by(project_id=p.id, deleted_at=None)
@@ -147,11 +153,7 @@ class SqlProjectRepository:
             for key, value in fields.items():
                 setattr(p, key, value)
             session.flush()
-            todo_count = (
-                session.query(ProjectTodoRelation)
-                .filter_by(project_id=p.id, deleted_at=None)
-                .count()
-            )
+            todo_count = _count_active_todos(session, p.id)
             note_count = (
                 session.query(ProjectNoteRelation)
                 .filter_by(project_id=p.id, deleted_at=None)
