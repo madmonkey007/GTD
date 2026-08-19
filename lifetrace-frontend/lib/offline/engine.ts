@@ -95,7 +95,8 @@ async function applyEntity(
 ) {
 	if (entityType === "habit_record") {
 		const recorded = Boolean(entity.recorded);
-		const date = String(entity.date ?? "").slice(0, 10);
+		// pull 行 camelize 后字段是 recordDate（record_date），push 回包用 date
+		const date = String(entity.recordDate ?? entity.date ?? "").slice(0, 10);
 		if (!date) return;
 		if (!recorded) await deleteMirrorEntity("habitRecord", [uid, date]);
 		else await putMirrorEntity("habitRecord", { ...entity, habitUid: uid, date });
