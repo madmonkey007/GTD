@@ -168,7 +168,7 @@ export function DiaryPanel() {
 		setCollectionView("detail");
 	}, []);
 
-	const { stats, filterMode, setFilterMode, refetchStats } = useDiaryStats();
+	const { stats, filterMode, setFilterMode } = useDiaryStats();
 		const { addToTrash, trashEntries, clearTrash, restoreFromTrash } = useJournalTrash();
 	const { pinnedIds, toggle: togglePin } = usePinStore();
 	const dayRange = useMemo(() => getDayRange(selectedDate), [selectedDate]);
@@ -463,7 +463,12 @@ const handleDeleteJournal = async (note: TrashEntry) => {
 		});
 		await deleteJournal(note.id);
 		clearAfterSubmit.current = true;
-		refetchStats();
+		// 删除的正是当前打开/编辑的笔记：清空草稿，避免编辑器残留已删除内容
+		if (draft.id === note.id) {
+			setNotesResetSignal((v) => v + 1);
+			setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "" }));
+		}
+		// 列表/统计已由 deleteMutation 本地移除缓存即时刷新，无需全量 refetch
 	} catch (_error) {
 		// error handled by mutation
 	}

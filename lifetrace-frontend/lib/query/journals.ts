@@ -293,14 +293,15 @@ const generateAiView = async (input: JournalGenerateRequest) => {
 const deleteJournal = async (journalId: number) => {
 	if (isOffline()) {
 		await offlineDeleteJournal(journalId);
-		return;
+		return journalId;
 	}
 	try {
 		await deleteJournalApiJournalsJournalIdDelete(journalId);
+		return journalId;
 	} catch (err) {
 		if (isOfflineError(err)) {
 			await offlineDeleteJournal(journalId);
-			return;
+			return journalId;
 		}
 		throw err;
 	}
@@ -440,6 +441,28 @@ function replaceJournalInCaches(queryClient: QueryClient, record: Record<string,
 	});
 }
 
+/** 删除笔记后本地移除所有 list/lite/detail 缓存（即时刷新，不再全量 refetch） */
+function removeJournalFromCaches(queryClient: QueryClient, id: number) {
+	queryClient.removeQueries({ queryKey: queryKeys.journals.detail(id) });
+	forEachJournalCache(queryClient, (key, raw) => {
+		if (key[1] === "lite") {
+			return rewriteLiteResponse(raw, (body) => {
+				const next = body.notes.filter((n) => n.id !== id);
+				if (next.length === body.notes.length) return null;
+				return { ...body, total: body.total - 1, notes: next };
+			});
+		}
+		if (key[1] !== "list") return raw;
+		return rewriteListResponse(raw, (body) => {
+			const next = body.journals.filter(
+				(j) => (j as { id?: number })?.id !== id,
+			);
+			if (next.length === body.journals.length) return null;
+			return { ...body, total: body.total - 1, journals: next };
+		});
+	});
+}
+
 export function useJournalMutations() {
 	const queryClient = useQueryClient();
 
@@ -488,8 +511,10 @@ export function useJournalMutations() {
 
 	const deleteMutation = useMutation({
 		mutationFn: deleteJournal,
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
+		onSuccess: (journalId) => {
+			if (journalId != null) {
+				removeJournalFromCaches(queryClient, journalId);
+			}
 		},
 	});
 

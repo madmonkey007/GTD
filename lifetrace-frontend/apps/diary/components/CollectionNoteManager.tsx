@@ -3,11 +3,12 @@
 import { Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-import { useJournals, useCollectionMutations } from "@/lib/query";
+import { useJournals, useJournalLites, useCollectionMutations } from "@/lib/query";
 import {
 	aggregateTags,
 	DEFAULT_NOTE_PICKER_FILTERS,
 	filterAndSort,
+	liteToPickerRow,
 	NotePickerFilters,
 	type NotePickerFiltersState,
 } from "@/apps/diary/components/NotePickerFilters";
@@ -31,21 +32,27 @@ export function CollectionNoteManager({
 	const [pickerFilters, setPickerFilters] = useState<NotePickerFiltersState>(
 		DEFAULT_NOTE_PICKER_FILTERS,
 	);
-	const { data } = useJournals({ limit: 200, search: search || undefined });
-	const { data: allData } = useJournals({ limit: 1000 });
+	// 默认列表/标签用轻量端点（无 N+1）；只有输入搜索词时才走全量搜索接口
+	const { data: liteData } = useJournalLites({ limit: 1000 });
+	const { data: searchData } = useJournals({
+		limit: 50,
+		search: search.trim() || undefined,
+		enabled: !!search.trim(),
+	});
 	const { addNotesAsync, removeNote, isPending } = useCollectionMutations();
 
 	// 本地勾选状态：以传入的成员为初始
 	const [selected, setSelected] = useState<Set<number>>(() => new Set(memberIds));
 
-	const journals = data?.journals ?? [];
+	const liteRows = useMemo(
+		() => (liteData?.notes ?? []).map(liteToPickerRow),
+		[liteData],
+	);
+	const journals = search.trim() ? (searchData?.journals ?? []) : liteRows;
 	const memberSet = useMemo(() => new Set(memberIds), [memberIds]);
 	const memberCount = memberIds.length;
 
-	const allTags = useMemo(
-		() => aggregateTags(allData?.journals ?? []),
-		[allData],
-	);
+	const allTags = useMemo(() => aggregateTags(liteRows), [liteRows]);
 
 	const filtered = filterAndSort(
 		journals.filter((j) =>

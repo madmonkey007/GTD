@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import re
+import time
 from typing import Any
 
 from fastapi import HTTPException
@@ -26,6 +27,10 @@ from lifetrace.util.logging_config import get_logger
 logger = get_logger()
 
 _VALID_RELATION = {"SUPPORTS", "EXTENDS", "CONTRADICTS", "RELATES"}
+
+# 候选推荐缓存：embedding 走云端 API（~1s），同源笔记在 TTL 内复用结果，避免每次打开弹窗重算
+_CANDIDATE_CACHE_TTL = 300  # 秒
+_CANDIDATE_CACHE: dict[tuple[int, int], tuple[float, list[LinkCandidate]]] = {}
 
 
 def _to_response(
@@ -106,6 +111,7 @@ class NoteLinkService:
                 "user_note": data.user_note,
             }
         )
+        self._invalidate_candidates(source_note_id)
         logger.info(
             f"创建思想链接 #{link['id']}: {source_note_id} -{data.relation_type}-> "
             f"{data.target_note_id}"
@@ -132,8 +138,12 @@ class NoteLinkService:
         return _to_response(updated, self._counterpart_for(updated["target_note_id"]))
 
     def delete_link(self, link_id: int) -> None:
+        link = self.repository.get_by_id(link_id)
+        if not link:
+            raise HTTPException(status_code=404, detail="思想链接不存在")
         if not self.repository.soft_delete(link_id):
             raise HTTPException(status_code=404, detail="思想链接不存在")
+        self._invalidate_candidates(link["source_note_id"])
 
     def list_links(self, note_id: int) -> dict[str, Any]:
         if not self.journal_repository.get_by_id(note_id):
@@ -150,7 +160,11 @@ class NoteLinkService:
 
     def delete_by_note(self, note_id: int) -> int:
         """笔记删除时级联清理（由 journal_service.delete_journal 调用）"""
+        _CANDIDATE_CACHE.pop((self.user_id, note_id), None)
         return self.repository.delete_by_note(note_id)
+
+    def _invalidate_candidates(self, source_note_id: int) -> None:
+        _CANDIDATE_CACHE.pop((self.user_id, source_note_id), None)
 
     # ---- 相似度候选（复用向量检索）----
 
@@ -190,9 +204,16 @@ class NoteLinkService:
 
         检索量扩大到 top_k 的 8 倍，确保短文本笔记也能进入候选池，
         然后用关键词重叠度重新排序。
+
+        结果按 (user_id, source_note_id) 缓存 TTL 秒，避免重复调云端 embedding。
         """
         if self._vector_db is None:
             return []
+        cache_key = (self.user_id, source_note_id)
+        cached = _CANDIDATE_CACHE.get(cache_key)
+        if cached and time.monotonic() - cached[0] < _CANDIDATE_CACHE_TTL:
+            return cached[1]
+
         current = self.journal_repository.get_by_id(source_note_id)
         if not current:
             raise HTTPException(status_code=404, detail="笔记不存在")
@@ -234,19 +255,6 @@ class NoteLinkService:
             kw_score = self._keyword_overlap(query_text, candidate_text)
             final_score = VEC_WEIGHT * vec_score + KW_WEIGHT * kw_score
 
-        candidates: list[LinkCandidate] = []
-        for hit in raw:
-            jid = hit.get("journal_id")
-            if jid is None or jid in already_linked:
-                continue
-            note = self.journal_repository.get_by_id(jid)
-            if not note:
-                continue
-            vec_score = float(hit.get("score", 0.0))
-            candidate_text = (note.get("user_notes") or "") + " " + (note.get("name") or "")
-            kw_score = self._keyword_overlap(query_text, candidate_text)
-            final_score = VEC_WEIGHT * vec_score + KW_WEIGHT * kw_score
-
             preview = (
                 (note.get("user_notes") or "").replace("\r", " ").replace("\n", " ").strip()
             )
@@ -261,4 +269,6 @@ class NoteLinkService:
 
         # 按混合分数重排序
         candidates.sort(key=lambda c: c.score, reverse=True)
-        return candidates[:top_k]
+        result = candidates[:top_k]
+        _CANDIDATE_CACHE[cache_key] = (time.monotonic(), result)
+        return result

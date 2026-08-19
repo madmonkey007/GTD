@@ -149,6 +149,14 @@ export function useProjectMutations() {
 		});
 	};
 
+	// 成员变更（往项目加/移除笔记）只影响项目列表与详情，不碰 todos/journals 全量
+	const invalidateMembership = (id: number) => {
+		queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		queryClient.invalidateQueries({
+			queryKey: queryKeys.projects.detail(id),
+		});
+	};
+
 	const createMutation = useMutation({
 		mutationFn: async (input: ProjectInput) => {
 			const data = await customFetcher<ProjectView>("/api/projects", {
@@ -219,7 +227,7 @@ export function useProjectMutations() {
 				? normalizeProject(data as unknown as Record<string, unknown>)
 				: null;
 		},
-		onSuccess: (_data, vars) => invalidateDetail(vars.id),
+		onSuccess: (_data, vars) => invalidateMembership(vars.id),
 	});
 
 	const removeNoteMutation = useMutation({
@@ -232,7 +240,7 @@ export function useProjectMutations() {
 				? normalizeProject(data as unknown as Record<string, unknown>)
 				: null;
 		},
-		onSuccess: (_data, vars) => invalidateDetail(vars.id),
+		onSuccess: (_data, vars) => invalidateMembership(vars.id),
 	});
 
 	const reorderMutation = useMutation({

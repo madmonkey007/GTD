@@ -91,11 +91,6 @@ export function useCollectionMutations() {
 
 	const invalidateAll = () => {
 		queryClient.invalidateQueries({ queryKey: queryKeys.collections.all });
-		// 集合成员变化也影响 journals 视图（如集合内笔记列表），一并刷新
-		queryClient.invalidateQueries({
-			queryKey: queryKeys.journals.all,
-			refetchType: "all",
-		});
 	};
 
 	const invalidateDetail = (id: number) => {

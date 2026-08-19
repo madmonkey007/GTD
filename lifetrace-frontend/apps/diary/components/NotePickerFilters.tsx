@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { JournalView } from "@/lib/query/journals";
+import { extractTagsFromContent } from "@/lib/query/journals";
 
 export type NoteSortMode = "default" | "newest" | "oldest";
 
@@ -11,13 +11,41 @@ export interface NotePickerFiltersState {
 	tag: string | "all";
 }
 
+/** 笔记选择器展示所需的最小行：JournalView 与 lite 行都满足 */
+export interface NotePickerRow {
+	id: number;
+	name: string;
+	createdAt: string;
+	userNotes: string;
+	tags: { tagName: string }[];
+}
+
 export const DEFAULT_NOTE_PICKER_FILTERS: NotePickerFiltersState = {
 	sort: "default",
 	tag: "all",
 };
 
+/** lite 行 → 笔记选择器行（标签从正文 #tag 提取，无需 N+1 关联查询） */
+export function liteToPickerRow(note: {
+	id: number;
+	name: string;
+	createdAt: string;
+	userNotes: string;
+}): NotePickerRow {
+	return {
+		id: note.id,
+		name: note.name ?? "",
+		userNotes: note.userNotes ?? "",
+		createdAt: note.createdAt ?? "",
+		tags: extractTagsFromContent(note.userNotes ?? "").map((tagName) => ({
+			id: 0,
+			tagName,
+		})),
+	};
+}
+
 /** 从全量笔记聚合标签（正文 #tag 提取），按出现次数降序。 */
-export function aggregateTags(journals: JournalView[]): string[] {
+export function aggregateTags(journals: NotePickerRow[]): string[] {
 	const countMap = new Map<string, number>();
 	for (const j of journals) {
 		for (const tag of j.tags ?? []) {
@@ -31,9 +59,9 @@ export function aggregateTags(journals: JournalView[]): string[] {
 
 /** 先按标签过滤，再按发布时间排序。返回新数组，不改动入参。 */
 export function filterAndSort(
-	journals: JournalView[],
+	journals: NotePickerRow[],
 	filters: NotePickerFiltersState,
-): JournalView[] {
+): NotePickerRow[] {
 	const tagFiltered =
 		filters.tag === "all"
 			? journals

@@ -4,11 +4,12 @@ import { ArrowRight, Loader2, SearchIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useLinkCandidates, useNoteLinkMutations } from "@/lib/query/note-links";
-import { useJournals } from "@/lib/query/journals";
+import { useJournalLites, useJournals } from "@/lib/query/journals";
 import {
 	aggregateTags,
 	DEFAULT_NOTE_PICKER_FILTERS,
 	filterAndSort,
+	liteToPickerRow,
 	NotePickerFilters,
 	type NotePickerFiltersState,
 } from "@/apps/diary/components/NotePickerFilters";
@@ -42,26 +43,42 @@ export function AddNoteLinkModal({
 		DEFAULT_NOTE_PICKER_FILTERS,
 	);
 
-	// 全量笔记：提供排序/标签筛选所需的 createdAt / tags 字段（缓存与 DiaryPanel 共享）
-	const { data: allData } = useJournals(
+	// 全量笔记（轻量端点）：提供排序/标签筛选所需的 createdAt / tags 字段（缓存与 DiaryPanel 共享）
+	const { data: liteData } = useJournalLites(
 		isOpen ? { limit: 1000 } : undefined,
 	);
-	const allJournals = allData?.journals ?? [];
+	const allRows = useMemo(
+		() => (liteData?.notes ?? []).map(liteToPickerRow),
+		[liteData],
+	);
 	const journalById = useMemo(() => {
-		const map = new Map<number, (typeof allJournals)[number]>();
-		for (const j of allJournals) map.set(j.id, j);
+		const map = new Map<number, (typeof allRows)[number]>();
+		for (const j of allRows) map.set(j.id, j);
 		return map;
-	}, [allJournals]);
-	const allTags = useMemo(() => aggregateTags(allJournals), [allJournals]);
+	}, [allRows]);
+	const allTags = useMemo(() => aggregateTags(allRows), [allRows]);
 	const filterActive =
 		pickerFilters.sort !== "default" || pickerFilters.tag !== "all";
 
-	// 有搜索词时: 从后端全量搜索
-	const { data: searchResult, isLoading: searchLoading } = useJournals(
-		searchDebounce.trim()
-			? { limit: 50, search: searchDebounce.trim() }
-			: undefined,
+	// 候选为空（向量库无数据/AI 不可用/加载中）时回退到最近笔记，保证弹窗有内容且即时
+	const latestRows = useMemo(
+		() =>
+			[...allRows]
+				.sort(
+					(a, b) =>
+						new Date(b.createdAt ?? 0).getTime() -
+						new Date(a.createdAt ?? 0).getTime(),
+				)
+				.slice(0, 15),
+		[allRows],
 	);
+
+	// 有搜索词时: 从后端全量搜索（未输入时不发请求）
+	const { data: searchResult, isLoading: searchLoading } = useJournals({
+		limit: 50,
+		search: searchDebounce.trim() || undefined,
+		enabled: !!searchDebounce.trim(),
+	});
 
 	// 防抖：用户停止输入 300ms 后发起搜索
 	const debounceTimer = useMemo(() => {
@@ -95,7 +112,7 @@ export function AddNoteLinkModal({
 		}
 		if (filterActive) {
 			return filterAndSort(
-				allJournals.filter((n) => n.id !== noteId),
+				allRows.filter((n) => n.id !== noteId),
 				pickerFilters,
 			).map((n) => ({
 				id: n.id,
@@ -104,8 +121,21 @@ export function AddNoteLinkModal({
 				score: 0,
 			}));
 		}
-		return (candidates ?? [])
+		// 默认推荐：优先 AI 相似候选；为空/加载中时回退到最近笔记，避免弹窗空转
+		const pool =
+			candidates && candidates.length > 0
+				? candidates
+				: latestRows.map((r) => ({
+						id: r.id,
+						name: r.name ?? "",
+						preview: (r.userNotes ?? "")
+							.replace(/[\r\n]/g, " ")
+							.slice(0, 80),
+						score: 0,
+					}));
+		return pool
 			.filter((c) => {
+				if (c.id === noteId) return false;
 				const q = search.trim().toLowerCase();
 				if (!q) return true;
 				return (
@@ -132,7 +162,8 @@ export function AddNoteLinkModal({
 		searchDebounce,
 		searchResult,
 		noteId,
-		allJournals,
+		allRows,
+		latestRows,
 		journalById,
 		pickerFilters,
 		filterActive,
