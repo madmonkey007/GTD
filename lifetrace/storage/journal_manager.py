@@ -349,6 +349,24 @@ class JournalManager:
             logger.error(f"获取日记失败: {e}")
             return None
 
+    def get_journal_by_uid(self, uid: str) -> dict[str, Any] | None:
+        """根据 UID 获取单个日记（幂等 create 用：同 uid 已存在则直接复用）"""
+        try:
+            with self.db_base.get_session() as session:
+                journal = (
+                    session.query(Journal)
+                    .filter(col(Journal.uid) == uid)
+                    .filter(col(Journal.user_id) == self.user_id)
+                    .filter(col(Journal.deleted_at).is_(None))
+                    .first()
+                )
+                if not journal:
+                    return None
+                return self.get_journal(journal.id)
+        except SQLAlchemyError as e:
+            logger.error(f"按 UID 获取日记失败: {e}")
+            return None
+
     def list_journals(
         self,
         *,

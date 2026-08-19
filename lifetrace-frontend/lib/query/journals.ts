@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { isOfflineError, unwrapApiData } from "@/lib/api/fetcher";
 import {
 	autoLinkJournalApiJournalsAutoLinkPost,
@@ -24,6 +24,7 @@ import type {
 	ListJournalsApiJournalsGetParams,
 } from "@/lib/generated/schemas";
 import { listMirrorEntities } from "@/lib/offline/db";
+import { newUid } from "@/lib/offline/ids";
 import { saveServerList } from "@/lib/offline/mirror";
 import {
 	isOffline,
@@ -164,6 +165,10 @@ export function useJournals(params?: UseJournalsParams) {
 }
 
 const createJournal = async (input: JournalCreate): Promise<JournalView | null> => {
+	// 在线创建也带上客户端生成的 uid：配合服务端 uid-upsert，重试/双击不会产生重复笔记
+	if (!input.uid) {
+		input = { ...input, uid: newUid() };
+	}
 	if (isOffline()) {
 		return normalizeJournal(
 			await offlineCreateJournal(input as unknown as Record<string, unknown>),
@@ -246,23 +251,114 @@ const deleteJournal = async (journalId: number) => {
 	}
 };
 
+interface JournalListBody {
+	total: number;
+	journals: unknown[];
+}
+
+/** 缓存里的列表响应可能是裸 {total,journals} 或 {data:{...}} 信封，统一取出/装回 */
+function rewriteListResponse(
+	raw: unknown,
+	mutate: (body: JournalListBody) => JournalListBody | null,
+): unknown {
+	const body = unwrapApiData<{ total?: number; journals?: unknown[] }>(raw);
+	if (!body || !Array.isArray(body.journals)) return raw;
+	const next = mutate({ total: body.total ?? body.journals.length, journals: body.journals });
+	if (!next) return raw;
+	if (raw && typeof raw === "object" && "data" in raw) {
+		return { ...(raw as Record<string, unknown>), data: next };
+	}
+	return next;
+}
+
+/** 遍历所有 journal 缓存（列表/详情），apply 返回新值时写回 */
+function forEachJournalCache(
+	queryClient: QueryClient,
+	apply: (key: readonly unknown[], raw: unknown) => unknown,
+) {
+	for (const [key, raw] of queryClient.getQueriesData({ queryKey: queryKeys.journals.all })) {
+		const next = apply(key, raw);
+		if (next !== raw) queryClient.setQueryData(key, next);
+	}
+}
+
+/** 新建笔记直接写进所有匹配的列表缓存：列表/统计即时更新，不再全量 refetch */
+function prependJournalToCaches(queryClient: QueryClient, record: Record<string, unknown>) {
+	const id = record.id as number;
+	const noteTime = record.date ? new Date(record.date as string).getTime() : Date.now();
+	forEachJournalCache(queryClient, (key, raw) => {
+		if (key[1] !== "list") return raw;
+		const params = (key[2] ?? {}) as Record<string, unknown>;
+		// 搜索词过滤无法本地判断匹配，跳过（等下次自然刷新）
+		if (params.search) return raw;
+		// 来源过滤：新笔记的 origin 能确定时按其判断
+		if (params.origins && typeof params.origins === "string") {
+			const allowed = (params.origins as string).split(",");
+			if (!allowed.includes(String(record.origin ?? "manual"))) return raw;
+		} else if (params.origin && params.origin !== String(record.origin ?? "manual")) {
+			return raw;
+		}
+		// 翻页缓存跳过，避免插入错位
+		if (typeof params.offset === "number" && params.offset > 0) return raw;
+		if (params.start_date && noteTime < new Date(params.start_date as string).getTime()) return raw;
+		if (params.end_date && noteTime > new Date(params.end_date as string).getTime()) return raw;
+		return rewriteListResponse(raw, (body) => {
+			const idx = body.journals.findIndex((j) => (j as { id?: number })?.id === id);
+			if (idx >= 0) {
+				const journals = [...body.journals];
+				journals[idx] = record;
+				return { ...body, journals };
+			}
+			return { total: body.total + 1, journals: [record, ...body.journals] };
+		});
+	});
+}
+
+/** 编辑笔记就地替换缓存中的同 id 记录（含详情缓存） */
+function replaceJournalInCaches(queryClient: QueryClient, record: Record<string, unknown>) {
+	const id = record.id as number;
+	forEachJournalCache(queryClient, (key, raw) => {
+		if (key[1] === "detail") {
+			if (key[2] !== id) return raw;
+			const body = unwrapApiData<Record<string, unknown>>(raw);
+			if (!body || (body as { id?: number }).id !== id) return raw;
+			if (raw && typeof raw === "object" && "data" in raw) {
+				return { ...(raw as Record<string, unknown>), data: record };
+			}
+			return record;
+		}
+		return rewriteListResponse(raw, (body) => {
+			const idx = body.journals.findIndex((j) => (j as { id?: number })?.id === id);
+			if (idx < 0) return null;
+			const journals = [...body.journals];
+			journals[idx] = record;
+			return { ...body, journals };
+		});
+	});
+}
+
 export function useJournalMutations() {
 	const queryClient = useQueryClient();
 
 	const createMutation = useMutation({
 		mutationFn: createJournal,
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
+		onSuccess: (saved) => {
+			if (saved) {
+				prependJournalToCaches(queryClient, saved as unknown as Record<string, unknown>);
+			}
 		},
 	});
 
 	const updateMutation = useMutation({
 		mutationFn: ({ id, input }: { id: number; input: JournalUpdate }) =>
 			updateJournal(id, input),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
-			// 镜像笔记回写后，待办详情的背景/备注需刷新
-			queryClient.invalidateQueries({ queryKey: queryKeys.todos.all });
+		onSuccess: (saved) => {
+			if (saved) {
+				replaceJournalInCaches(queryClient, saved as unknown as Record<string, unknown>);
+			}
+			// 镜像笔记回写只影响待办详情的背景/备注，只失效 detail，
+			// 不再全量失效 todos（否则左侧栏 limit 2000 的大列表每次保存都重拉）
+			queryClient.invalidateQueries({ queryKey: ["todos", "detail"] });
 		},
 	});
 

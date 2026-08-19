@@ -21,6 +21,9 @@ class SqlJournalRepository(IJournalRepository):
     def get_by_id(self, journal_id: int) -> dict[str, Any] | None:
         return self._manager.get_journal(journal_id)
 
+    def get_by_uid(self, uid: str) -> dict[str, Any] | None:
+        return self._manager.get_journal_by_uid(uid)
+
     def list_journals(
         self,
         limit: int,

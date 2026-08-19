@@ -723,16 +723,26 @@ const handleSaveCardEdit = async (
 			console.error("[annotate] create failed:", err);
 		}
 	};
+	const submitInFlightRef = useRef(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const handleSubmitNotes = async () => {
 		if (!draft.userNotes.trim()) return;
-		await handleSave();
-		// Refresh notes data after save
-		refetchAllNotes();
-		refetchStats();
-		// 重置 DiaryEditor 分页到第一页，让新建的笔记出现在列表顶部
-		setNotesResetSignal((v) => v + 1);
-		setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "" }));
-		clearAfterSubmit.current = true;
+		// 连点防护：上一次提交未返回前忽略后续点击（重试重复由服务端 uid 幂等兜底）
+		if (submitInFlightRef.current) return;
+		submitInFlightRef.current = true;
+		setIsSubmitting(true);
+		try {
+			const saved = await handleSave();
+			// 保存失败时保留草稿不清空，避免内容丢失
+			if (!saved) return;
+			// 新笔记已由 mutation onSuccess 直接写入列表/统计缓存，无需全量 refetch
+			setNotesResetSignal((v) => v + 1);
+			setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "" }));
+			clearAfterSubmit.current = true;
+		} finally {
+			submitInFlightRef.current = false;
+			setIsSubmitting(false);
+		}
 	};
 	// 聊天工具改动了笔记：若正是当前打开的笔记，重新拉取并只同步标签（不触碰正文/标题，避免覆盖编辑中内容）
 	// 注意必须放在 journalError 提前 return 之前，否则错误态渲染会少跑这个 hook 导致 React 崩溃
@@ -832,6 +842,7 @@ const handleSaveCardEdit = async (
 							onUserNotesChange={(value) => setDraft((prev) => ({ ...prev, userNotes: value }))}
 							onUserNotesBlur={(value) => handleAutoSave({ draftOverride: { userNotes: value } })}
 							onSubmit={handleSubmitNotes}
+							submitting={isSubmitting}
 							notesResetSignal={notesResetSignal}
 							onInlineTag={handleInlineTag}
 							showLeftToggle={!showLeftInline}
@@ -909,6 +920,7 @@ const handleSaveCardEdit = async (
 								handleAutoSave({ draftOverride: { userNotes: value } })
 							}
 							onSubmit={handleSubmitNotes}
+							submitting={isSubmitting}
 							notesResetSignal={notesResetSignal}
 							onInlineTag={handleInlineTag}
 							showLeftToggle={!showLeftInline}

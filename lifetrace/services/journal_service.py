@@ -453,6 +453,11 @@ class JournalService:
 
     def create_journal(self, data: JournalCreate) -> JournalResponse:
         """创建日记"""
+        # uid 幂等：客户端重试/双击携带同一 uid 时复用已落库的笔记，防止重复创建
+        if data.uid:
+            existing = self.repository.get_by_uid(data.uid)
+            if existing:
+                return JournalResponse(**existing)
         # 自动提取标签：从正文中提取 #标签 语法
         tags = data.tags
         if not tags and data.user_notes:

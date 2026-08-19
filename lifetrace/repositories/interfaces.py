@@ -206,6 +206,11 @@ class IJournalRepository(ABC):
         pass
 
     @abstractmethod
+    def get_by_uid(self, uid: str) -> dict[str, Any] | None:
+        """根据UID获取单个日记"""
+        pass
+
+    @abstractmethod
     def list_journals(
         self,
         limit: int,

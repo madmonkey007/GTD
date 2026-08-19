@@ -93,6 +93,8 @@ interface DiaryEditorProps {
 	onDelete: (note: JournalView) => void;
 	onTogglePin: (journalId: number) => void;
 	onSubmit: () => void;
+	/** 提交请求进行中：发送按钮禁用，防止连点重复提交 */
+	submitting?: boolean;
 	onSaveCardEdit: (journalId: number, data: { name?: string | null; user_notes?: string | null }) => Promise<void>;
 	onInlineTag?: (tagName: string) => void;
 	similarToNoteId?: number | null;
@@ -137,6 +139,7 @@ export function DiaryEditor({
 	onDelete,
 	onTogglePin,
 	onSubmit,
+	submitting,
 	onSaveCardEdit,
 	onInlineTag,
 	similarToNoteId,
@@ -251,13 +254,21 @@ export function DiaryEditor({
 					loadedPagesRef.current = 0;
 					(async () => {
 						const all: JournalView[] = [...journals];
+						// 新笔记本地插入首页后，第 2 页起的服务端数据在分页边界可能与首页
+						// 重复同一条，按 id 去重避免列表出现重复卡片
+						const seen = new Set(all.map((n) => n.id));
 						for (let p = 1; p < pagesToLoad; p++) {
 							const raw = await queryClient.fetchQuery({
 								queryKey: queryKeys.journals.list({ limit: PAGE_SIZE, offset: p * PAGE_SIZE }),
 							});
 							const fresh = unwrapApiData<{ journals: JournalView[]; total: number }>(raw);
 							if (fresh?.journals) {
-								all.push(...fresh.journals);
+								for (const n of fresh.journals) {
+									if (!seen.has(n.id)) {
+										all.push(n);
+										seen.add(n.id);
+									}
+								}
 							}
 						}
 						setAllNotes(all);
@@ -307,7 +318,9 @@ export function DiaryEditor({
 		if (notesResetSignal === prevResetSignalRef.current) return;
 		prevResetSignalRef.current = notesResetSignal;
 		setNotesOffset(0);
-		setAllNotes([]);
+		// 不清空 allNotes：提交成功后新笔记已直接写入列表缓存，
+		// notesData 变化会触发上面的合并 effect 重建列表；此处清空会在
+		// 没有后续网络刷新时让列表停在空状态。
 		setHasMore(true);
 		loadedPagesRef.current = 0;
 	}, [notesResetSignal]);
@@ -491,12 +504,12 @@ export function DiaryEditor({
 						type="button"
 						onMouseDown={(e) => {
 							e.preventDefault();
-							if (draft.userNotes.trim()) {
+							if (draft.userNotes.trim() && !submitting) {
 								onSubmit();
 								setMobileComposerOpen(false);
 							}
 						}}
-						disabled={!draft.userNotes.trim()}
+						disabled={!draft.userNotes.trim() || submitting}
 						className={cn(
 							"flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30",
 							isMobile && "py-2.5",
