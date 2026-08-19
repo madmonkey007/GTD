@@ -29,7 +29,12 @@ import {
 import { useTranslations, useLocale } from "next-intl";
 import type { JournalDraft } from "@/apps/diary/types";
 import type { JournalView } from "@/lib/query";
-import { useJournals } from "@/lib/query";
+import {
+	extractTagsFromContent,
+	normalizeJournal,
+	useJournals,
+	useJournalLites,
+} from "@/lib/query";
 import { queryKeys } from "@/lib/query/keys";
 import { unwrapApiData } from "@/lib/api/fetcher";
 import { cn } from "@/lib/utils";
@@ -65,12 +70,6 @@ import { useJournalStore } from "@/lib/store/journal-store";
 import { useMobileToolbarStore } from "@/lib/store/mobile-toolbar-store";
 
 export type DiaryFilterMode = "all" | "last7" | "random" | "todo";
-
-function extractTagsFromContent(content: string): string[] {
-	const matches = content.match(/#([^\s#]+)(\s|$)/g);
-	if (!matches) return [];
-	return [...new Set(matches.map((m) => m.slice(1).trimEnd()))];
-}
 
 interface DiaryEditorProps {
 	draft: JournalDraft;
@@ -384,7 +383,46 @@ export function DiaryEditor({
 		});
 	};
 
-		const notesList = allNotes;
+	// ---- lite 即时渲染 ----
+	// 冷启动/切换筛选时全量首页（N+1，走隧道往返）需要数秒且期间列表空白；
+	// 先用已缓存的轻量数据（与统计/弹窗共享缓存，打开面板即已拉取）按同样条件
+	// 过滤排序即时出列表，全量数据到达后上方合并 effect 写入 allNotes 自然接管。
+	// todo 模式依赖 origins 字段（lite 没有）不即时；搜索用客户端 contains 近似服务端 ilike。
+	const { data: instantLiteData } = useJournalLites({ limit: 1000, offset: 0 });
+	// notesData === undefined 表示当前查询 key 还没有任何数据（区分"未加载"与"加载了但为空"）
+	const showInstantList =
+		allNotes.length === 0 && notesData === undefined && filterMode !== "todo";
+	const instantNotes = useMemo<JournalView[]>(() => {
+		if (!showInstantList) return [];
+		let rows = instantLiteData?.notes ?? [];
+		const startDate = journalQuery.startDate as string | undefined;
+		const endDate = journalQuery.endDate as string | undefined;
+		if (startDate || endDate) {
+			const start = startDate ? new Date(startDate).getTime() : -Infinity;
+			const end = endDate ? new Date(endDate).getTime() : Infinity;
+			rows = rows.filter((n) => {
+				const t = new Date(n.date).getTime();
+				return t >= start && t <= end;
+			});
+		}
+		const q = debouncedSearch.trim().toLowerCase();
+		if (q) {
+			rows = rows.filter(
+				(n) =>
+					n.name.toLowerCase().includes(q) ||
+					n.userNotes.toLowerCase().includes(q),
+			);
+		}
+		return rows
+			// lite 行（id/name/date/createdAt/userNotes，camelCase）与 normalizeJournal 的
+			// 读取键完全兼容，缺失字段取默认值（origin=manual、关联数组为空）
+			.map((n) => normalizeJournal(n as unknown as Record<string, unknown>))
+			.sort(
+				(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+			);
+	}, [showInstantList, instantLiteData, journalQuery, debouncedSearch]);
+
+	const notesList = allNotes.length > 0 ? allNotes : instantNotes;
 	const sortedNotes = useMemo(() => {
 		// 时光机器动画期间不展示任何笔记内容（时间先走完，内容再加载）
 		if (timeMachinePending) return [];

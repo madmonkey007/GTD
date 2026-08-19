@@ -39,6 +39,7 @@ export {
 	type JournalLiteListData,
 	type JournalLiteRow,
 	type JournalView,
+	normalizeJournal,
 	useJournalLites,
 	useJournalMutations,
 	useJournals,

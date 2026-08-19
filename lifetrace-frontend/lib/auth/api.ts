@@ -37,8 +37,8 @@ export function register(credentials: Credentials): Promise<AuthResponse> {
 	});
 }
 
-export function fetchCurrentUser(): Promise<AuthUser> {
-	return customFetcher<AuthUser>("/api/auth/me");
+export function fetchCurrentUser(signal?: AbortSignal): Promise<AuthUser> {
+	return customFetcher<AuthUser>("/api/auth/me", { signal });
 }
 
 export function updateDisplayName(displayName: string): Promise<AuthUser> {

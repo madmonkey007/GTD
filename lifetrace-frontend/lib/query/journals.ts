@@ -86,7 +86,7 @@ export function useJournalLites(params?: UseJournalLitesParams) {
 
 	return useQuery({
 		queryKey: queryKeys.journals.lite(keyParams),
-		staleTime: 30 * 1000,
+		staleTime: 5 * 60 * 1000,
 		enabled: params?.enabled ?? true,
 		queryFn: async ({ signal }) => {
 			const search = new URLSearchParams();
@@ -165,7 +165,7 @@ export function useJournals(params?: UseJournalsParams) {
 	return useListJournalsApiJournalsGet(queryParams, {
 		query: {
 			queryKey: queryKeys.journals.list(keyParams),
-			staleTime: 30 * 1000,
+			staleTime: 5 * 60 * 1000,
 			enabled: params?.enabled ?? true,
 			retry: (count, err) => (isOfflineError(err) ? false : count < 3),
 			retryDelay: (attemptIndex) =>
@@ -437,6 +437,57 @@ function replaceJournalInCaches(queryClient: QueryClient, record: Record<string,
 			const journals = [...body.journals];
 			journals[idx] = record;
 			return { ...body, journals };
+		});
+	});
+}
+
+/** NoteLink 增删后本地更新源/目标两篇笔记的 relatedNoteIds（lite 不含关联字段，无需处理） */
+export function patchNoteLinkInCaches(
+	queryClient: QueryClient,
+	opts: { sourceNoteId: number; targetNoteId: number; linked: boolean },
+) {
+	const { sourceNoteId, targetNoteId, linked } = opts;
+	const patchRecord = (rec: Record<string, unknown>) => {
+		const id = rec.id as number;
+		if (id !== sourceNoteId && id !== targetNoteId) return rec;
+		const other = id === sourceNoteId ? targetNoteId : sourceNoteId;
+		const keyName = Array.isArray(rec.relatedNoteIds)
+			? "relatedNoteIds"
+			: Array.isArray(rec.related_note_ids)
+				? "related_note_ids"
+				: null;
+		if (!keyName) return rec;
+		const cur = (rec[keyName] as number[]) ?? [];
+		const next = linked
+			? cur.includes(other)
+				? cur
+				: [...cur, other]
+			: cur.filter((x) => x !== other);
+		if (next === cur || next.length === cur.length) return rec;
+		return { ...rec, [keyName]: next };
+	};
+	forEachJournalCache(queryClient, (key, raw) => {
+		if (key[1] === "lite") return raw;
+		if (key[1] === "detail") {
+			const detailId = key[2];
+			if (detailId !== sourceNoteId && detailId !== targetNoteId) return raw;
+			const body = unwrapApiData<Record<string, unknown>>(raw);
+			if (!body || body.id !== detailId) return raw;
+			const patched = patchRecord(body);
+			if (patched === body) return raw;
+			if (raw && typeof raw === "object" && "data" in raw) {
+				return { ...(raw as Record<string, unknown>), data: patched };
+			}
+			return patched;
+		}
+		return rewriteListResponse(raw, (body) => {
+			let changed = false;
+			const journals = body.journals.map((j) => {
+				const patched = patchRecord(j as Record<string, unknown>);
+				if (patched !== j) changed = true;
+				return patched;
+			});
+			return changed ? { ...body, journals } : null;
 		});
 	});
 }

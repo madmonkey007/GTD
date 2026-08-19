@@ -16,6 +16,7 @@ import type {
 	NoteLinkResponseRelationType,
 } from "@/lib/generated/schemas";
 import { queryKeys } from "./keys";
+import { patchNoteLinkInCaches } from "./journals";
 
 export const RELATION_TYPES = [
 	"SUPPORTS",
@@ -135,10 +136,21 @@ export function useLinkCandidates(
 export function useNoteLinkMutations() {
 	const queryClient = useQueryClient();
 
-	const invalidate = (noteId?: number) => {
+	// NoteLink 变更只影响链接列表本身和源/目标两篇笔记的 relatedNoteIds：
+	// 前者 invalidate（轻请求），后者本地补丁缓存，不再全量 refetch journals
+	const invalidate = (
+		noteId?: number,
+		link?: Pick<NoteLinkView, "sourceNoteId" | "targetNoteId"> | null,
+		linked = true,
+	) => {
 		queryClient.invalidateQueries({ queryKey: queryKeys.noteLinks.all });
-		// NoteLink 变更后 journals 的 relatedNoteIds 也实时变化，一并刷新
-		queryClient.invalidateQueries({ queryKey: queryKeys.journals.all, refetchType: 'all' });
+		if (link) {
+			patchNoteLinkInCaches(queryClient, {
+				sourceNoteId: link.sourceNoteId,
+				targetNoteId: link.targetNoteId,
+				linked,
+			});
+		}
 		if (noteId) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.noteLinks.candidates(noteId),
@@ -164,7 +176,7 @@ export function useNoteLinkMutations() {
 				? normalizeLink(data as unknown as Record<string, unknown>)
 				: null;
 		},
-		onSuccess: (_data, vars) => invalidate(vars.sourceNoteId),
+		onSuccess: (data, vars) => invalidate(vars.sourceNoteId, data, true),
 	});
 
 	const updateMutation = useMutation({
@@ -184,15 +196,16 @@ export function useNoteLinkMutations() {
 				? normalizeLink(data as unknown as Record<string, unknown>)
 				: null;
 		},
-		onSuccess: () => invalidate(),
+		onSuccess: (data) => invalidate(undefined, data, true),
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: async (linkId: number) => {
-			await deleteLinkApiNoteLinksLinkIdDelete(linkId);
-			return linkId;
+		// 传完整 link 而非裸 id：删除后需要 source/target 在本地缓存中回退 relatedNoteIds
+		mutationFn: async (link: Pick<NoteLinkView, "id" | "sourceNoteId" | "targetNoteId">) => {
+			await deleteLinkApiNoteLinksLinkIdDelete(link.id);
+			return link;
 		},
-		onSuccess: () => invalidate(),
+		onSuccess: (link) => invalidate(undefined, link, false),
 	});
 
 	return {

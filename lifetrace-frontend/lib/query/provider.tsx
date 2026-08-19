@@ -15,8 +15,10 @@ function makeQueryClient() {
 				staleTime: 30 * 1000,
 				// 数据在缓存中保留 5 分钟
 				gcTime: 5 * 60 * 1000,
-				// 窗口聚焦时重新获取数据
-				refetchOnWindowFocus: true,
+				// 关闭窗口聚焦重拉：移动端每次切回 PWA/键盘弹出都会触发焦点变化，
+				// 逐个走隧道重拉全部活跃查询造成"时不时自己刷新"；增删改已由
+				// mutation 本地更新缓存，无需激进自动重拉（重连时仍会刷新）
+				refetchOnWindowFocus: false,
 				// 网络重连时重新获取数据
 				refetchOnReconnect: true,
 				// 组件挂载时如果数据过期则重新获取

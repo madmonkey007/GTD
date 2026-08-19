@@ -278,7 +278,7 @@ export function ReferenceModal({ isOpen, onClose, note, noteName, allNotes }: Re
 		updateNoteLink({ linkId, input: { relationType: type } });
 	};
 	const handleDeleteAll = (links: NoteLinkView[]) => {
-		links.forEach((l) => deleteNoteLink(l.id));
+		links.forEach((l) => deleteNoteLink(l));
 	};
 
 	return (
