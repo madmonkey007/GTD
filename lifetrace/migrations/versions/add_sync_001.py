@@ -29,14 +29,17 @@ def upgrade() -> None:
         op.create_table(
             "sync_tombstones",
             sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("user_id", sa.Integer(), nullable=False),
             sa.Column("entity_type", sa.String(length=32), nullable=False),
             sa.Column("uid", sa.String(length=128), nullable=False),
             sa.Column("deleted_at", sa.DateTime(), nullable=False),
             sa.PrimaryKeyConstraint("id"),
             sa.UniqueConstraint(
-                "entity_type", "uid", name="uq_sync_tombstone_entity_uid"
+                "user_id", "entity_type", "uid", name="uq_sync_tombstone_entity_uid"
             ),
         )
+    if not _has_index("sync_tombstones", "ix_sync_tombstones_user_id"):
+        op.create_index("ix_sync_tombstones_user_id", "sync_tombstones", ["user_id"])
     if not _has_index("sync_tombstones", "ix_sync_tombstones_entity_type"):
         op.create_index(
             "ix_sync_tombstones_entity_type", "sync_tombstones", ["entity_type"]
@@ -50,13 +53,18 @@ def upgrade() -> None:
         op.create_table(
             "sync_op_log",
             sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("user_id", sa.Integer(), nullable=False),
             sa.Column("client_id", sa.String(length=128), nullable=False),
             sa.Column("op_id", sa.String(length=128), nullable=False),
             sa.Column("result_json", sa.Text(), nullable=False),
             sa.Column("created_at", sa.DateTime(), nullable=False),
             sa.PrimaryKeyConstraint("id"),
-            sa.UniqueConstraint("client_id", "op_id", name="uq_sync_op_log_client_op"),
+            sa.UniqueConstraint(
+                "user_id", "client_id", "op_id", name="uq_sync_op_log_client_op"
+            ),
         )
+    if not _has_index("sync_op_log", "ix_sync_op_log_user_id"):
+        op.create_index("ix_sync_op_log_user_id", "sync_op_log", ["user_id"])
     if not _has_index("sync_op_log", "ix_sync_op_log_client_id"):
         op.create_index("ix_sync_op_log_client_id", "sync_op_log", ["client_id"])
     if not _has_index("sync_op_log", "ix_sync_op_log_created_at"):
@@ -83,7 +91,7 @@ def upgrade() -> None:
         op.create_index(
             "uq_habit_record_date",
             "habit_records",
-            ["habit_id", "record_date"],
+            ["user_id", "habit_id", "record_date"],
             unique=True,
         )
 

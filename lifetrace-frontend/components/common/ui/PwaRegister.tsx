@@ -30,6 +30,9 @@ export function PwaRegister() {
 					scope: "/",
 				});
 				console.log("[PWA] ServiceWorker registered:", reg.scope);
+				// 启动时通知 SW 冲刷离线条目：SW 广播 LIFETRACE_SYNC 给页面，页面引擎负责 push/pull
+				const controller = reg.active ?? reg.waiting;
+				controller?.postMessage({ type: "LIFETRACE_SYNC_REQUEST" });
 			} catch (err) {
 				console.warn("[PWA] ServiceWorker registration failed:", err);
 			}

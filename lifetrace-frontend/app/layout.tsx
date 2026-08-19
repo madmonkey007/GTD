@@ -8,6 +8,7 @@ import { LocaleSync } from "@/components/common/ui/LocaleSync";
 import { OfflineBadge } from "@/components/common/ui/OfflineBadge";
 import { PwaRegister } from "@/components/common/ui/PwaRegister";
 import { ScrollbarController } from "@/components/common/ui/ScrollbarController";
+import { SyncController } from "@/components/common/ui/SyncController";
 import { QueryProvider } from "@/lib/query/provider";
 import "./globals.css";
 import "driver.js/dist/driver.css";
@@ -48,6 +49,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
 			>
 				<ScrollbarController />
 				<PwaRegister />
+				<SyncController />
 				<QueryProvider>
 					<OfflineBadge />
 					<IntlErrorBoundary messages={messages} locale={locale}>

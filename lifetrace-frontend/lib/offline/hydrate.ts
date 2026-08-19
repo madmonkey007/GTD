@@ -20,6 +20,20 @@ export function hydrateOfflineCache(): Promise<void> {
 		if (!qc.getQueryData(queryKeys.journals.list()) && journals.length) {
 			qc.setQueryData(queryKeys.journals.list(), { journals, total: journals.length });
 		}
+		// 主面板（DiaryPanel）用 lite 端点渲染首帧，需同样从镜像 hydrate
+		const liteRows = journals.map((row) => ({
+			id: row.id,
+			name: (row.name as string) ?? "",
+			date: row.date as string,
+			createdAt: ((row.createdAt as string) ?? (row.created_at as string)) ?? "",
+			userNotes: ((row.userNotes as string) ?? (row.user_notes as string)) ?? "",
+		}));
+		if (!qc.getQueryData(queryKeys.journals.lite({ limit: 1000 })) && liteRows.length) {
+			qc.setQueryData(queryKeys.journals.lite({ limit: 1000 }), {
+				total: liteRows.length,
+				notes: liteRows,
+			});
+		}
 		if (!qc.getQueryData(queryKeys.habits.list({ limit: 1000 })) && habits.length) {
 			qc.setQueryData(queryKeys.habits.list({ limit: 1000 }), habits);
 		}

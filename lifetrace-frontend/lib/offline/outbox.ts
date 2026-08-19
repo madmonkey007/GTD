@@ -108,9 +108,10 @@ function coalesceGroup(group: OutboxOp[]): OutboxOp[] {
 		return [...merged.values()];
 	}
 
-	// create 起头的组：合并后续 update；遇 delete 整组丢弃
+	// create 起头的组：合并后续 update；遇 delete 整组丢弃；habit.record_set 作为兄弟操作保留
 	if (firstAction === "create") {
 		const payload = { ...(first.payload as Record<string, unknown>) };
+		const recordSets = new Map<string, OutboxOp>();
 		let deleted = false;
 		for (const op of group.slice(1)) {
 			if (op.kind === `${kindBase}.delete`) {
@@ -120,9 +121,13 @@ function coalesceGroup(group: OutboxOp[]): OutboxOp[] {
 			if (op.kind === `${kindBase}.update`) {
 				Object.assign(payload, op.payload as Record<string, unknown>);
 			}
+			if (op.kind === "habit.record_set") {
+				const { key } = coalesceKeyOf(op);
+				recordSets.set(key, op);
+			}
 		}
 		if (deleted) return [];
-		return [{ ...first, payload }];
+		return [{ ...first, payload }, ...recordSets.values()];
 	}
 
 	// update/delete 起头的组：合并 update，遇 delete 只留 delete
