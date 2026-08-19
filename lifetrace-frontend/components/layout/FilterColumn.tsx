@@ -1,6 +1,7 @@
 "use client";
 
-import { Calendar, CalendarDays, ChevronDown, ChevronRight, Inbox, Tag, X } from "lucide-react";
+import { Archive, Calendar, CalendarDays, ChevronDown, ChevronRight, Inbox, Tag, Trash2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState } from "react";
 import { ProjectList } from "@/apps/project";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
@@ -15,6 +16,7 @@ const FILTER_ITEMS = [
 ] as const;
 
 export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
+	const t = useTranslations("todoList");
 	const { sidebarMode, sidebarTag, setSidebarMode, setSidebarTag, sidebarWidth, setSidebarWidth, todoProjectFilter, setTodoProjectFilter } = useUiStore();
 	const { data: allTodos } = useTodos({ limit: 2000 });
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -212,6 +214,41 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 								</span>
 							</button>
 						))))}
+					</div>
+
+				{/* 归档 / 回收站 */}
+				<div className="flex flex-col gap-0.5 border-t border-border/20 px-2 pt-2 mt-1">
+					{(
+						[
+							{ id: "archived" as const, label: t("archived"), icon: Archive },
+							{ id: "trashed" as const, label: t("trashed"), icon: Trash2 },
+						] as const
+					).map((item) => {
+						const Icon = item.icon;
+						const isActive = sidebarMode === item.id;
+						return (
+							<button
+								key={item.id}
+								type="button"
+								onClick={() => {
+									setTodoProjectFilter(null);
+									setSidebarTag(null);
+									setSidebarMode(sidebarMode === item.id ? null : item.id);
+								}}
+								className={cn(
+									"flex items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors",
+									isMobile ? "min-h-11" : "py-1.5",
+									"hover:bg-muted/40",
+									isActive
+										? "bg-primary/10 text-primary font-medium"
+										: "text-muted-foreground",
+								)}
+							>
+								<Icon className={cn("shrink-0", isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+								<span className="flex-1 text-left">{item.label}</span>
+							</button>
+						);
+					})}
 				</div>
 
 			{/* 调整大小手柄（移动端抽屉内无意义，隐藏） */}

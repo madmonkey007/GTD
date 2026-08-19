@@ -75,6 +75,8 @@ export function useOrderedTodos(
 	searchQuery: string,
 	collapsedTodoIds?: Set<number>,
 	filter?: TodoFilterState,
+	/** 归档/回收站视图：不拆分已完成任务，全部平铺展示 */
+	flatMode = false,
 ) {
 	return useMemo(() => {
 		let result = todos;
@@ -126,7 +128,9 @@ export function useOrderedTodos(
 
 		const ordered: OrderedTodo[] = [];
 		const completedOrdered: OrderedTodo[] = [];
-		const shouldSplitCompleted = !filter || filter.status === "all";
+		const shouldSplitCompleted = flatMode
+			? false
+			: !filter || filter.status === "all";
 		const traverse = (
 			items: Todo[],
 			depth: number,
@@ -169,5 +173,5 @@ export function useOrderedTodos(
 				? roots.filter((todo) => todo.status === "completed").length
 				: 0,
 		};
-	}, [todos, searchQuery, collapsedTodoIds, filter]);
+	}, [todos, searchQuery, collapsedTodoIds, filter, flatMode]);
 }

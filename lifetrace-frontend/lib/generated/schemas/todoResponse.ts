@@ -87,6 +87,12 @@ export interface TodoResponse {
   rrule?: string | null;
   /** 同级待办之间的展示排序 */
   order?: number;
+  /** 是否已归档 */
+  is_archived?: boolean;
+  /** 是否已移入回收站 */
+  is_trashed?: boolean;
+  /** 移入回收站时间 */
+  trashed_at?: string | null;
   /** 标签名称列表 */
   tags?: string[];
   /** 附件列表 */

@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArchiveRestore, Eraser, Plus, RotateCcw, Sparkles, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { cloneElement, useEffect, useRef, useState } from "react";
@@ -33,12 +33,13 @@ export function TodoContextMenu({
 	const t = useTranslations("contextMenu");
 	// 从 TanStack Query 获取 mutation 操作和 todos 数据
 	const { data: todos = [] } = useTodos();
-	const { createTodo, updateTodo, deleteTodo } = useTodoMutations();
+	const { createTodo, updateTodo, deleteTodo, restoreTodo, purgeTodo } =
+		useTodoMutations();
 
 	// 从 Zustand 获取 UI 状态操作
 	const { onTodoDeleted } = useTodoStore();
 	const { startBreakdown } = useBreakdownStore();
-	const { setPanelFeature, getFeatureByPosition } = useUiStore();
+	const { setPanelFeature, getFeatureByPosition, sidebarMode } = useUiStore();
 
 	// 使用通用菜单 hook
 	const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
@@ -168,31 +169,84 @@ export function TodoContextMenu({
 		closeContextMenu();
 	};
 
-	// 构建菜单项
-	const menuItems: MenuItem[] = [
-		{
-			icon: Plus,
-			label: t("addChild"),
-			onClick: handleAddChildClick,
-			isFirst: true,
-		},
-		{
-			icon: Sparkles,
-			label: t("useAiPlan"),
-			onClick: handleStartBreakdown,
-		},
-		{
-			icon: X,
-			label: t("cancel"),
-			onClick: handleCancel,
-		},
-		{
-			icon: Trash2,
-			label: t("delete"),
-			onClick: handleDelete,
-			isLast: true,
-		},
-	];
+	const handleRestore = async () => {
+		try {
+			await restoreTodo(todoId);
+		} catch (err) {
+			console.error("Failed to restore todo:", err);
+		}
+		closeContextMenu();
+	};
+
+	const handleUnarchive = async () => {
+		try {
+			await updateTodo(todoId, { isArchived: false });
+		} catch (err) {
+			console.error("Failed to unarchive todo:", err);
+		}
+		closeContextMenu();
+	};
+
+	const handlePurge = async () => {
+		try {
+			await purgeTodo(todoId);
+		} catch (err) {
+			console.error("Failed to purge todo:", err);
+		}
+		closeContextMenu();
+	};
+
+	// 归档视图：仅提供「取消归档」；回收站视图：仅提供「恢复」与「彻底删除」，其余常规操作在这些视图无意义
+	const menuItems: MenuItem[] =
+		sidebarMode === "archived"
+			? [
+					{
+						icon: ArchiveRestore,
+						label: t("unarchive"),
+						onClick: handleUnarchive,
+						isFirst: true,
+						isLast: true,
+					},
+				]
+			: sidebarMode === "trashed"
+				? [
+						{
+							icon: RotateCcw,
+							label: t("restore"),
+							onClick: handleRestore,
+							isFirst: true,
+						},
+						{
+							icon: Eraser,
+							label: t("purge"),
+							onClick: handlePurge,
+							isLast: true,
+						},
+					]
+				: [
+					{
+						icon: Plus,
+						label: t("addChild"),
+						onClick: handleAddChildClick,
+						isFirst: true,
+					},
+					{
+						icon: Sparkles,
+						label: t("useAiPlan"),
+						onClick: handleStartBreakdown,
+					},
+					{
+						icon: X,
+						label: t("cancel"),
+						onClick: handleCancel,
+					},
+					{
+						icon: Trash2,
+						label: t("delete"),
+						onClick: handleDelete,
+						isLast: true,
+					},
+				];
 
 	// 克隆子元素并添加 onContextMenu 处理器
 	const childWithContextMenu = cloneElement(children, {

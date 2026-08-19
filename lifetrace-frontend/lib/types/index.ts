@@ -59,6 +59,9 @@ export interface Todo {
 	percentComplete?: number;
 	order?: number;
 	isInbox?: boolean;
+	isArchived?: boolean;
+	isTrashed?: boolean;
+	trashedAt?: string | null;
 	tags?: string[];
 	attachments?: TodoAttachment[];
 	relatedActivities?: number[];
@@ -146,6 +149,9 @@ export interface UpdateTodoInput {
 	order?: number;
 	tags?: string[];
 	parentTodoId?: number | null;
+	isArchived?: boolean | null;
+	isTrashed?: boolean | null;
+	trashedAt?: string | null;
 	relatedActivities?: number[];
 }
 

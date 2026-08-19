@@ -6,7 +6,9 @@ import {
 	createTodoApiTodosPost,
 	deleteTodoApiTodosTodoIdDelete,
 	listTodosApiTodosGet,
+	purgeTodoApiTodosTodoIdPurgeDelete,
 	reorderTodosApiTodosReorderPost,
+	restoreTodoApiTodosTodoIdRestorePost,
 	updateTodoApiTodosTodoIdPut,
 	useListTodosApiTodosGet,
 } from "@/lib/generated/todos/todos";
@@ -100,6 +102,9 @@ export function normalizeTodo(raw: Record<string, unknown>): Todo {
 		rrule: (raw.rrule as string | null) ?? undefined,
 		order: (raw.order as number) ?? 0,
 		isInbox: (raw.isInbox as boolean) ?? true,
+		isArchived: (raw.isArchived as boolean) ?? false,
+		isTrashed: (raw.isTrashed as boolean) ?? false,
+		trashedAt: (raw.trashedAt as string | null) ?? null,
 		tags: (raw.tags as string[]) ?? [],
 		attachments: (raw.attachments as Todo["attachments"]) ?? [],
 		parentTodoId:
@@ -122,6 +127,8 @@ interface UseTodosParams {
 	status?: string;
 	limit?: number;
 	offset?: number;
+	archived?: boolean;
+	trashed?: boolean;
 }
 
 /**
@@ -134,6 +141,8 @@ export function useTodos(params?: UseTodosParams) {
 		limit: params?.limit ?? 2000,
 		offset: params?.offset ?? 0,
 		status: params?.status,
+		archived: params?.archived,
+		trashed: params?.trashed,
 	};
 
 	return useListTodosApiTodosGet(requestParams, {
@@ -604,6 +613,89 @@ export function useReorderTodos() {
 // ============================================================================
 
 /**
+ * 从回收站恢复 Todo 的 Mutation Hook
+ */
+export function useRestoreTodo() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (id: number) => {
+			await restoreTodoApiTodosTodoIdRestorePost(id);
+			return id;
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.todos.all });
+		},
+	});
+}
+
+/**
+ * 彻底删除 Todo（回收站永久删除）的 Mutation Hook
+ */
+export function usePurgeTodo() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (id: number) => {
+			await purgeTodoApiTodosTodoIdPurgeDelete(id);
+			return id;
+		},
+		onMutate: async (id) => {
+			await queryClient.cancelQueries({ queryKey: queryKeys.todos.all });
+
+			const previousData = queryClient.getQueryData<TodoListResponse>(
+				queryKeys.todos.list(),
+			);
+
+			const previousTodos = previousData?.todos ?? [];
+
+			// 递归查找所有子任务 ID
+			const findAllChildIds = (
+				parentId: number,
+				allTodos: Todo[],
+			): number[] => {
+				const childIds: number[] = [];
+				const children = allTodos.filter((t) => t.parentTodoId === parentId);
+				for (const child of children) {
+					childIds.push(child.id);
+					childIds.push(...findAllChildIds(child.id, allTodos));
+				}
+				return childIds;
+			};
+
+			const allIdsToDelete = [id, ...findAllChildIds(id, previousTodos)];
+			const idsToDeleteSet = new Set(allIdsToDelete);
+
+			// 乐观更新：从缓存中移除待删除项
+			queryClient.setQueryData(
+				queryKeys.todos.list(),
+				(old: TodoListResponse | undefined) => {
+					if (!old || !old.todos) return old;
+					const updatedTodos = old.todos.filter(
+						(todo) => !idsToDeleteSet.has(todo.id),
+					);
+					return {
+						...old,
+						todos: updatedTodos,
+						total: updatedTodos.length,
+					};
+				},
+			);
+
+			return { previousData };
+		},
+		onError: (_err, _id, context) => {
+			if (context?.previousData) {
+				queryClient.setQueryData(queryKeys.todos.list(), context.previousData);
+			}
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.todos.all });
+		},
+	});
+}
+
+/**
  * 提供所有 Todo Mutation 操作的组合 Hook
  */
 export function useTodoMutations() {
@@ -612,6 +704,8 @@ export function useTodoMutations() {
 	const deleteMutation = useDeleteTodo();
 	const toggleStatusMutation = useToggleTodoStatus();
 	const reorderMutation = useReorderTodos();
+	const restoreMutation = useRestoreTodo();
+	const purgeMutation = usePurgeTodo();
 
 	return {
 		createTodo: createMutation.mutateAsync,
@@ -620,13 +714,19 @@ export function useTodoMutations() {
 		deleteTodo: deleteMutation.mutateAsync,
 		toggleTodoStatus: toggleStatusMutation.mutateAsync,
 		reorderTodos: reorderMutation.mutateAsync,
+		restoreTodo: restoreMutation.mutateAsync,
+		purgeTodo: purgeMutation.mutateAsync,
 		isCreating: createMutation.isPending,
 		isUpdating: updateMutation.isPending,
 		isDeleting: deleteMutation.isPending,
 		isReordering: reorderMutation.isPending,
+		isRestoring: restoreMutation.isPending,
+		isPurging: purgeMutation.isPending,
 		createError: createMutation.error,
 		updateError: updateMutation.error,
 		deleteError: deleteMutation.error,
 		reorderError: reorderMutation.error,
+		restoreError: restoreMutation.error,
+		purgeError: purgeMutation.error,
 	};
 }

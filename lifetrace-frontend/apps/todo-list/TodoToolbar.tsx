@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { FolderKanban, ListTodo, Search, SlidersHorizontal } from "lucide-react";
+import { Archive, FolderKanban, ListTodo, Search, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -11,6 +11,7 @@ import {
 import { FilterColumn } from "@/components/layout/FilterColumn";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import type { ProjectView } from "@/lib/query";
+import { useUiStore } from "@/lib/store/ui-store";
 import type { Todo } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import type { TodoFilterState } from "./components/TodoFilter";
@@ -24,6 +25,8 @@ interface TodoToolbarProps {
 	onFilterChange: (filter: TodoFilterState) => void;
 	/** 项目筛选态：传入则标题区改用项目图标+名称（完整 ProjectView，含计数与描述） */
 	projectFilter?: ProjectView | null;
+	/** 归档/回收站视图：隐藏移动端筛选入口等新建相关操作 */
+	specialMode?: boolean;
 }
 
 export function TodoToolbar({
@@ -33,6 +36,7 @@ export function TodoToolbar({
 	filter,
 	onFilterChange,
 	projectFilter,
+	specialMode = false,
 }: TodoToolbarProps) {
 	const tPage = useTranslations("page");
 	const tTodoList = useTranslations("todoList");
@@ -43,6 +47,15 @@ export function TodoToolbar({
 	const searchContainerRef = useRef<HTMLDivElement>(null);
 	const actionIconStyle = usePanelIconStyle("action");
 	const isMobile = useIsMobile();
+	const sidebarMode = useUiStore((s) => s.sidebarMode);
+
+	// 归档/回收站视图的标题（区别于常规「收集箱」标题）
+	const modeTitle =
+		sidebarMode === "archived"
+			? tTodoList("archived")
+			: sidebarMode === "trashed"
+				? tTodoList("trashed")
+				: null;
 
 	useEffect(() => {
 		if (isSearchOpen && searchInputRef.current) {
@@ -73,7 +86,7 @@ export function TodoToolbar({
 		<div className="flex-shrink-0 px-4 pt-3 pb-2 border-b border-border/40">
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2 min-w-0">
-					{isMobile && (
+					{isMobile && !specialMode && (
 						<PanelActionButton
 							variant="default"
 							icon={SlidersHorizontal}
@@ -139,10 +152,16 @@ export function TodoToolbar({
 						</>
 					) : (
 						<>
-							{!isMobile && <ListTodo className="w-4 h-4 text-primary/70" />}
+							{!isMobile && (sidebarMode === "archived" ? (
+								<Archive className="w-4 h-4 text-primary/70" />
+							) : sidebarMode === "trashed" ? (
+								<Trash2 className="w-4 h-4 text-primary/70" />
+							) : (
+								<ListTodo className="w-4 h-4 text-primary/70" />
+							))}
 							{!isMobile && (
 									<span className="text-sm font-semibold tracking-tight text-foreground">
-										{tPage("todoListTitle")}
+										{modeTitle ?? tPage("todoListTitle")}
 									</span>
 								)}
 						</>

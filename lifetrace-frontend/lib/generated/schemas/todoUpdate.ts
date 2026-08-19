@@ -85,6 +85,12 @@ export interface TodoUpdate {
   rrule?: string | null;
   /** 同级待办之间的展示排序 */
   order?: number | null;
+  /** 是否已归档（显式传 false 可取消归档） */
+  is_archived?: boolean | null;
+  /** 是否已移入回收站 */
+  is_trashed?: boolean | null;
+  /** 移入回收站时间（显式传 null 可清除） */
+  trashed_at?: string | null;
   /** 标签名称列表（显式传空数组将清空） */
   tags?: string[] | null;
   /** 关联活动ID列表（显式传空数组将清空） */

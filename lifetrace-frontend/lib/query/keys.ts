@@ -11,8 +11,13 @@ export const queryKeys = {
 		/** 所有 todo 相关查询的根键 */
 		all: ["todos"] as const,
 		/** todo 列表查询 */
-		list: (params?: { status?: string; limit?: number; offset?: number }) =>
-			["todos", "list", params] as const,
+		list: (params?: {
+			status?: string;
+			limit?: number;
+			offset?: number;
+			archived?: boolean;
+			trashed?: boolean;
+		}) => ["todos", "list", params] as const,
 		/** 单个 todo 详情 */
 		detail: (id: string) => ["todos", "detail", id] as const,
 	},

@@ -36,12 +36,18 @@ function setTrashStore(store: TrashStore): void {
 	localStorage.setItem(TRASH_STORAGE_KEY, JSON.stringify(store));
 }
 
-/** Purge entries older than TRASH_MAX_DAYS */
+/** Purge entries older than TRASH_MAX_DAYS and drop duplicate ids (keep the newest) */
 function purgeExpired(store: TrashStore): TrashStore {
 	const cutoff = Date.now() - TRASH_MAX_DAYS * 24 * 60 * 60 * 1000;
-	return {
-		entries: store.entries.filter((e) => new Date(e.deletedAt).getTime() > cutoff),
-	};
+	const byId = new Map<number, TrashEntry>();
+	for (const e of store.entries) {
+		if (new Date(e.deletedAt).getTime() <= cutoff) continue;
+		const prev = byId.get(e.id);
+		if (!prev || new Date(e.deletedAt).getTime() > new Date(prev.deletedAt).getTime()) {
+			byId.set(e.id, e);
+		}
+	}
+	return { entries: [...byId.values()] };
 }
 
 // --- Cached snapshot for useSyncExternalStore ---

@@ -1,7 +1,7 @@
 import type { PanelFeature, PanelPosition } from "@/lib/config/panel-config";
 
 // 侧边栏模式类型
-export type SidebarMode = "today" | "last7days" | "inbox" | null;
+export type SidebarMode = "today" | "last7days" | "inbox" | "archived" | "trashed" | null;
 
 // 侧边栏导航视图类型
 export type SidebarView = "list" | "calendar" | "quadrants" | "pomodoro" | "habits" | "diary" | "achievements" | "zeroThink" | "quickCommand" | "profile";

@@ -22,4 +22,12 @@ offset?: number;
  * 状态筛选：active/completed/canceled
  */
 status?: string | null;
+/**
+ * 归档筛选：true 仅已归档 / false 仅未归档
+ */
+archived?: boolean;
+/**
+ * 回收站筛选：true 仅已回收 / false 仅未回收
+ */
+trashed?: boolean;
 };

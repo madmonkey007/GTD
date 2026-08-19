@@ -26,6 +26,8 @@ export interface ProjectView {
 	coverImageUrl: string | null;
 	color: string | null;
 	projectType: string;
+	isArchived: boolean;
+	sortOrder: number;
 	todoCount: number;
 	noteCount: number;
 	createdAt: string;
@@ -41,6 +43,7 @@ export interface ProjectInput {
 	coverImageUrl?: string | null;
 	color?: string | null;
 	projectType?: string;
+	isArchived?: boolean;
 }
 
 const normalizeProject = (raw: Record<string, unknown>): ProjectView => ({
@@ -51,6 +54,8 @@ const normalizeProject = (raw: Record<string, unknown>): ProjectView => ({
 	coverImageUrl: (raw.coverImageUrl as string) ?? null,
 	color: (raw.color as string) ?? null,
 	projectType: (raw.projectType as string) ?? "project",
+	isArchived: (raw.isArchived as boolean) ?? false,
+	sortOrder: (raw.sortOrder as number) ?? 0,
 	todoCount: (raw.todoCount as number) ?? 0,
 	noteCount: (raw.noteCount as number) ?? 0,
 	createdAt: (raw.createdAt as string) ?? "",
@@ -216,6 +221,44 @@ export function useProjectMutations() {
 		onSuccess: (_data, vars) => invalidateDetail(vars.id),
 	});
 
+	const reorderMutation = useMutation({
+		mutationFn: async (items: { id: number; sortOrder: number }[]) => {
+			await customFetcher<void>("/api/projects/reorder", {
+				method: "POST",
+				data: { items },
+			});
+			return items;
+		},
+		onMutate: async (items) => {
+			await queryClient.cancelQueries({ queryKey: queryKeys.projects.all });
+
+			const previous = queryClient.getQueriesData<ProjectView[]>({
+				queryKey: queryKeys.projects.list,
+			});
+
+			queryClient.setQueriesData<ProjectView[]>(
+				{ queryKey: queryKeys.projects.list },
+				(old) => {
+					if (!old) return old;
+					return old.map((p) => {
+						const item = items.find((i) => i.id === p.id);
+						return item ? { ...p, sortOrder: item.sortOrder } : p;
+					});
+				},
+			);
+
+			return { previous };
+		},
+		onError: (_err, _variables, context) => {
+			context?.previous?.forEach(([key, data]) => {
+				queryClient.setQueryData(key, data);
+			});
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+
 	return {
 		createProject: createMutation.mutate,
 		createProjectAsync: createMutation.mutateAsync,
@@ -229,6 +272,8 @@ export function useProjectMutations() {
 		addNotes: addNotesMutation.mutate,
 		addNotesAsync: addNotesMutation.mutateAsync,
 		removeNote: removeNoteMutation.mutate,
+		reorderProjects: reorderMutation.mutate,
+		reorderProjectsAsync: reorderMutation.mutateAsync,
 		isPending:
 			createMutation.isPending ||
 			updateMutation.isPending ||
@@ -236,6 +281,7 @@ export function useProjectMutations() {
 			addTodosMutation.isPending ||
 			removeTodoMutation.isPending ||
 			addNotesMutation.isPending ||
-			removeNoteMutation.isPending,
+			removeNoteMutation.isPending ||
+			reorderMutation.isPending,
 	};
 }

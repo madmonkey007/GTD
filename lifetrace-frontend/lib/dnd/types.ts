@@ -13,7 +13,12 @@ import type { Todo, TodoAttachment } from "@/lib/types";
 /**
  * 可拖拽元素的类型，可扩展
  */
-export type DragSourceType = "TODO_CARD" | "FILE" | "USER" | "PANEL_HEADER";
+export type DragSourceType =
+	| "TODO_CARD"
+	| "FILE"
+	| "USER"
+	| "PANEL_HEADER"
+	| "PROJECT_ITEM";
 
 /**
  * 类型安全的拖拽数据 - 使用可辨识联合类型
@@ -46,6 +51,16 @@ export type DragData =
 			type: "PANEL_HEADER";
 			payload: {
 				position: "panelA" | "panelB" | "panelC";
+			};
+	  }
+	| {
+			type: "PROJECT_ITEM";
+			payload: {
+				projectId: number;
+				name: string;
+				color: string | null;
+				isChecklist: boolean;
+				sourcePanel?: string; // 来源侧标识（todo | note）
 			};
 	  };
 
@@ -188,6 +203,15 @@ export function isTodoCardDragData(
 	data: DragData,
 ): data is Extract<DragData, { type: "TODO_CARD" }> {
 	return data.type === "TODO_CARD";
+}
+
+/**
+ * 检查是否为 PROJECT_ITEM 类型的拖拽数据
+ */
+export function isProjectItemDragData(
+	data: DragData,
+): data is Extract<DragData, { type: "PROJECT_ITEM" }> {
+	return data.type === "PROJECT_ITEM";
 }
 
 /**

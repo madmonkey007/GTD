@@ -31,8 +31,19 @@ export function TodoList() {
 	const tTodoList = useTranslations("todoList");
 	const tProject = useTranslations("project");
 	const isMobile = useIsMobile();
+
+	// 从侧边栏读取过滤状态
+	const { sidebarMode, sidebarTag } = useUiStore();
+	const specialMode = sidebarMode === "archived" || sidebarMode === "trashed";
+	// 归档/回收站视图按对应筛选拉取数据（queryKey 已按 params 隔离缓存）
+	const todoParams = specialMode
+		? sidebarMode === "archived"
+			? { archived: true }
+			: { trashed: true }
+		: undefined;
+
 	// 从 TanStack Query 获取 todos 数据
-	const { data: todos = [], isLoading, error } = useTodos();
+	const { data: todos = [], isLoading, error } = useTodos(todoParams);
 
 	// 从 TanStack Query 获取 mutation 操作
 	const { createTodo, reorderTodos } = useTodoMutations();
@@ -46,19 +57,17 @@ export function TodoList() {
 		return new Set(filterProject.todos.map((t) => t.id));
 	}, [todoProjectFilter, filterProject]);
 
-	// 从侧边栏读取过滤状态
-	const { sidebarMode, sidebarTag } = useUiStore();
-
-// 筛选态下只保留项目成员；收集箱模式（含默认态）只展示未归入项目的待办
+	// 筛选态下只保留项目成员；收集箱模式（含默认态）只展示未归入项目的待办；归档/回收站视图原样展示
 	const visibleTodos = useMemo(
 		() => {
+			if (specialMode) return todos;
 			if (projectMemberIds) return todos.filter((t) => projectMemberIds.has(t.id));
 			if (sidebarMode === null || sidebarMode === 'inbox') {
 				return todos.filter((t) => t.isInbox !== false);
 			}
 			return todos;
 		},
-		[todos, projectMemberIds, sidebarMode],
+		[todos, projectMemberIds, sidebarMode, specialMode],
 	);
 
 	// 从 Zustand 获取 UI 状态
@@ -112,11 +121,15 @@ export function TodoList() {
 		searchQuery,
 		collapsedTodoIds,
 		effectiveFilter,
+		specialMode,
 	);
 
 	// 处理内部排序 - 当 TODO_CARD 在列表内移动时
 	const handleInternalReorder = useCallback(
 		async (event: DragEndEvent) => {
+			// 归档/回收站视图不支持拖拽排序
+			if (specialMode) return;
+
 			const { active, over } = event;
 
 			if (!over || active.id === over.id) return;
@@ -285,7 +298,7 @@ export function TodoList() {
 				}
 			}
 		},
-		[orderedTodos, todos, reorderTodos],
+		[orderedTodos, todos, reorderTodos, specialMode],
 	);
 
 	// 使用 useDndMonitor 监听全局拖拽事件
@@ -427,6 +440,7 @@ export function TodoList() {
 				filter={filter}
 				onFilterChange={setFilter}
 				projectFilter={filterProject ?? null}
+				specialMode={specialMode}
 			/>
 
 			<MultiTodoContextMenu selectedTodoIds={selectedTodoIds}>
@@ -436,7 +450,7 @@ export function TodoList() {
 						isMobile && "bg-muted/40",
 					)}
 				>
-					{!isMobile && (
+					{!isMobile && !specialMode && (
 						<div className="px-6 py-4 pb-4">
 							<NewTodoInlineForm
 								value={newTodoName}
@@ -448,7 +462,11 @@ export function TodoList() {
 					)}
 
 					{filteredTodos.length === 0 ? (
-todoProjectFilter ? (
+						specialMode ? (
+							<div className="flex h-[200px] items-center justify-center px-4 text-sm text-muted-foreground">
+								{tTodoList(sidebarMode === "archived" ? "noArchived" : "noTrashed")}
+							</div>
+						) : todoProjectFilter ? (
 							<div className="flex h-[200px] flex-col items-center justify-center gap-2 px-4 text-center">
 								<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/5 ring-1 ring-primary/10">
 									<FolderKanban className="h-5 w-5 text-primary/50" />
@@ -475,7 +493,7 @@ todoProjectFilter ? (
 									onSelectSingle={(id) => setSelectedTodoId(id)}
 								/>
 							)}
-							{filter.status === "all" && completedRootCount > 0 && (
+							{!specialMode && filter.status === "all" && completedRootCount > 0 && (
 								<div className="px-6 pb-6">
 									<button
 										type="button"
@@ -548,7 +566,7 @@ todoProjectFilter ? (
 						)}
 					</AnimatePresence>
 
-					{!mobileComposerOpen && (
+					{!mobileComposerOpen && !specialMode && (
 						<motion.button
 							type="button"
 							onClick={() => setMobileComposerOpen(true)}

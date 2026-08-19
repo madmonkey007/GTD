@@ -175,12 +175,6 @@ export function TodoCard({
 			}}
 		>
 			<div className="flex items-start gap-1.5">
-				<TodoCardExpandButton
-					hasChildren={hasChildren}
-					isExpanded={isExpanded}
-					onToggle={() => toggleTodoExpanded(todo.id)}
-				/>
-
 				<div className={cn("shrink-0", isMobile ? "mt-0" : "mt-0.5")}>
 					<TodoCardCheckbox
 						todo={todo}
@@ -202,6 +196,11 @@ export function TodoCard({
 								onChange={state.setEditingName}
 							/>
 						</div>
+						<TodoCardExpandButton
+							hasChildren={hasChildren}
+							isExpanded={isExpanded}
+							onToggle={() => toggleTodoExpanded(todo.id)}
+						/>
 						<div
 							className={cn(
 								"flex items-center gap-0.5 shrink-0 self-start mt-0.5 transition-opacity duration-150",

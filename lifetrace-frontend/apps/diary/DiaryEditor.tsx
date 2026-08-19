@@ -921,7 +921,7 @@ export function DiaryEditor({
 														<button
 															type="button"
 															onClick={() => setRefsExpanded(prev => { const n = new Set(prev); isOpen ? n.delete(note.id) : n.add(note.id); return n; })}
-															className="flex items-center gap-1.5 mt-1.5 text-sm text-muted-foreground/50 hover:text-primary/70 transition-colors"
+															className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground/50 hover:text-primary/70 transition-colors"
 														>
 															{isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
 															<span>引用{outgoingNotes.length}条笔记，被{incomingNotes.length}条笔记引用</span>
@@ -937,7 +937,7 @@ export function DiaryEditor({
 															<span className="w-3 h-3 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
 																<ArrowUpRight className="w-2 h-2 text-primary/60" />
 															</span>
-															<span className="text-sm text-muted-foreground/40 leading-relaxed line-clamp-1 text-left break-words min-w-0 flex-1">
+															<span className="text-xs text-muted-foreground/40 leading-relaxed line-clamp-1 text-left break-words min-w-0 flex-1">
 																{((ref.name ?? "") + " " + (ref.userNotes ?? "").slice(0, 80)).trim()}
 															</span>
 														</button>
@@ -952,7 +952,7 @@ export function DiaryEditor({
 															<span className="w-3 h-3 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
 																<ArrowDownLeft className="w-2 h-2 text-primary/60" />
 															</span>
-															<span className="text-sm text-muted-foreground/40 leading-relaxed line-clamp-1 text-left break-words min-w-0 flex-1">
+															<span className="text-xs text-muted-foreground/40 leading-relaxed line-clamp-1 text-left break-words min-w-0 flex-1">
 																{((ref.name ?? "") + " " + (ref.userNotes ?? "").slice(0, 80)).trim()}
 															</span>
 														</button>

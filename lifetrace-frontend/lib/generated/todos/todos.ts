@@ -1167,4 +1167,189 @@ export const useImportIcsApiTodosImportIcsPost = <TError = HTTPValidationError,
       > => {
       return useMutation(getImportIcsApiTodosImportIcsPostMutationOptions(options), queryClient);
     }
+
+/**
+ * 从回收站恢复待办
+ * @summary Restore Todo
+ */
+export type restoreTodoApiTodosTodoIdRestorePostResponse200 = {
+  data: TodoResponse
+  status: 200
+}
+
+export type restoreTodoApiTodosTodoIdRestorePostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type restoreTodoApiTodosTodoIdRestorePostResponseSuccess = (restoreTodoApiTodosTodoIdRestorePostResponse200) & {
+  headers: Headers;
+};
+export type restoreTodoApiTodosTodoIdRestorePostResponseError = (restoreTodoApiTodosTodoIdRestorePostResponse422) & {
+  headers: Headers;
+};
+
+export type restoreTodoApiTodosTodoIdRestorePostResponse = (restoreTodoApiTodosTodoIdRestorePostResponseSuccess | restoreTodoApiTodosTodoIdRestorePostResponseError)
+
+export const getRestoreTodoApiTodosTodoIdRestorePostUrl = (todoId: number,) => {
+
+
+
+
+  return `/api/todos/${todoId}/restore`
+}
+
+export const restoreTodoApiTodosTodoIdRestorePost = async (todoId: number, options?: RequestInit): Promise<restoreTodoApiTodosTodoIdRestorePostResponse> => {
+
+  return customFetcher<restoreTodoApiTodosTodoIdRestorePostResponse>(getRestoreTodoApiTodosTodoIdRestorePostUrl(todoId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRestoreTodoApiTodosTodoIdRestorePostMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreTodoApiTodosTodoIdRestorePost>>, TError,{todoId: number}, TContext>, request?: SecondParameter<typeof customFetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreTodoApiTodosTodoIdRestorePost>>, TError,{todoId: number}, TContext> => {
+
+const mutationKey = ['restoreTodoApiTodosTodoIdRestorePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreTodoApiTodosTodoIdRestorePost>>, {todoId: number}> = (props) => {
+          const {todoId} = props ?? {};
+
+          return  restoreTodoApiTodosTodoIdRestorePost(todoId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreTodoApiTodosTodoIdRestorePostMutationResult = NonNullable<Awaited<ReturnType<typeof restoreTodoApiTodosTodoIdRestorePost>>>
+
+    export type RestoreTodoApiTodosTodoIdRestorePostMutationError = HTTPValidationError
+
+    /**
+ * @summary Restore Todo
+ */
+export const useRestoreTodoApiTodosTodoIdRestorePost = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreTodoApiTodosTodoIdRestorePost>>, TError,{todoId: number}, TContext>, request?: SecondParameter<typeof customFetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreTodoApiTodosTodoIdRestorePost>>,
+        TError,
+        {todoId: number},
+        TContext
+      > => {
+      return useMutation(getRestoreTodoApiTodosTodoIdRestorePostMutationOptions(options), queryClient);
+    }
+
+/**
+ * 彻底删除待办（回收站永久删除）
+ * @summary Purge Todo
+ */
+export type purgeTodoApiTodosTodoIdPurgeDeleteResponse200 = {
+  data: undefined
+  status: 200
+}
+
+export type purgeTodoApiTodosTodoIdPurgeDeleteResponse204 = {
+  data: undefined
+  status: 204
+}
+
+export type purgeTodoApiTodosTodoIdPurgeDeleteResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type purgeTodoApiTodosTodoIdPurgeDeleteResponseSuccess = (purgeTodoApiTodosTodoIdPurgeDeleteResponse204 | purgeTodoApiTodosTodoIdPurgeDeleteResponse200) & {
+  headers: Headers;
+};
+export type purgeTodoApiTodosTodoIdPurgeDeleteResponseError = (purgeTodoApiTodosTodoIdPurgeDeleteResponse422) & {
+  headers: Headers;
+};
+
+export type purgeTodoApiTodosTodoIdPurgeDeleteResponse = (purgeTodoApiTodosTodoIdPurgeDeleteResponseSuccess | purgeTodoApiTodosTodoIdPurgeDeleteResponseError)
+
+export const getPurgeTodoApiTodosTodoIdPurgeDeleteUrl = (todoId: number,) => {
+
+
+
+
+  return `/api/todos/${todoId}/purge`
+}
+
+export const purgeTodoApiTodosTodoIdPurgeDelete = async (todoId: number, options?: RequestInit): Promise<purgeTodoApiTodosTodoIdPurgeDeleteResponse> => {
+
+  return customFetcher<purgeTodoApiTodosTodoIdPurgeDeleteResponse>(getPurgeTodoApiTodosTodoIdPurgeDeleteUrl(todoId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getPurgeTodoApiTodosTodoIdPurgeDeleteMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeTodoApiTodosTodoIdPurgeDelete>>, TError,{todoId: number}, TContext>, request?: SecondParameter<typeof customFetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof purgeTodoApiTodosTodoIdPurgeDelete>>, TError,{todoId: number}, TContext> => {
+
+const mutationKey = ['purgeTodoApiTodosTodoIdPurgeDelete'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof purgeTodoApiTodosTodoIdPurgeDelete>>, {todoId: number}> = (props) => {
+          const {todoId} = props ?? {};
+
+          return  purgeTodoApiTodosTodoIdPurgeDelete(todoId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PurgeTodoApiTodosTodoIdPurgeDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof purgeTodoApiTodosTodoIdPurgeDelete>>>
+
+    export type PurgeTodoApiTodosTodoIdPurgeDeleteMutationError = HTTPValidationError
+
+    /**
+ * @summary Purge Todo
+ */
+export const usePurgeTodoApiTodosTodoIdPurgeDelete = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeTodoApiTodosTodoIdPurgeDelete>>, TError,{todoId: number}, TContext>, request?: SecondParameter<typeof customFetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof purgeTodoApiTodosTodoIdPurgeDelete>>,
+        TError,
+        {todoId: number},
+        TContext
+      > => {
+      return useMutation(getPurgeTodoApiTodosTodoIdPurgeDeleteMutationOptions(options), queryClient);
+    }
     

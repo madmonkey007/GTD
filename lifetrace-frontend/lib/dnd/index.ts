@@ -34,6 +34,7 @@ export type {
 // 类型守卫
 export {
 	isCalendarDateDropData,
+	isProjectItemDragData,
 	isTodoCardDragData,
 	isTodoDropZoneDropData,
 	isTodoListDropData,

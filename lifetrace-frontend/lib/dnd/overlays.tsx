@@ -6,7 +6,7 @@
  */
 
 import { DragOverlay } from "@dnd-kit/core";
-import { Calendar, Flag, Paperclip, Tag, X } from "lucide-react";
+import { Calendar, Flag, FolderKanban, ListChecks, Paperclip, Tag, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import type { Todo, TodoPriority, TodoStatus } from "@/lib/types";
@@ -290,6 +290,24 @@ function DragOverlayContent({ data }: DragOverlayContentProps) {
 				<div className="flex items-center gap-2 rounded-lg border bg-card p-3 shadow-lg">
 					<div className="h-6 w-6 rounded-full bg-primary/20" />
 					<span className="text-sm font-medium">{data.payload.userName}</span>
+				</div>
+			);
+		}
+		case "PROJECT_ITEM": {
+			const { name, color, isChecklist } = data.payload;
+			const Icon = isChecklist ? ListChecks : FolderKanban;
+			return (
+				<div className="flex items-center gap-2 rounded-lg border bg-card p-3 shadow-lg">
+					<span
+						className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+						style={color ? { backgroundColor: color } : undefined}
+					>
+						<Icon
+							className="h-3 w-3"
+							style={{ color: color ? "white" : undefined }}
+						/>
+					</span>
+					<span className="text-sm font-medium">{name}</span>
 				</div>
 			);
 		}
