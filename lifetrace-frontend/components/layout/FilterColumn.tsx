@@ -213,8 +213,9 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 									{counts.tags[tag] ?? 0}
 								</span>
 							</button>
-						))))}
-					</div>
+						))
+					))}
+				</div>
 
 				{/* 归档 / 回收站 */}
 				<div className="flex flex-col gap-0.5 border-t border-border/20 px-2 pt-2 mt-1">

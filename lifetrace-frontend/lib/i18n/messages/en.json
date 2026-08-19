@@ -1228,6 +1228,7 @@
   "project": {
     "entryTitle": "Projects",
     "checklistEntryTitle": "Checklists",
+    "checklistEmpty": "No checklists",
     "createTitle": "New project",
     "create": "Create",
     "namePlaceholder": "Project name",
@@ -1276,7 +1277,6 @@
     "dragAddError": "Failed to add todo to project",
     "reorderSuccess": "Order updated",
     "reorderError": "Failed to update order",
-    "checklistEmpty": "No checklists yet",
     "createChecklistTitle": "New Checklist",
     "checklistNamePlaceholder": "Checklist name",
     "rename": "Rename",
