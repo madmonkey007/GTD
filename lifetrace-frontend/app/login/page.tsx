@@ -1,7 +1,9 @@
 "use client";
 
 import type { Route } from "next";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CheckCircle2 } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/common/ui/PasswordInput";
@@ -15,6 +17,12 @@ function safeNext(value: string | null): string {
 	if (!value || !value.startsWith("/") || value.startsWith("/login")) return "/";
 	return value;
 }
+
+const PANEL_POINTS = [
+	"待办、笔记、习惯，收进同一个账户",
+	"离线继续记录，联网自动同步",
+	"按账户隔离，数据不混用",
+];
 
 export default function LoginPage() {
 	const router = useRouter();
@@ -51,105 +59,145 @@ export default function LoginPage() {
 		}
 	}
 
+	const inputClass =
+		"mt-2 h-11 w-full rounded-xl border border-border bg-muted/30 px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-background focus:ring-4 focus:ring-primary/15";
+
 	return (
-		<main className="min-h-screen bg-[radial-gradient(circle_at_top,#e8f1ff,transparent_34%),linear-gradient(135deg,#f8fafc,#eef2ff)] px-4 py-10 text-slate-950">
-			<div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-5xl items-center justify-center">
-				<section className="grid w-full overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 shadow-2xl shadow-slate-200/80 backdrop-blur lg:grid-cols-[1.05fr_0.95fr]">
-					<div className="hidden flex-col justify-between bg-slate-950 p-10 text-white lg:flex">
-						<div>
-							<p className="text-sm uppercase tracking-[0.35em] text-sky-300">LifeTrace</p>
-							<h1 className="mt-8 text-4xl font-semibold leading-tight">
-								把你的离线记录，安全同步到自己的账户里。
-							</h1>
-							<p className="mt-5 max-w-md text-sm leading-7 text-slate-300">
-								PWA 可以继续离线记录；联网后，同步会按账号隔离，不会再混到默认单人数据里。
-							</p>
+		<main className="flex min-h-[100dvh] items-center justify-center bg-muted/40 px-4 py-10">
+			<section className="grid w-full max-w-4xl overflow-hidden rounded-[1.75rem] border border-border bg-background shadow-xl shadow-black/[0.06] lg:grid-cols-[1fr_1.1fr]">
+				{/* 品牌面：固定深色（两种主题下一致），与应用主题色同源 */}
+				<div className="relative hidden flex-col justify-between overflow-hidden bg-zinc-950 p-10 text-zinc-100 lg:flex">
+					<div
+						aria-hidden
+						className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,color-mix(in_oklab,var(--primary)_28%,transparent),transparent_55%)]"
+					/>
+					<div className="relative">
+						<div className="flex items-center gap-2.5">
+							<Image
+								src="/free-todo-logos/free_todo_icon_4_with_grid.png"
+								alt="LifeTrace"
+								width={28}
+								height={28}
+								className="rounded-md"
+							/>
+							<span className="text-sm font-semibold tracking-wide">LifeTrace</span>
 						</div>
-						<div className="rounded-2xl border border-white/10 bg-white/10 p-5 text-sm text-slate-200">
-							<span className="text-sky-300">✓</span> 注册后会自动登录；同一邮箱下次直接登录即可。
-						</div>
+						<h1 className="mt-10 text-[2rem] font-semibold leading-snug tracking-tight">
+							记录生活，
+							<br />
+							不止待办。
+						</h1>
+						<p className="mt-4 max-w-[36ch] text-sm leading-6 text-zinc-400">
+							你的每一天、每一笔思考，都值得被好好安放。
+						</p>
+					</div>
+					<ul className="relative space-y-3 text-sm text-zinc-300">
+						{PANEL_POINTS.map((point) => (
+							<li key={point} className="flex items-center gap-2.5">
+								<CheckCircle2 className="h-4 w-4 shrink-0 text-primary/80" strokeWidth={1.5} />
+								{point}
+							</li>
+						))}
+					</ul>
+				</div>
+
+				{/* 表单面：跟随应用主题 */}
+				<form onSubmit={onSubmit} className="flex flex-col justify-center p-8 sm:p-12">
+					<div className="flex items-center gap-2.5 lg:hidden">
+						<Image
+							src="/free-todo-logos/free_todo_icon_4_dark_with_grid.png"
+							alt="LifeTrace"
+							width={24}
+							height={24}
+							className="rounded-md dark:hidden"
+						/>
+						<Image
+							src="/free-todo-logos/free_todo_icon_4_with_grid.png"
+							alt="LifeTrace"
+							width={24}
+							height={24}
+							className="hidden rounded-md dark:block"
+						/>
+						<span className="text-sm font-semibold">LifeTrace</span>
 					</div>
 
-					<form onSubmit={onSubmit} className="p-8 sm:p-10">
-						<p className="text-sm font-medium text-sky-700">欢迎回来</p>
-						<h2 className="mt-2 text-3xl font-semibold">
-							{mode === "login" ? "登录 LifeTrace" : "创建 LifeTrace 账户"}
-						</h2>
-						<p className="mt-3 text-sm text-slate-600">
-							{mode === "login"
-								? "输入邮箱和密码，继续使用你的待办、笔记和习惯。"
-								: "先创建一个账户，之后 Render/Neon 后端就能按用户存储数据。"}
-						</p>
+					<h2 className="mt-6 text-2xl font-semibold tracking-tight lg:mt-0">
+						{mode === "login" ? "欢迎回来" : "创建账户"}
+					</h2>
+					<p className="mt-2 text-sm leading-6 text-muted-foreground">
+						{mode === "login"
+							? "登录后继续使用你的待办、笔记和习惯。"
+							: "注册即可登录，离线记录的数据会同步到你的账户。"}
+					</p>
 
-						<div className="mt-8 space-y-4">
+					<div className="mt-8 space-y-4">
+						<label className="block text-sm font-medium">
+							邮箱
+							<input
+								type="email"
+								value={email}
+								onChange={(event) => setEmail(event.target.value)}
+								required
+								autoComplete="email"
+								className={inputClass}
+								placeholder="you@example.com"
+							/>
+						</label>
+
+						{mode === "register" && (
 							<label className="block text-sm font-medium">
-								邮箱
+								昵称（可选）
 								<input
-									type="email"
-									value={email}
-									onChange={(event) => setEmail(event.target.value)}
-									required
-									autoComplete="email"
-									className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none ring-sky-500/20 transition focus:border-sky-500 focus:ring-4"
-									placeholder="you@example.com"
+									type="text"
+									value={displayName}
+									onChange={(event) => setDisplayName(event.target.value)}
+									autoComplete="name"
+									className={inputClass}
+									placeholder="怎么称呼你？"
 								/>
 							</label>
-
-							{mode === "register" && (
-								<label className="block text-sm font-medium">
-									昵称（可选）
-									<input
-										type="text"
-										value={displayName}
-										onChange={(event) => setDisplayName(event.target.value)}
-										autoComplete="name"
-										className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none ring-sky-500/20 transition focus:border-sky-500 focus:ring-4"
-										placeholder="怎么称呼你？"
-									/>
-								</label>
-							)}
-
-							<label className="block text-sm font-medium">
-								密码
-								<PasswordInput
-									value={password}
-									onChange={(event) => setPassword(event.target.value)}
-									required
-									minLength={8}
-									autoComplete={mode === "login" ? "current-password" : "new-password"}
-									className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none ring-sky-500/20 transition focus:border-sky-500 focus:ring-4"
-									placeholder="至少 8 位"
-								/>
-							</label>
-						</div>
-
-						{error && (
-							<p className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-								{error}
-							</p>
 						)}
 
-						<Button
-							type="submit"
-							disabled={submitting}
-							className="mt-7 h-11 w-full rounded-xl"
-						>
-							{submitting ? "处理中..." : mode === "login" ? "登录" : "注册并登录"}
-						</Button>
+						<label className="block text-sm font-medium">
+							密码
+							<PasswordInput
+								value={password}
+								onChange={(event) => setPassword(event.target.value)}
+								required
+								minLength={8}
+								autoComplete={mode === "login" ? "current-password" : "new-password"}
+								className={inputClass}
+								placeholder="至少 8 位"
+							/>
+						</label>
+					</div>
 
-						<button
-							type="button"
-							onClick={() => {
-								setError(null);
-								setMode(mode === "login" ? "register" : "login");
-							}}
-							className="mt-5 w-full text-center text-sm text-sky-700 hover:text-sky-900"
-						>
-							{mode === "login" ? "还没有账户？去注册" : "已经有账户？去登录"}
-						</button>
-					</form>
-				</section>
-			</div>
+					{error && (
+						<p role="alert" className="mt-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+							{error}
+						</p>
+					)}
+
+					<Button
+						type="submit"
+						disabled={submitting}
+						className="mt-7 h-11 w-full rounded-xl text-sm active:translate-y-[1px]"
+					>
+						{submitting ? "处理中..." : mode === "login" ? "登录" : "注册并登录"}
+					</Button>
+
+					<button
+						type="button"
+						onClick={() => {
+							setError(null);
+							setMode(mode === "login" ? "register" : "login");
+						}}
+						className="mt-5 w-full text-center text-sm text-muted-foreground transition-colors hover:text-foreground"
+					>
+						{mode === "login" ? "还没有账户？去注册" : "已经有账户？去登录"}
+					</button>
+				</form>
+			</section>
 		</main>
 	);
 }
