@@ -28,6 +28,8 @@ def _project_to_dict(
         "cover_image_url": p.cover_image_url,
         "color": p.color,
         "project_type": p.project_type,
+        "is_archived": p.is_archived,
+        "sort_order": p.sort_order,
         "todo_count": todo_count,
         "note_count": note_count,
         "created_at": p.created_at,
@@ -52,7 +54,10 @@ class SqlProjectRepository:
             )
             if project_type:
                 query = query.filter(Project.project_type == project_type)
-            rows = query.order_by(Project.updated_at.desc()).all()
+            query = query.filter(Project.is_archived.is_(False))
+            rows = query.order_by(
+                Project.sort_order.asc(), Project.updated_at.desc()
+            ).all()
             result = []
             for p in rows:
                 todo_count = (
@@ -101,6 +106,21 @@ class SqlProjectRepository:
     def create(self, fields: dict[str, Any]) -> dict[str, Any]:
         with self.db_base.get_session() as session:
             p = Project(user_id=self.user_id, **fields)
+            # 未显式指定排序时，自动分配到同类型项目末尾（保证新建排最后）
+            if "sort_order" not in fields:
+                project_type = fields.get("project_type", "project")
+                max_order = (
+                    session.query(Project)
+                    .filter(
+                        Project.user_id == self.user_id,
+                        Project.deleted_at.is_(None),
+                        Project.project_type == project_type,
+                    )
+                    .order_by(Project.sort_order.desc())
+                    .with_entities(Project.sort_order)
+                    .first()
+                )
+                p.sort_order = (max_order[0] + 1) if max_order else 0
             session.add(p)
             session.flush()
             result = _project_to_dict(p, 0, 0)
@@ -153,6 +173,36 @@ class SqlProjectRepository:
             ).update({ProjectNoteRelation.deleted_at: now}, synchronize_session=False)
             session.commit()
             return True
+
+    def reorder(self, items: list[dict[str, Any]]) -> bool:
+        """批量更新项目的排序序号
+
+        Args:
+            items: 项目列表，每个元素包含 id 和 sort_order
+
+        Returns:
+            是否全部更新成功
+        """
+        try:
+            with self.db_base.get_session() as session:
+                for item in items:
+                    project_id = item.get("id")
+                    if not project_id:
+                        continue
+                    project = (
+                        session.query(Project)
+                        .filter_by(id=project_id, user_id=self.user_id, deleted_at=None)
+                        .first()
+                    )
+                    if not project:
+                        logger.warning(f"reorder: 项目不存在: {project_id}")
+                        continue
+                    project.sort_order = item.get("sort_order", project.sort_order)
+                session.commit()
+                return True
+        except Exception:
+            logger.exception("reorder: 批量更新项目排序失败")
+            return False
 
     # ---- 待办成员 ----
 

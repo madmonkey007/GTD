@@ -84,11 +84,21 @@ class TodoService:
         return TodoResponse(**todo) if todo else None
 
     def list_todos(
-        self, limit: int, offset: int, status: str | None, inbox: bool | None = None
+        self,
+        limit: int,
+        offset: int,
+        status: str | None,
+        inbox: bool | None = None,
+        archived: bool | None = None,
+        trashed: bool | None = None,
     ) -> dict[str, Any]:
         """获取 Todo 列表"""
-        todos = self.repository.list_todos(limit, offset, status, inbox=inbox)
-        total = self.repository.count(status, inbox=inbox)
+        todos = self.repository.list_todos(
+            limit, offset, status, inbox=inbox, archived=archived, trashed=trashed
+        )
+        total = self.repository.count(
+            status, inbox=inbox, archived=archived, trashed=trashed
+        )
         return {"total": total, "todos": [TodoResponse(**t) for t in todos]}
 
     def create_todo(self, data: TodoCreate) -> TodoResponse:
@@ -286,11 +296,34 @@ class TodoService:
         return todo
 
     def delete_todo(self, todo_id: int) -> None:
-        """删除 Todo"""
+        """软删除：将 Todo 移入回收站"""
         if not self.repository.get_by_id(todo_id):
             raise HTTPException(status_code=404, detail="todo 不存在")
         if not self.repository.delete(todo_id):
             raise HTTPException(status_code=500, detail="删除 todo 失败")
+        remove_todo_reminder_jobs(todo_id)
+        clear_notification_by_todo_id(todo_id)
+        clear_dismissed_mark(todo_id)
+
+    def restore_todo(self, todo_id: int) -> TodoResponse:
+        """从回收站恢复 Todo"""
+        if not self.repository.get_by_id(todo_id):
+            raise HTTPException(status_code=404, detail="todo 不存在")
+        if not self.repository.restore(todo_id):
+            raise HTTPException(status_code=500, detail="恢复 todo 失败")
+        todo = self.get_todo(todo_id)
+        try:
+            refresh_todo_reminders(todo)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"恢复待办后同步提醒失败: {e}")
+        return todo
+
+    def purge_todo(self, todo_id: int) -> None:
+        """彻底删除：从回收站永久删除 Todo 及其子任务"""
+        if not self.repository.get_by_id(todo_id):
+            raise HTTPException(status_code=404, detail="todo 不存在")
+        if not self.repository.purge(todo_id):
+            raise HTTPException(status_code=500, detail="彻底删除 todo 失败")
         remove_todo_reminder_jobs(todo_id)
         clear_notification_by_todo_id(todo_id)
         clear_dismissed_mark(todo_id)

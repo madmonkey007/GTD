@@ -119,14 +119,26 @@ class ITodoRepository(ABC):
 
     @abstractmethod
     def list_todos(
-        self, limit: int, offset: int, status: str | None, inbox: bool | None = None
+        self,
+        limit: int,
+        offset: int,
+        status: str | None,
+        inbox: bool | None = None,
+        archived: bool | None = None,
+        trashed: bool | None = None,
     ) -> list[dict[str, Any]]:
         """获取todo列表（inbox 非 None 时按收集箱过滤）"""
         pass
 
     @abstractmethod
-    def count(self, status: str | None, inbox: bool | None = None) -> int:
-        """统计todo数量（inbox 非 None 时按收集箱过滤）"""
+    def count(
+        self,
+        status: str | None,
+        inbox: bool | None = None,
+        archived: bool | None = None,
+        trashed: bool | None = None,
+    ) -> int:
+        """统计todo数量"""
         pass
 
     @abstractmethod
@@ -141,7 +153,17 @@ class ITodoRepository(ABC):
 
     @abstractmethod
     def delete(self, todo_id: int) -> bool:
-        """删除todo"""
+        """删除todo（软删除，移入回收站）"""
+        pass
+
+    @abstractmethod
+    def restore(self, todo_id: int) -> bool:
+        """从回收站恢复todo"""
+        pass
+
+    @abstractmethod
+    def purge(self, todo_id: int) -> bool:
+        """彻底删除todo（回收站永久删除）"""
         pass
 
     @abstractmethod

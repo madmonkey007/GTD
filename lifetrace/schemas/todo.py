@@ -93,6 +93,9 @@ class TodoCreate(BaseModel):
     rrule: str | None = Field(None, description="iCalendar RRULE")
     order: int = Field(0, description="同级待办之间的展示排序")
     is_inbox: bool = Field(True, description="是否位于收集箱（未归入项目）")
+    is_archived: bool = Field(False, description="是否归档（归档后从侧边栏隐藏）")
+    is_trashed: bool = Field(False, description="是否已移入回收站（软删除）")
+    trashed_at: datetime | None = Field(None, description="进入回收站的时间")
     tags: list[str] = Field(default_factory=list, description="标签名称列表")
     related_activities: list[int] = Field(default_factory=list, description="关联活动ID列表")
 
@@ -147,6 +150,9 @@ class TodoUpdate(BaseModel):
     rrule: str | None = Field(None, description="iCalendar RRULE（显式传 null 可清空）")
     order: int | None = Field(None, description="同级待办之间的展示排序")
     is_inbox: bool | None = Field(None, description="是否位于收集箱（显式传 false 移出收集箱）")
+    is_archived: bool | None = Field(None, description="是否归档")
+    is_trashed: bool | None = Field(None, description="是否已移入回收站（软删除）")
+    trashed_at: datetime | None = Field(None, description="进入回收站的时间（显式传 null 可清空）")
     tags: list[str] | None = Field(None, description="标签名称列表（显式传空数组将清空）")
     related_activities: list[int] | None = Field(
         None, description="关联活动ID列表（显式传空数组将清空）"
@@ -197,6 +203,9 @@ class TodoResponse(BaseModel):
     rrule: str | None = Field(None, description="iCalendar RRULE")
     order: int = Field(0, description="同级待办之间的展示排序")
     is_inbox: bool = Field(True, description="是否位于收集箱（未归入项目）")
+    is_archived: bool = Field(False, description="是否归档")
+    is_trashed: bool = Field(False, description="是否已移入回收站（软删除）")
+    trashed_at: datetime | None = Field(None, description="进入回收站的时间")
     tags: list[str] = Field(default_factory=list, description="标签名称列表")
     attachments: list[TodoAttachmentResponse] = Field(default_factory=list, description="附件列表")
     related_activities: list[int] = Field(default_factory=list, description="关联活动ID列表")

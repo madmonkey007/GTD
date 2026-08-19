@@ -59,6 +59,8 @@ def _to_response(
         cover_image_url=p.get("cover_image_url"),
         color=p.get("color"),
         project_type=p.get("project_type", "project"),
+        is_archived=p.get("is_archived", False),
+        sort_order=p.get("sort_order", 0),
         todo_count=p.get("todo_count", 0),
         note_count=p.get("note_count", 0),
         created_at=p["created_at"],
@@ -150,6 +152,8 @@ class ProjectService:
             if data.project_type not in ("project", "checklist"):
                 raise HTTPException(status_code=422, detail="无效的项目类型")
             fields["project_type"] = data.project_type
+        if data.is_archived is not None:
+            fields["is_archived"] = data.is_archived
         p = self.repository.update(project_id, fields)
         if not p:
             raise HTTPException(status_code=404, detail="项目不存在")
@@ -158,6 +162,14 @@ class ProjectService:
     def delete_project(self, project_id: int) -> None:
         if not self.repository.soft_delete(project_id):
             raise HTTPException(status_code=404, detail="项目不存在")
+
+    def reorder_projects(self, items: list[dict[str, Any]]) -> dict[str, Any]:
+        """批量重排序项目"""
+        if not items:
+            return {"success": True, "message": "没有需要排序的项目"}
+        if not self.repository.reorder(items):
+            raise HTTPException(status_code=500, detail="批量重排序失败")
+        return {"success": True, "message": f"成功更新 {len(items)} 个项目的排序"}
 
     # ---- 待办成员 ----
 

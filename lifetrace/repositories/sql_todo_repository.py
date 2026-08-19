@@ -24,12 +24,33 @@ class SqlTodoRepository(ITodoRepository):
         return self._manager.get_todo_by_uid(uid)
 
     def list_todos(
-        self, limit: int, offset: int, status: str | None, inbox: bool | None = None
+        self,
+        limit: int,
+        offset: int,
+        status: str | None,
+        inbox: bool | None = None,
+        archived: bool | None = None,
+        trashed: bool | None = None,
     ) -> list[dict[str, Any]]:
-        return self._manager.list_todos(limit=limit, offset=offset, status=status, inbox=inbox)
+        return self._manager.list_todos(
+            limit=limit,
+            offset=offset,
+            status=status,
+            inbox=inbox,
+            archived=archived,
+            trashed=trashed,
+        )
 
-    def count(self, status: str | None, inbox: bool | None = None) -> int:
-        return self._manager.count_todos(status=status, inbox=inbox)
+    def count(
+        self,
+        status: str | None,
+        inbox: bool | None = None,
+        archived: bool | None = None,
+        trashed: bool | None = None,
+    ) -> int:
+        return self._manager.count_todos(
+            status=status, inbox=inbox, archived=archived, trashed=trashed
+        )
 
     def create(self, **kwargs) -> int | None:
         return self._manager.create_todo(**kwargs)
@@ -39,6 +60,12 @@ class SqlTodoRepository(ITodoRepository):
 
     def delete(self, todo_id: int) -> bool:
         return self._manager.delete_todo(todo_id)
+
+    def restore(self, todo_id: int) -> bool:
+        return self._manager.restore_todo(todo_id)
+
+    def purge(self, todo_id: int) -> bool:
+        return self._manager.purge_todo(todo_id)
 
     def reorder(self, items: list[dict[str, Any]]) -> bool:
         return self._manager.reorder_todos(items)

@@ -11,6 +11,7 @@ from lifetrace.schemas.project import (
     ProjectAddNotesRequest,
     ProjectAddTodosRequest,
     ProjectCreate,
+    ProjectReorderRequest,
     ProjectResponse,
     ProjectUpdate,
 )
@@ -45,6 +46,23 @@ async def create_project(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建项目失败: {e!s}") from e
+
+
+@router.post("/api/projects/reorder", status_code=200)
+async def reorder_projects(
+    request: ProjectReorderRequest,
+    service: ProjectService = Depends(get_project_service),
+):
+    """批量更新项目的排序序号"""
+    items = [
+        {"id": item.id, "sort_order": item.sort_order} for item in request.items
+    ]
+    try:
+        return service.reorder_projects(items)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量重排序项目失败: {e!s}") from e
 
 
 @router.get("/api/projects/{project_id}", response_model=ProjectResponse)

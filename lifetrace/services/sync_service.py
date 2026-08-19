@@ -207,7 +207,7 @@ class SyncService:
         server_id = existing.id if existing else None
         if existing:
             if entity_type == "todo":
-                self.todo_service.delete_todo(existing.id)
+                self.todo_service.purge_todo(existing.id)
             elif entity_type == "journal":
                 self.journal_service.delete_journal(existing.id)
             elif entity_type == "habit":

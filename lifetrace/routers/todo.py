@@ -40,10 +40,12 @@ async def list_todos(
     offset: int = Query(0, ge=0, description="偏移量"),
     status: str | None = Query(None, description="状态筛选：active/completed/canceled"),
     inbox: bool | None = Query(None, description="收集箱筛选：true 仅收集箱 / false 仅已归类"),
+    archived: bool | None = Query(None, description="归档筛选：true 仅已归档 / false 仅未归档"),
+    trashed: bool | None = Query(None, description="回收站筛选：true 仅已回收 / false 仅未回收"),
     service: TodoService = Depends(get_todo_service),
 ):
     """获取待办列表"""
-    return service.list_todos(limit, offset, status, inbox=inbox)
+    return service.list_todos(limit, offset, status, inbox=inbox, archived=archived, trashed=trashed)
 
 
 @router.get("/{todo_id}", response_model=TodoResponse)
@@ -160,8 +162,26 @@ async def delete_todo(
     todo_id: int = Path(..., description="Todo ID"),
     service: TodoService = Depends(get_todo_service),
 ):
-    """删除待办"""
+    """软删除待办（移入回收站，可恢复）"""
     service.delete_todo(todo_id)
+
+
+@router.post("/{todo_id}/restore", response_model=TodoResponse)
+async def restore_todo(
+    todo_id: int = Path(..., description="Todo ID"),
+    service: TodoService = Depends(get_todo_service),
+):
+    """从回收站恢复待办"""
+    return service.restore_todo(todo_id)
+
+
+@router.delete("/{todo_id}/purge", status_code=204)
+async def purge_todo(
+    todo_id: int = Path(..., description="Todo ID"),
+    service: TodoService = Depends(get_todo_service),
+):
+    """彻底删除待办（回收站永久删除，不可恢复）"""
+    service.purge_todo(todo_id)
 
 
 @router.post("/reorder", status_code=200)

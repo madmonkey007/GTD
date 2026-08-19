@@ -139,6 +139,8 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
         offset: int = 0,
         status: str | None = None,
         inbox: bool | None = None,
+        archived: bool | None = None,
+        trashed: bool | None = None,
     ) -> list[dict[str, Any]]:
         try:
             with self.db_base.get_session() as session:
@@ -146,6 +148,17 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
                 # 默认不返回软删除数据（如果未来使用 deleted_at）
                 with contextlib.suppress(Exception):
                     q = q.filter(col(Todo.deleted_at).is_(None))
+
+                if archived is not None:
+                    q = q.filter(col(Todo.is_archived).is_(archived))
+                if trashed is not None:
+                    q = q.filter(col(Todo.is_trashed).is_(trashed))
+                else:
+                    # 未指定回收站筛选时，默认排除已回收的待办
+                    q = q.filter(col(Todo.is_trashed).is_(False))
+                if archived is None and trashed is None:
+                    # 常规列表：不显示归档与已回收待办
+                    q = q.filter(col(Todo.is_archived).is_(False))
 
                 if status:
                     q = q.filter(col(Todo.status) == status)
@@ -158,12 +171,27 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
             logger.error(f"列出 todo 失败: {e}")
             return []
 
-    def count_todos(self, *, status: str | None = None, inbox: bool | None = None) -> int:
+    def count_todos(
+        self,
+        *,
+        status: str | None = None,
+        inbox: bool | None = None,
+        archived: bool | None = None,
+        trashed: bool | None = None,
+    ) -> int:
         try:
             with self.db_base.get_session() as session:
                 q = session.query(Todo).filter(col(Todo.user_id) == self.user_id)
                 with contextlib.suppress(Exception):
                     q = q.filter(col(Todo.deleted_at).is_(None))
+                if archived is not None:
+                    q = q.filter(col(Todo.is_archived).is_(archived))
+                if trashed is not None:
+                    q = q.filter(col(Todo.is_trashed).is_(trashed))
+                else:
+                    q = q.filter(col(Todo.is_trashed).is_(False))
+                if archived is None and trashed is None:
+                    q = q.filter(col(Todo.is_archived).is_(False))
                 if status:
                     q = q.filter(col(Todo.status) == status)
                 if inbox is not None:
@@ -183,6 +211,11 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
                 q = session.query(Todo).filter(col(Todo.user_id) == self.user_id)
                 with contextlib.suppress(Exception):
                     q = q.filter(col(Todo.deleted_at).is_(None))
+                # 排除已归档与已回收的待办
+                q = q.filter(
+                    col(Todo.is_archived).is_(False),
+                    col(Todo.is_trashed).is_(False),
+                )
 
                 q = (
                     q.filter(col(Todo.status) == "active")
@@ -208,15 +241,13 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
             return []
 
     def _delete_todo_recursive(self, session, todo_id: int) -> None:
-        """递归删除 todo 及其所有子任务"""
-        # 查找所有子任务
+        """递归彻底删除 todo 及其所有子任务（供回收站永久删除使用）"""
         child_todos = (
             session.query(Todo)
             .filter(col(Todo.parent_todo_id) == todo_id, col(Todo.user_id) == self.user_id)
             .all()
         )
 
-        # 递归删除所有子任务
         for child in child_todos:
             self._delete_todo_recursive(session, child.id)
 
@@ -226,13 +257,30 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
             col(TodoAttachmentRelation.todo_id) == todo_id
         ).delete()
 
-        # 删除 todo 本身
         todo = session.query(Todo).filter_by(id=todo_id, user_id=self.user_id).first()
         if todo:
             session.delete(todo)
-            logger.info(f"删除 todo: {todo_id}")
+            logger.info(f"彻底删除 todo: {todo_id}")
+
+    def _trash_todo_recursive(self, session, todo_id: int) -> None:
+        """递归软删除：将 todo 及其所有子任务标记为已回收"""
+        child_todos = (
+            session.query(Todo)
+            .filter(col(Todo.parent_todo_id) == todo_id, col(Todo.user_id) == self.user_id)
+            .all()
+        )
+        for child in child_todos:
+            self._trash_todo_recursive(session, child.id)
+
+        todo = session.query(Todo).filter_by(id=todo_id, user_id=self.user_id).first()
+        if todo:
+            now = get_utc_now()
+            todo.is_trashed = True
+            todo.trashed_at = now
+            todo.updated_at = now
 
     def delete_todo(self, todo_id: int) -> bool:
+        """软删除：将 todo 及其子任务移入回收站（数据保留，可恢复）"""
         try:
             with self.db_base.get_session() as session:
                 todo = session.query(Todo).filter_by(id=todo_id, user_id=self.user_id).first()
@@ -240,13 +288,63 @@ class TodoManager(TodoAttachmentMixin, TodoIcalMixin):
                     logger.warning(f"todo 不存在: {todo_id}")
                     return False
 
-                # 递归删除 todo 及其所有子任务
-                self._delete_todo_recursive(session, todo_id)
+                self._trash_todo_recursive(session, todo_id)
                 session.flush()
-                logger.info(f"删除 todo 及其子任务: {todo_id}")
+                logger.info(f"移入回收站 todo 及其子任务: {todo_id}")
                 return True
         except SQLAlchemyError as e:
             logger.error(f"删除 todo 失败: {e}")
+            return False
+
+    def restore_todo(self, todo_id: int) -> bool:
+        """恢复回收站中的 todo 及其所有子任务"""
+        try:
+            with self.db_base.get_session() as session:
+                todo = session.query(Todo).filter_by(id=todo_id, user_id=self.user_id).first()
+                if not todo:
+                    logger.warning(f"todo 不存在: {todo_id}")
+                    return False
+
+                def _restore_recursive(parent_id: int) -> None:
+                    for child in (
+                        session.query(Todo)
+                        .filter(
+                            col(Todo.parent_todo_id) == parent_id,
+                            col(Todo.user_id) == self.user_id,
+                        )
+                        .all()
+                    ):
+                        _restore_recursive(child.id)
+                        child.is_trashed = False
+                        child.trashed_at = None
+                        child.updated_at = get_utc_now()
+
+                _restore_recursive(todo_id)
+                todo.is_trashed = False
+                todo.trashed_at = None
+                todo.updated_at = get_utc_now()
+                session.flush()
+                logger.info(f"恢复 todo 及其子任务: {todo_id}")
+                return True
+        except SQLAlchemyError as e:
+            logger.error(f"恢复 todo 失败: {e}")
+            return False
+
+    def purge_todo(self, todo_id: int) -> bool:
+        """彻底删除回收站中的 todo 及其所有子任务"""
+        try:
+            with self.db_base.get_session() as session:
+                todo = session.query(Todo).filter_by(id=todo_id, user_id=self.user_id).first()
+                if not todo:
+                    logger.warning(f"todo 不存在: {todo_id}")
+                    return False
+
+                self._delete_todo_recursive(session, todo_id)
+                session.flush()
+                logger.info(f"彻底删除 todo 及其子任务: {todo_id}")
+                return True
+        except SQLAlchemyError as e:
+            logger.error(f"彻底删除 todo 失败: {e}")
             return False
 
     # ========== 关系写入 ==========

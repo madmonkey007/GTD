@@ -113,6 +113,9 @@ class TodoIcalMixin:
             "rrule": getattr(todo, "rrule", None),
             "order": getattr(todo, "order", 0),
             "is_inbox": bool(getattr(todo, "is_inbox", True)),
+            "is_archived": bool(getattr(todo, "is_archived", False)),
+            "is_trashed": bool(getattr(todo, "is_trashed", False)),
+            "trashed_at": getattr(todo, "trashed_at", None),
             "tags": self._get_todo_tags(session, todo_id),
             "attachments": self._get_todo_attachments(session, todo_id),
             "related_activities": _safe_int_list(todo.related_activities),
@@ -306,6 +309,9 @@ class TodoIcalMixin:
         rrule: str | None | Any = _UNSET,
         order: int | Any = _UNSET,
         is_inbox: bool | Any = _UNSET,
+        is_archived: bool | Any = _UNSET,
+        is_trashed: bool | Any = _UNSET,
+        trashed_at: datetime | None | Any = _UNSET,
         related_activities: list[int] | Any = _UNSET,
     ) -> None:
         """应用待办字段更新."""
@@ -313,6 +319,12 @@ class TodoIcalMixin:
             percent_complete = _normalize_percent(percent_complete)
         if rrule is not _UNSET:
             rrule = (rrule or "").strip() or None
+
+        # is_trashed 联动：进入回收站记录时间，恢复时清空
+        if is_trashed is True and trashed_at is _UNSET:
+            trashed_at = get_utc_now()
+        if is_trashed is False:
+            trashed_at = None
 
         updates = {
             "name": name,
@@ -351,6 +363,9 @@ class TodoIcalMixin:
             "rrule": rrule,
             "order": order,
             "is_inbox": is_inbox,
+            "is_archived": is_archived,
+            "is_trashed": is_trashed,
+            "trashed_at": trashed_at,
         }
 
         for attr, value in updates.items():
@@ -404,6 +419,9 @@ class TodoIcalMixin:
         rrule: str | None | Any = _UNSET,
         order: int | Any = _UNSET,
         is_inbox: bool | Any = _UNSET,
+        is_archived: bool | Any = _UNSET,
+        is_trashed: bool | Any = _UNSET,
+        trashed_at: datetime | None | Any = _UNSET,
         tags: list[str] | Any = _UNSET,
         related_activities: list[int] | Any = _UNSET,
     ) -> bool:
@@ -503,6 +521,9 @@ class TodoIcalMixin:
                     rrule=rrule,
                     order=order,
                     is_inbox=is_inbox,
+                    is_archived=is_archived,
+                    is_trashed=is_trashed,
+                    trashed_at=trashed_at,
                     related_activities=related_activities,
                 )
 

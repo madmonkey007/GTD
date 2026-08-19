@@ -27,6 +27,7 @@ class ProjectUpdate(BaseModel):
     cover_image_url: str | None = Field(None, max_length=500)
     color: str | None = Field(None, max_length=20)
     project_type: str | None = Field(None, max_length=20)
+    is_archived: bool | None = Field(None, description="归档后从列表隐藏，不删除数据")
 
 
 class ProjectTodoItem(BaseModel):
@@ -63,6 +64,8 @@ class ProjectResponse(BaseModel):
     cover_image_url: str | None = None
     color: str | None = None
     project_type: str = "project"
+    is_archived: bool = False
+    sort_order: int = 0
     todo_count: int = 0
     note_count: int = 0
     created_at: datetime
@@ -72,6 +75,19 @@ class ProjectResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ProjectReorderItem(BaseModel):
+    """单个项目排序项"""
+
+    id: int = Field(..., description="项目ID")
+    sort_order: int = Field(..., description="新的排序序号")
+
+
+class ProjectReorderRequest(BaseModel):
+    """批量重排序请求模型"""
+
+    items: list[ProjectReorderItem] = Field(..., description="待排序的项目列表")
 
 
 class ProjectAddTodosRequest(BaseModel):
