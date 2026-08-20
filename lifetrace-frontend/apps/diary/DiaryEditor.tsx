@@ -191,6 +191,9 @@ export function DiaryEditor({
 	const [mobileComposerOpen, setMobileComposerOpen] = useState(false);
 	const PAGE_SIZE = 20;
 	const [notesOffset, setNotesOffset] = useState(0);
+	// 筛选变化计数：切回缓存命中的旧筛选时 notesData 引用不变，
+	// 合并 effect 靠该计数重新触发、从缓存即时重建列表
+	const [filterEpoch, setFilterEpoch] = useState(0);
 	const [allNotes, setAllNotes] = useState<JournalView[]>([]);
 	const [hasMore, setHasMore] = useState(true);
 		const sentinelRef = useRef<HTMLDivElement>(null);
@@ -285,7 +288,7 @@ export function DiaryEditor({
 			}
 			const loadedCount = notesOffset + journals.length;
 			setHasMore(loadedCount < total);
-		}, [notesData, notesOffset]);
+		}, [notesData, notesOffset, filterEpoch]);
 
 	// 筛选条件变化时重置分页并清空已累积的旧页。
 	// 用 ref 比较真实变化，避免挂载时（含开发环境 StrictMode 对 effect 的二次触发）误清空 allNotes：
@@ -308,6 +311,7 @@ export function DiaryEditor({
 		setAllNotes([]);
 		setHasMore(true);
 		loadedPagesRef.current = 0;
+		setFilterEpoch((v) => v + 1);
 	}, [filterMode, heatmapFilterDate, timeMachineDate, debouncedSearch, filterJournalIds]);
 
 	// 笔记提交成功后（父组件自增 signal），重置分页到第一页，
@@ -725,7 +729,7 @@ export function DiaryEditor({
 						</button>
 					</div>
 				)}
-				{isNotesFetching && notesOffset === 0 ? (
+				{isNotesFetching && notesOffset === 0 && notesList.length === 0 ? (
 					// 骨架屏加载效果
 					<div className="space-y-3">
 						{Array.from({ length: 5 }).map((_, i) => (
@@ -740,7 +744,7 @@ export function DiaryEditor({
 							</div>
 						))}
 					</div>
-				) : allNotes.length === 0 && !timeMachinePending ? (
+				) : notesList.length === 0 && !timeMachinePending ? (
 					// 项目视图与标题（返回箭头+图标列右侧，40px）对齐；其余视图保持居中
 					<div
 						className={
