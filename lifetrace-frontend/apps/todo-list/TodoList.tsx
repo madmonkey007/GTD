@@ -61,7 +61,15 @@ export function TodoList() {
 	const visibleTodos = useMemo(
 		() => {
 			if (specialMode) return todos;
-			if (projectMemberIds) return todos.filter((t) => projectMemberIds.has(t.id));
+			if (projectMemberIds) {
+				// 子待办随父待办保留：父在项目内时其子待办一并展示（否则展开无内容）
+				return todos.filter((t) => {
+					if (projectMemberIds.has(t.id)) return true;
+					const parentId = t.parentTodoId;
+					return parentId !== null && parentId !== undefined
+						&& projectMemberIds.has(parentId);
+				});
+			}
 			if (sidebarMode === null || sidebarMode === 'inbox') {
 				return todos.filter((t) => t.isInbox !== false);
 			}
@@ -450,6 +458,7 @@ export function TodoList() {
 						isMobile && "bg-muted/40",
 					)}
 				>
+					<div className="flex min-h-full flex-col">
 					{!isMobile && !specialMode && (
 						<div className="px-6 py-4 pb-4">
 							<NewTodoInlineForm
@@ -494,7 +503,7 @@ export function TodoList() {
 								/>
 							)}
 							{!specialMode && filter.status === "all" && completedRootCount > 0 && (
-								<div className="px-6 pb-6">
+								<div className="mt-auto px-6 pb-6">
 									<button
 										type="button"
 										onClick={() => setIsCompletedCollapsed((prev) => !prev)}
@@ -526,6 +535,7 @@ export function TodoList() {
 							)}
 						</>
 					)}
+				</div>
 				</div>
 			</MultiTodoContextMenu>
 

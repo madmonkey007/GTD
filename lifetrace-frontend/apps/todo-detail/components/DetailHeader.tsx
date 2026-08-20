@@ -3,6 +3,7 @@
 import { ArrowLeft, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PanelHeader } from "@/components/common/layout/PanelHeader";
+import { PanelCloseButton } from "@/components/common/layout/PanelCloseButton";
 import { useMobileDetail } from "@/components/layout/MobileDetailOverlay";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +65,7 @@ export function DetailHeader({
 							{tTodoDetail("artifactsViewLabel")}
 						</button>
 					</div>
+					<PanelCloseButton />
 				</>
 			}
 		/>

@@ -8,7 +8,6 @@ import MarkdownIt from "markdown-it";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef } from "react";
 import TurndownService from "turndown";
-import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 interface NotesEditorProps {
 	value: string;
@@ -80,15 +79,6 @@ export function NotesEditor({
 		>
 			<div className="relative">
 				<EditorContent editor={editor} />
-				<div className="absolute right-1.5 top-1.5">
-					<VoiceInputButton
-						ownerId="notes-editor"
-						editorRef={{ current: editor }}
-						onTranscript={(text) => {
-							if (editor) editor.chain().focus().insertContent(` ${text}`).run();
-						}}
-					/>
-				</div>
 			</div>
 		</div>
 	);

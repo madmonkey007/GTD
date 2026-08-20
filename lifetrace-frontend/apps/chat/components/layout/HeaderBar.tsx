@@ -3,6 +3,7 @@
 import { History, PlusCircle, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PanelActionButton } from "@/components/common/layout/PanelHeader";
+import { PanelCloseButton } from "@/components/common/layout/PanelCloseButton";
 
 type HeaderBarProps = {
 	chatHistoryLabel: string;
@@ -41,6 +42,7 @@ export function HeaderBar({
 						onClick={onNewChat}
 						aria-label={newChatLabel}
 					/>
+					<PanelCloseButton />
 				</div>
 			</div>
 		</div>

@@ -130,7 +130,7 @@ export function ChatPanel() {
 			{/* 详情问卷多Tab弹窗 */}
 			{breakdownQuestionnaire.stage === "questionnaire" &&
 				breakdownQuestionnaire.questions.length > 0 && (
-				<div className="relative z-10 border-t border-border bg-gradient-to-t from-background via-background/95 to-transparent pb-2 pt-4">
+				<div className="relative z-10 border-t border-border bg-gradient-to-t from-background via-background/95 to-transparent pt-4">
 					<BreakdownQuestionnaireModal
 						questions={breakdownQuestionnaire.questions}
 						answers={breakdownQuestionnaire.answers}

@@ -148,7 +148,7 @@ export function BreakdownQuestionnaireModal({
 	if (!currentQuestion) return null;
 
 	return (
-		<div className="mx-auto w-full max-w-2xl px-4 pb-2">
+		<div className="mx-auto w-full max-w-2xl px-4">
 			{/* ── Tab progress dots + counter ── */}
 			<div className="mb-3 flex items-center justify-between">
 				<div className="flex items-center gap-1.5">

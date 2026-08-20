@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Archive, FolderKanban, ListTodo, Search, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Archive, Bot, FolderKanban, ListTodo, Search, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -48,6 +48,27 @@ export function TodoToolbar({
 	const actionIconStyle = usePanelIconStyle("action");
 	const isMobile = useIsMobile();
 	const sidebarMode = useUiStore((s) => s.sidebarMode);
+	const getFeatureByPosition = useUiStore((s) => s.getFeatureByPosition);
+	const setPanelFeature = useUiStore((s) => s.setPanelFeature);
+
+	// 打开 chat 面板（复刻 useTodoCardHandlers 的 ensureChatPanelOpen 逻辑）
+	const handleOpenAgent = () => {
+		const positions: Array<"panelA" | "panelB" | "panelC"> = [
+			"panelA",
+			"panelB",
+			"panelC",
+		];
+		const uiState = useUiStore.getState();
+		const chatPos = positions.find((pos) => getFeatureByPosition(pos) === "chat");
+		if (chatPos) {
+			if (chatPos === "panelA" && !uiState.isPanelAOpen) uiState.togglePanelA();
+			else if (chatPos === "panelB" && !uiState.isPanelBOpen) uiState.togglePanelB();
+			else if (chatPos === "panelC" && !uiState.isPanelCOpen) uiState.togglePanelC();
+		} else {
+			setPanelFeature("panelB", "chat");
+			if (!uiState.isPanelBOpen) uiState.togglePanelB();
+		}
+	};
 
 	// 归档/回收站视图的标题（区别于常规「收集箱」标题）
 	const modeTitle =
@@ -208,6 +229,17 @@ export function TodoToolbar({
 							/>
 						)}
 					</div>
+					<PanelActionButton
+						variant="default"
+						icon={Bot}
+						onClick={handleOpenAgent}
+						iconOverrides={{ color: "text-muted-foreground" }}
+						buttonOverrides={{
+							hoverTextColor: "hover:text-foreground",
+							...(isMobile ? { size: "h-9 w-9" } : {}),
+						}}
+						aria-label={tPage("chatTitle")}
+					/>
 				</div>
 			</div>
 			<AnimatePresence>
