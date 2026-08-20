@@ -206,9 +206,12 @@ def get_note_link_service(
 
 def get_collection_repository(
     db_base: DatabaseBase = Depends(get_db_base),
+    current_user: User = Depends(get_current_user),
 ) -> SqlCollectionRepository:
-    """获取 Collection 仓库实例"""
-    return SqlCollectionRepository(db_base)
+    """获取 Collection 仓库实例（按当前用户隔离，模式同 Project）"""
+    if current_user.id is None:
+        raise HTTPException(status_code=401, detail="未登录")
+    return SqlCollectionRepository(db_base, user_id=current_user.id)
 
 
 def get_collection_service(

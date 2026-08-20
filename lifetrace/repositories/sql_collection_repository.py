@@ -28,10 +28,11 @@ def _collection_to_dict(c: Collection, note_count: int = 0) -> dict[str, Any]:
 
 
 class SqlCollectionRepository:
-    """基于 SQLAlchemy 的 Collection 仓库"""
+    """基于 SQLAlchemy 的 Collection 仓库（按 user_id 隔离，模式同 sql_project_repository）"""
 
-    def __init__(self, db_base: DatabaseBase):
+    def __init__(self, db_base: DatabaseBase, user_id: int = 1):
         self.db_base = db_base
+        self.user_id = user_id
 
     # ---- Collection CRUD ----
 
@@ -39,7 +40,7 @@ class SqlCollectionRepository:
         with self.db_base.get_session() as session:
             rows = (
                 session.query(Collection)
-                .filter_by(deleted_at=None)
+                .filter_by(user_id=self.user_id, deleted_at=None)
                 .order_by(Collection.updated_at.desc())
                 .all()
             )
@@ -55,7 +56,11 @@ class SqlCollectionRepository:
 
     def get(self, collection_id: int) -> dict[str, Any] | None:
         with self.db_base.get_session() as session:
-            c = session.query(Collection).filter_by(id=collection_id, deleted_at=None).first()
+            c = (
+                session.query(Collection)
+                .filter_by(id=collection_id, user_id=self.user_id, deleted_at=None)
+                .first()
+            )
             if not c:
                 return None
             count = (
@@ -67,7 +72,7 @@ class SqlCollectionRepository:
 
     def create(self, fields: dict[str, Any]) -> dict[str, Any]:
         with self.db_base.get_session() as session:
-            c = Collection(**fields)
+            c = Collection(user_id=self.user_id, **fields)
             session.add(c)
             session.flush()
             result = _collection_to_dict(c, 0)
@@ -76,7 +81,11 @@ class SqlCollectionRepository:
 
     def update(self, collection_id: int, fields: dict[str, Any]) -> dict[str, Any] | None:
         with self.db_base.get_session() as session:
-            c = session.query(Collection).filter_by(id=collection_id, deleted_at=None).first()
+            c = (
+                session.query(Collection)
+                .filter_by(id=collection_id, user_id=self.user_id, deleted_at=None)
+                .first()
+            )
             if not c:
                 return None
             for key, value in fields.items():
@@ -93,7 +102,11 @@ class SqlCollectionRepository:
 
     def soft_delete(self, collection_id: int) -> bool:
         with self.db_base.get_session() as session:
-            c = session.query(Collection).filter_by(id=collection_id, deleted_at=None).first()
+            c = (
+                session.query(Collection)
+                .filter_by(id=collection_id, user_id=self.user_id, deleted_at=None)
+                .first()
+            )
             if not c:
                 return False
             c.deleted_at = datetime.utcnow()

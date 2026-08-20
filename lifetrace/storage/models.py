@@ -311,11 +311,13 @@ class Collection(TimestampMixin, table=True):
     """
 
     __tablename__: ClassVar[str] = "collections"
+    __table_args__ = (Index("ix_collections_user_id_uid", "user_id", "uid"),)
 
     id: int | None = Field(default=None, primary_key=True)
     uid: str = Field(
         default_factory=lambda: str(uuid4()), max_length=64, index=True
     )
+    user_id: int = Field(index=True)  # 归属用户（与 todos/journals/projects 一致的隔离）
     name: str = Field(max_length=200)  # 集合名称
     description: str | None = Field(default=None, sa_column=Column(Text))  # 集合描述
     cover_image_url: str | None = Field(default=None, max_length=500)  # 封面图地址
