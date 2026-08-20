@@ -476,7 +476,8 @@ export function TodoList() {
 								{tTodoList(sidebarMode === "archived" ? "noArchived" : "noTrashed")}
 							</div>
 						) : todoProjectFilter ? (
-							<div className="flex h-[200px] flex-col items-center justify-center gap-2 px-4 text-center">
+							// 左对齐：空文案与项目标题同一起点，居中会显得错位
+							<div className="flex h-[200px] flex-col items-start justify-center gap-2 px-4 text-left">
 								<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/5 ring-1 ring-primary/10">
 									<FolderKanban className="h-5 w-5 text-primary/50" />
 								</div>
