@@ -103,6 +103,12 @@ class TodoService:
 
     def create_todo(self, data: TodoCreate) -> TodoResponse:
         """创建 Todo"""
+        # 子待办继承父待办的收集箱归属，避免项目内拆解的子待办错误出现在收集箱
+        is_inbox = data.is_inbox
+        if data.parent_todo_id is not None:
+            parent = self.repository.get_by_id(data.parent_todo_id)
+            if parent is not None:
+                is_inbox = bool(parent.get("is_inbox", is_inbox))
         dtstart = data.dtstart or data.start_time or data.deadline or data.due
         dtend = data.dtend or data.end_time
         due = data.due or data.deadline
@@ -165,7 +171,7 @@ class TodoService:
             percent_complete=data.percent_complete,
             rrule=data.rrule,
             order=data.order,
-            is_inbox=data.is_inbox,
+            is_inbox=is_inbox,
             tags=data.tags,
             related_activities=data.related_activities,
         )

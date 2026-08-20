@@ -100,46 +100,51 @@ export function ChatPanel() {
 				/>
 			)}
 
-			<BreakdownStageRenderer
-				stage={breakdownQuestionnaire.stage}
-				questions={breakdownQuestionnaire.questions}
-				summary={breakdownQuestionnaire.summary}
-				subtasks={breakdownQuestionnaire.subtasks}
-				breakdownLoading={breakdownQuestionnaire.breakdownLoading}
-				isGeneratingSummary={breakdownQuestionnaire.isGeneratingSummary}
-				summaryStreamingText={breakdownQuestionnaire.summaryStreamingText}
-				isGeneratingQuestions={breakdownQuestionnaire.isGeneratingQuestions}
-				questionStreamingCount={breakdownQuestionnaire.questionStreamingCount}
-				questionStreamingTitle={breakdownQuestionnaire.questionStreamingTitle}
-				breakdownError={breakdownQuestionnaire.breakdownError}
-				locale={locale}
-				onAccept={breakdownQuestionnaire.handleAcceptBreakdown}
-
-				/>
-
-			{breakdownQuestionnaire.stage !== "summary" &&
-				!breakdownQuestionnaire.isGeneratingSummary && (
+			{/* 内容区：消息列表始终渲染，弹窗以浮层形式覆盖其上 */}
+			<div className="relative flex min-h-0 flex-1 flex-col">
 				<MessageList
 					messages={chatController.messages}
 					isStreaming={chatController.isStreaming}
 					typingText={typingText}
 					effectiveTodos={chatController.effectiveTodos}
 				/>
-			)}
 
-			{/* 详情问卷多Tab弹窗 */}
-			{breakdownQuestionnaire.stage === "questionnaire" &&
-				breakdownQuestionnaire.questions.length > 0 && (
-				<div className="relative z-10 border-t border-border bg-gradient-to-t from-background via-background/95 to-transparent pt-4">
-					<BreakdownQuestionnaireModal
-						questions={breakdownQuestionnaire.questions}
-						answers={breakdownQuestionnaire.answers}
-						onAnswerChange={breakdownQuestionnaire.setAnswer}
-						onSubmit={breakdownQuestionnaire.handleSubmitAnswers}
-						isSubmitting={breakdownQuestionnaire.isGeneratingSummary}
-					/>
-				</div>
-			)}
+				{/* 浮动弹窗：问卷 / 总结 / 流式生成，覆盖消息区、底部贴入输入框 */}
+				{breakdownQuestionnaire.stage !== "idle" && (
+					<div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-end overflow-y-auto">
+						{breakdownQuestionnaire.stage === "questionnaire" &&
+							breakdownQuestionnaire.questions.length > 0 ? (
+							<div className="pointer-events-auto mx-auto w-full max-w-2xl px-4">
+								<BreakdownQuestionnaireModal
+									questions={breakdownQuestionnaire.questions}
+									answers={breakdownQuestionnaire.answers}
+									onAnswerChange={breakdownQuestionnaire.setAnswer}
+									onSubmit={breakdownQuestionnaire.handleSubmitAnswers}
+									isSubmitting={breakdownQuestionnaire.isGeneratingSummary}
+								/>
+							</div>
+						) : (
+							<div className="pointer-events-auto mx-auto w-full max-w-2xl px-4">
+								<BreakdownStageRenderer
+									stage={breakdownQuestionnaire.stage}
+									questions={breakdownQuestionnaire.questions}
+									summary={breakdownQuestionnaire.summary}
+									subtasks={breakdownQuestionnaire.subtasks}
+									breakdownLoading={breakdownQuestionnaire.breakdownLoading}
+									isGeneratingSummary={breakdownQuestionnaire.isGeneratingSummary}
+									summaryStreamingText={breakdownQuestionnaire.summaryStreamingText}
+									isGeneratingQuestions={breakdownQuestionnaire.isGeneratingQuestions}
+									questionStreamingCount={breakdownQuestionnaire.questionStreamingCount}
+									questionStreamingTitle={breakdownQuestionnaire.questionStreamingTitle}
+									breakdownError={breakdownQuestionnaire.breakdownError}
+									locale={locale}
+									onAccept={breakdownQuestionnaire.handleAcceptBreakdown}
+								/>
+							</div>
+						)}
+					</div>
+				)}
+			</div>
 
 			<ChatInputSection
 				locale={locale}
