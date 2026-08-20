@@ -54,7 +54,8 @@ export function CollectionPlayView({
 
 	if (notes.length === 0) {
 		return (
-			<div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+			// 左对齐且与标题对齐：标题在封面列（w-32 + gap-4 = 144px）右侧，空文案缩进同宽
+			<div className="flex h-full items-center justify-start pl-[144px] pt-6 text-sm text-muted-foreground">
 				{t("noNotes")}
 			</div>
 		);

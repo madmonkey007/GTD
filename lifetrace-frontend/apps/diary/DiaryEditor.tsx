@@ -741,7 +741,14 @@ export function DiaryEditor({
 						))}
 					</div>
 				) : allNotes.length === 0 && !timeMachinePending ? (
-					<div className="text-xs text-muted-foreground/50 italic text-center pt-8">
+					// 项目视图与标题（返回箭头+图标列右侧，40px）对齐；其余视图保持居中
+					<div
+						className={
+							filterJournalIds
+								? "text-xs text-muted-foreground/50 italic text-left pl-[40px] pt-8"
+								: "text-xs text-muted-foreground/50 italic text-center pt-8"
+						}
+					>
 						{locale === "zh" ? "暂无笔记" : "No notes yet"}
 					</div>
 				) : isTimeMachineMode && !editingCardId ? (
