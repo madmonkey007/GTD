@@ -78,6 +78,13 @@ class TodoTools:
             valid_priorities = ("high", "medium", "low", "none")
             normalized_priority = priority if priority in valid_priorities else "none"
 
+            # 子待办继承父待办的收集箱归属，避免项目内拆解的子待办错误出现在收集箱
+            inherited_is_inbox: bool = True
+            if parent_todo_id:
+                parent = self.todo_repo.get_by_id(parent_todo_id)
+                if parent is not None:
+                    inherited_is_inbox = bool(parent.get("is_inbox", True))
+
             # Create todo
             todo_id = self.todo_repo.create(
                 name=name,
@@ -88,6 +95,7 @@ class TodoTools:
                 time_zone=time_zone,
                 priority=normalized_priority,
                 tags=tag_list,
+                is_inbox=inherited_is_inbox,
             )
 
             if todo_id:
