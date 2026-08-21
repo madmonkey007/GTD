@@ -36,6 +36,8 @@ interface DiarySidebarProps {
 	archiveViewActive?: boolean;
 	/** 打开项目归档视图 */
 	onShowArchive?: () => void;
+	/** 外部受控宽度（内联模式由拖拽分隔条控制）；抽屉模式无需传 */
+	width?: number;
 }
 
 export function DiarySidebar({
@@ -57,11 +59,15 @@ export function DiarySidebar({
 	onTimeMachine,
 	archiveViewActive,
 	onShowArchive,
+	width,
 }: DiarySidebarProps) {
 	const t = useTranslations("journalPanel");
 
 	return (
-		<aside className="w-72 shrink-0 h-full border-r border-border/40 overflow-y-auto bg-background px-3 py-3 flex flex-col gap-4">
+		<aside
+			className="shrink-0 h-full border-r border-border/40 overflow-y-auto bg-background px-3 py-3 flex flex-col gap-4"
+			style={width !== undefined ? { width } : undefined}
+		>
 			{/* Stats */}
 			<DiaryStats
 				totalNotes={stats.totalNotes}
@@ -78,6 +84,7 @@ export function DiarySidebar({
 					dates={stats.dates}
 					dailyCounts={stats.dailyCounts}
 					onSelectDate={onSelectDate}
+					containerWidth={width}
 				/>
 			</div>
 

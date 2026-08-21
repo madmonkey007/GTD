@@ -7,6 +7,8 @@ interface DiaryHeatmapProps {
 	dates: Date[];
 	dailyCounts: Map<string, number>;
 	onSelectDate?: (date: Date) => void;
+	/** 容器宽度（内联模式 = 左栏拖拽宽度），用于自适应列数；抽屉模式不传则默认 11 列 */
+	containerWidth?: number;
 }
 
 function getHeatmapLevel(count: number): number {
@@ -27,16 +29,33 @@ const DOT_COLORS = [
 	"bg-heatmap-5",
 ];
 
-export function DiaryHeatmap({ dates, dailyCounts, onSelectDate }: DiaryHeatmapProps) {
+const DOT = 17;
+const GAP = 8;
+const DEFAULT_COLS = 11;
+const MAX_COLS = 26; // 最多覆盖 26 周（182 天），对应左栏最宽（480px）时的宽度
+
+export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, containerWidth }: DiaryHeatmapProps) {
+	const cols = useMemo(() => {
+		if (containerWidth !== undefined) {
+			// 按容器宽度估算可容纳的列数：每列 = DOT 宽 + GAP 间距
+			const fit = Math.floor((containerWidth - GAP - 4) / (DOT + GAP));
+			return Math.min(MAX_COLS, Math.max(DEFAULT_COLS, fit));
+		}
+		return DEFAULT_COLS;
+	}, [containerWidth]);
+
+	// dates 每天 1 条、按时间正序（index 0 = 最早）。固定只显示「最近 cols*rows 天」：
+	// 截取 dates 末尾的 visible 天，列优先铺开，第 0 列 = 最早、最后一列 = 最新（贴近当前月）。
 	const grid = useMemo(() => {
-		const cols = 11;
 		const rows = 7;
+		const visible = cols * rows;
+		const offset = Math.max(0, dates.length - visible);
 		const cells: { date: Date; level: number; tooltip: string }[][] = [];
 
 		for (let col = 0; col < cols; col++) {
 			const column: { date: Date; level: number; tooltip: string }[] = [];
 			for (let row = 0; row < rows; row++) {
-				const index = col * rows + row;
+				const index = offset + col * rows + row;
 				if (index < dates.length) {
 					const date = dates[index];
 					const key = formatDateInput(date);
@@ -55,13 +74,14 @@ export function DiaryHeatmap({ dates, dailyCounts, onSelectDate }: DiaryHeatmapP
 			cells.push(column);
 		}
 		return cells;
-	}, [dates, dailyCounts]);
+	}, [dates, dailyCounts, cols]);
 
 	const monthLabels = useMemo(() => {
 		const labels: { label: string; col: number }[] = [];
 		let lastMonth = -1;
-		for (let col = 0; col < 11; col++) {
-			const index = col * 7;
+		const offset = Math.max(0, dates.length - cols * 7);
+		for (let col = 0; col < cols; col++) {
+			const index = offset + col * 7;
 			if (index < dates.length) {
 				const month = dates[index].getMonth();
 				if (month !== lastMonth) {
@@ -77,11 +97,11 @@ export function DiaryHeatmap({ dates, dailyCounts, onSelectDate }: DiaryHeatmapP
 			return labels.slice(labels.length - 3);
 		}
 		return labels;
-	}, [dates]);
+	}, [dates, cols]);
 
 	return (
 		<div className="space-y-1">
-			{/* Grid: 11 cols x 7 rows, spaced evenly */}
+			{/* Grid: cols x 7 rows, spaced evenly */}
 			<div className="flex gap-[8px]">
 				{grid.map((col, colIdx) => (
 					<div key={colIdx} className="flex flex-col gap-[8px] items-center">
@@ -100,13 +120,13 @@ export function DiaryHeatmap({ dates, dailyCounts, onSelectDate }: DiaryHeatmapP
 
 			{/* Month labels at bottom, aligned to grid columns */}
 			<div className="flex gap-[8px]">
-				{Array.from({ length: 11 }).map((_, col) => {
+				{Array.from({ length: cols }).map((_, col) => {
 					const label = monthLabels.find((m) => m.col === col);
 					return (
 						<div
 							key={col}
 							className="text-[9px] text-muted-foreground/50 leading-none text-center whitespace-nowrap"
-							style={{ width: 17 }}
+							style={{ width: DOT }}
 						>
 							{label ? label.label : ""}
 						</div>

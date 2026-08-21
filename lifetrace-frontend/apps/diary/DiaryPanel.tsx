@@ -47,6 +47,8 @@ import { useArchivedProjects, useProject } from "@/lib/query";
 import { useUiStore } from "@/lib/store/ui-store";
 import { useMobileToolbarStore } from "@/lib/store/mobile-toolbar-store";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { useDiaryPanelResize } from "@/lib/hooks/useDiaryPanelResize";
+import { ResizeHandle } from "@/components/layout/ResizeHandle";
 const emptyDraft = (date: Date): JournalDraft => ({
 	id: null,
 	name: "",
@@ -133,6 +135,14 @@ export function DiaryPanel() {
 	// So at containerWidth >= ~976, all 3 panels can fit
 	const showLeftInline = !isMobile && (containerWidth >= 1000 || containerWidth === 0);
 	const showRightInline = !isMobile && (containerWidth >= 900 || containerWidth === 0);
+	const {
+		leftWidth,
+		rightWidth,
+		isDraggingLeft,
+		isDraggingRight,
+		handleLeftResizePointerDown,
+		handleRightResizePointerDown,
+	} = useDiaryPanelResize();
 	const [showTrash, setShowTrash] = useState(false);
 	// 项目归档视图：侧边栏「项目归档」入口打开，主区列出已归档项目
 	const [showArchivedProjects, setShowArchivedProjects] = useState(false);
@@ -819,10 +829,16 @@ const handleSaveCardEdit = async (
 	}
 		return ( <>
 			<div className="flex h-full flex-col overflow-hidden bg-gray-100/60 dark:bg-zinc-900/20">
-			<div ref={containerRef} className={cn("flex min-h-0 flex-1 overflow-hidden justify-center gap-1 px-3 relative", isMobile && "px-0")}>
+			<div ref={containerRef} className={cn("flex min-h-0 flex-1 overflow-hidden gap-1 px-3 relative", isMobile && "px-0")}>
 				{/* Left sidebar — inline when wide, otherwise hidden (drawer overlay) */}
-				{showLeftInline && <DiarySidebar stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} hideFilterActive={projectViewOpen} onFilterModeChange={(mode) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(true); }} onShowArchive={() => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowArchivedProjects((v) => !v); }} archiveViewActive={showArchivedProjects} selectedTag={selectedTag} onSelectTag={(tag) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} selectedProjectId={storeSelectedProjectId} onSelectProject={openProjectView} onCloseProject={closeProjectView} timeMachineActive={!!pendingTimeMachineDate || !!timeMachineDate} onTimeMachine={handleTimeMachine} />}
-				<div className={cn("flex-1 min-w-0 flex flex-col", collectionView === "none" && "max-w-[800px]")}>
+				{showLeftInline && <DiarySidebar width={leftWidth} stats={stats ?? { totalNotes: 0, totalTags: 0, totalDays: 0, dailyCounts: new Map(), tagsWithCount: [], dates: [], maxDailyCount: 1 }} filterMode={filterMode} hideFilterActive={projectViewOpen} onFilterModeChange={(mode) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setFilterMode(mode); if (mode === "all") setHeatmapFilterDate(null); }} onRestore={handleRestore} onSelectDate={(date) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(null); setHeatmapFilterDate(date); setFilterMode("all"); }}  onShowTrash={() => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(true); }} onShowArchive={() => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowArchivedProjects((v) => !v); }} archiveViewActive={showArchivedProjects} selectedTag={selectedTag} onSelectTag={(tag) => { clearProjectView(); clearTimeMachine(); setCollectionView("none"); setShowTrash(false); setSelectedTag(tag); if (tag) { setFilterMode("all"); } }} selectedCollectionId={selectedCollectionId} onSelectCollection={selectCollection} selectedProjectId={storeSelectedProjectId} onSelectProject={openProjectView} onCloseProject={closeProjectView} timeMachineActive={!!pendingTimeMachineDate || !!timeMachineDate} onTimeMachine={handleTimeMachine} />}
+				{showLeftInline && (
+					<ResizeHandle
+						onPointerDown={handleLeftResizePointerDown}
+						isDragging={isDraggingLeft}
+					/>
+				)}
+				<div className="flex-1 min-w-0 flex flex-col rounded-(--radius) border border-border/40 bg-muted/30 dark:bg-muted/20 shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] overflow-hidden">
 					{collectionView === "gallery" ? (
 						<CollectionGallery onSelectCollection={selectCollection} />
 					) : collectionView === "detail" && selectedCollectionId ? (
@@ -955,9 +971,15 @@ const handleSaveCardEdit = async (
 				</div>
 		{/* Right-side chat panel for AI analysis — inline when wide, otherwise hidden (drawer overlay) */}
 		{showRightInline && collectionView === "none" && (
-			<div className="w-[380px] flex-shrink min-w-[280px] flex flex-col rounded-(--radius) bg-[oklch(var(--card))] shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_1px_3px_0_rgba(0,0,0,0.06)] overflow-hidden">
-				<DiaryChatPanel noteContent={noteContent} currentJournalId={activeJournal?.id ?? null} onNoteMutated={handleNoteMutated} />
-			</div>
+			<>
+				<ResizeHandle
+					onPointerDown={handleRightResizePointerDown}
+					isDragging={isDraggingRight}
+				/>
+				<div className="flex-shrink flex flex-col rounded-(--radius) bg-[oklch(var(--card))] shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_1px_3px_0_rgba(0,0,0,0.06)] overflow-hidden" style={{ width: rightWidth }}>
+					<DiaryChatPanel noteContent={noteContent} currentJournalId={activeJournal?.id ?? null} onNoteMutated={handleNoteMutated} />
+				</div>
+			</>
 		)}
 		{/* Left drawer overlay */}
 		<AnimatePresence>

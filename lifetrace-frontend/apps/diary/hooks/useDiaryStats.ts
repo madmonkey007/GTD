@@ -6,7 +6,8 @@ import { extractTagsFromContent, useJournalLites } from "@/lib/query";
 
 export type DiaryFilterMode = "all" | "last7" | "random" | "todo";
 
-const HEATMAP_DAYS = 77;
+// 26 周（182 天）：覆盖左栏拖到最宽（480px ≈ 18 列）时的热力图数据需求
+const HEATMAP_DAYS = 182;
 
 interface TagsWithCount {
 	tagName: string;
