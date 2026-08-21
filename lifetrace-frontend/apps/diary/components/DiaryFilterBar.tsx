@@ -54,7 +54,7 @@ export function DiaryFilterBar({ filterMode, onFilterModeChange, hideActive, tim
 								disabled && "cursor-not-allowed opacity-40",
 							)}
 						>
-							<Icon className="w-3.5 h-3.5 mr-2 shrink-0" />
+							<Icon className="w-3.5 h-3.5 shrink-0" />
 							{t(labelKey)}
 						</button>
 						{/* 时光机器：插入在随机漫步之后 */}
@@ -70,7 +70,7 @@ export function DiaryFilterBar({ filterMode, onFilterModeChange, hideActive, tim
 										: "text-muted-foreground/70 hover:bg-muted/20 hover:text-foreground",
 								)}
 							>
-								<TimerReset className="w-3.5 h-3.5 mr-2 shrink-0" />
+								<TimerReset className="w-3.5 h-3.5 shrink-0" />
 								{t("timeMachine")}
 							</button>
 						)}

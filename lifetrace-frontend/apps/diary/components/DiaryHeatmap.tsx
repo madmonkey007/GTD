@@ -50,10 +50,12 @@ export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, containerWidth 
 		const rows = 7;
 		const visible = cols * rows;
 		const offset = Math.max(0, dates.length - visible);
-		const cells: { date: Date; level: number; tooltip: string }[][] = [];
+		const today = new Date();
+		const todayKey = formatDateInput(today);
+		const cells: { date: Date; level: number; tooltip: string; isToday: boolean }[][] = [];
 
 		for (let col = 0; col < cols; col++) {
-			const column: { date: Date; level: number; tooltip: string }[] = [];
+			const column: { date: Date; level: number; tooltip: string; isToday: boolean }[] = [];
 			for (let row = 0; row < rows; row++) {
 				const index = offset + col * rows + row;
 				if (index < dates.length) {
@@ -66,9 +68,10 @@ export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, containerWidth 
 						date,
 						level,
 						tooltip: `${dateStr} - ${count} 篇`,
+						isToday: key === todayKey,
 					});
 				} else {
-					column.push({ date: new Date(), level: 0, tooltip: "" });
+					column.push({ date: new Date(), level: 0, tooltip: "", isToday: false });
 				}
 			}
 			cells.push(column);
@@ -111,7 +114,7 @@ export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, containerWidth 
 								type="button"
 								title={cell.tooltip}
 								onClick={onSelectDate ? () => onSelectDate(cell.date) : undefined}
-								className={`w-[17px] h-[17px] rounded-[3px] ${DOT_COLORS[cell.level]} ${onSelectDate ? 'cursor-pointer' : 'cursor-default'} transition-colors duration-150 hover:ring-1 hover:ring-ring hover:ring-offset-[0.5px]`}
+								className={`w-[17px] h-[17px] rounded-[3px] ${DOT_COLORS[cell.level]} ${onSelectDate ? 'cursor-pointer' : 'cursor-default'} transition-colors duration-150 hover:ring-1 hover:ring-ring hover:ring-offset-[0.5px] ${cell.isToday ? 'ring-1 ring-foreground/40' : ''}`}
 							/>
 						))}
 					</div>

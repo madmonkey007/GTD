@@ -423,20 +423,22 @@ export function TodoList() {
 		}
 	};
 
-	// 加载状态
+	// 加载状态：与笔记列表一致的骨架行，替代跳动圆点+文案
 	if (isLoading) {
 		return (
-			<div className="flex h-full flex-col items-center justify-center gap-3">
-				<div className="flex gap-1.5">
-					{[0, 1, 2].map((i) => (
-						<div
-							key={i}
-							className="w-2 h-2 rounded-full bg-primary/30 animate-bounce"
-							style={{ animationDelay: `${i * 0.15}s` }}
-						/>
-					))}
-				</div>
-				<p className="text-xs text-muted-foreground/50">{tTodoList("loading")}</p>
+			<div className="flex h-full flex-col justify-center gap-2 px-4">
+				{[0, 1, 2, 3, 4].map((i) => (
+					<div key={i} className="flex items-center gap-3 rounded-xl px-3 py-3">
+						<div className="h-4 w-4 shrink-0 animate-pulse rounded-full bg-muted" />
+						<div className="flex-1 space-y-1.5">
+							<div
+								className="h-3 animate-pulse rounded bg-muted"
+								style={{ width: `${72 - i * 9}%` }}
+							/>
+							<div className="h-2 animate-pulse rounded bg-muted/60 w-1/3" />
+						</div>
+					</div>
+				))}
 			</div>
 		);
 	}

@@ -838,7 +838,7 @@ const handleSaveCardEdit = async (
 						isDragging={isDraggingLeft}
 					/>
 				)}
-				<div className="flex-1 min-w-0 flex flex-col rounded-(--radius) border border-border/40 bg-muted/30 dark:bg-muted/20 shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] overflow-hidden">
+				<div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 					{collectionView === "gallery" ? (
 						<CollectionGallery onSelectCollection={selectCollection} />
 					) : collectionView === "detail" && selectedCollectionId ? (

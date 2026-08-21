@@ -630,7 +630,7 @@ export function DiaryEditor({
 
 				// 桌面端：输入区内联在搜索栏下方
 				return showCreateEditor ? (
-					<div className="px-4 pt-2 pb-2">
+					<div className="pt-2 pb-2">
 						<DiaryTiptapEditor
 							noteLinkList={noteLinkList}
 							onLinkNote={onLinkNote}
@@ -653,7 +653,7 @@ export function DiaryEditor({
 				isTimeMachineMode
 					? "relative min-h-[60vh] pt-4 pb-10 sm:pt-6"
 					: "space-y-2 pb-3",
-				isMobile ? "px-2 pt-2" : "px-4 py-3",
+				isMobile ? "pt-2" : "pt-1 pb-3",
 			)}>
 				{(timeMachinePending || timeMachineDate) && (
 					<TimeMachineHeader
@@ -662,7 +662,7 @@ export function DiaryEditor({
 					/>
 				)}
 				{debouncedSearch && (
-					<div className="flex items-center gap-2 mb-3 px-2">
+					<div className="flex items-center gap-2 mb-3 px-5">
 						<span className="text-xs font-medium text-primary/80 bg-primary/8 rounded-full px-2.5 py-1 border border-primary/10">
 							搜索: "{debouncedSearch}"
 						</span>
@@ -676,7 +676,7 @@ export function DiaryEditor({
 					</div>
 				)}
 				{heatmapFilterDate && (
-					<div className="flex items-center gap-2 mb-3 px-2">
+					<div className="flex items-center gap-2 mb-3 px-5">
 						<span className="text-xs font-medium text-primary/80 bg-primary/8 rounded-full px-2.5 py-1 border border-primary/10">
 							{heatmapFilterDate.getFullYear()}-{String(heatmapFilterDate.getMonth() + 1).padStart(2, "0")}-{String(heatmapFilterDate.getDate()).padStart(2, "0")}
 						</span>
@@ -690,7 +690,7 @@ export function DiaryEditor({
 					</div>
 				)}
 				{filterMode === "random" && (
-					<div className="flex items-center justify-between mb-2">
+					<div className="flex items-center justify-between mb-2 px-5">
 						<span className="text-xs font-medium text-primary/70">{t("sidebarFilterRandom")}</span>
 						<button
 							type="button"
@@ -703,19 +703,19 @@ export function DiaryEditor({
 					</div>
 				)}
 				{filterMode === "todo" && (
-					<div className="flex items-center justify-between mb-2">
+					<div className="flex items-center justify-between mb-2 px-5">
 						<span className="text-xs font-medium text-primary/70">{t("sidebarFilterTodoNotes")}</span>
 					</div>
 				)}
 				{tagFilter && (
-					<div className="flex items-center gap-2 mb-3 px-2">
+					<div className="flex items-center gap-2 mb-3 px-5">
 						<span className="inline-flex items-center rounded-full bg-primary/8 px-2.5 py-1 text-xs font-medium text-primary/80 border border-primary/10">
 							# {tagFilter}
 						</span>
 					</div>
 				)}
 				{similarToNoteId && (
-					<div className="flex items-center gap-2 mb-3 px-2">
+					<div className="flex items-center gap-2 mb-3 px-5">
 						<GitFork className="w-3.5 h-3.5 text-primary/40" />
 						<span className="text-xs font-medium text-primary/80">
 							{t("similarToNote")}
@@ -733,7 +733,7 @@ export function DiaryEditor({
 					// 骨架屏加载效果
 					<div className="space-y-3">
 						{Array.from({ length: 5 }).map((_, i) => (
-							<div key={i} className="rounded-xl border border-border/30 bg-card px-4 py-3 animate-pulse">
+							<div key={i} className="rounded-xl border border-border/50 bg-card shadow-[0_2px_6px_-2px_rgba(0,0,0,0.1),0_1px_2px_0_rgba(0,0,0,0.05)] px-5 py-4 animate-pulse">
 								<Skeleton className="h-3 bg-muted rounded w-3/4 mb-2" />
 								<Skeleton className="h-2.5 bg-muted rounded w-full mb-1.5" />
 								<Skeleton className="h-2.5 bg-muted rounded w-2/3 mb-2" />
@@ -749,11 +749,16 @@ export function DiaryEditor({
 					<div
 						className={
 							filterJournalIds
-								? "text-xs text-muted-foreground/50 italic text-left pl-[40px] pt-8"
-								: "text-xs text-muted-foreground/50 italic text-center pt-8"
+								? "text-left pl-[40px] pt-10"
+								: "text-center pt-10"
 						}
 					>
-						{locale === "zh" ? "暂无笔记" : "No notes yet"}
+						<div className="font-display text-base text-muted-foreground/70">
+							{locale === "zh" ? "还是一张白纸" : "A blank page"}
+						</div>
+						<div className="mt-1.5 text-xs text-muted-foreground/45">
+							{locale === "zh" ? "写下第一句，它会出现在这里。" : "Write the first line and it will appear here."}
+						</div>
 					</div>
 				) : isTimeMachineMode && !editingCardId ? (
 					<TimeMachineCarousel
@@ -812,12 +817,12 @@ export function DiaryEditor({
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
 								style={isEditing ? { borderWidth: 1.5 } : undefined}
-								className={"group w-full rounded-xl border px-4 py-3 transition-all duration-200 "
+								className={"group w-full transition-all duration-200 "
 									+ (isEditing
-											? "border-foreground/70 bg-card hover:border-foreground"
+											? "rounded-xl border border-foreground/70 bg-card hover:border-foreground px-4 py-3"
 										: draft.id === note.id
-											? "border-primary/30 bg-primary/[0.02] ring-1 ring-primary/10"
-											: "border-border/30 bg-card hover:border-border/60 hover:bg-muted/[0.02]")
+											? "rounded-xl border border-primary/30 bg-primary/[0.02] ring-1 ring-primary/10 px-5 py-4"
+											: "rounded-xl border border-border/50 bg-card shadow-[0_2px_6px_-2px_rgba(0,0,0,0.1),0_1px_2px_0_rgba(0,0,0,0.05)] hover:border-border/70 hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.14),0_1px_3px_0_rgba(0,0,0,0.06)] motion-safe:hover:-translate-y-px px-5 py-4")
 									+ (pinnedIds.includes(note.id) ? " relative" : "")}
 							>
 								{isEditing ? (
@@ -851,20 +856,26 @@ export function DiaryEditor({
 									<>
 										<div className="flex items-center justify-between gap-2">
 											<div className="flex-1 min-w-0">
-												{note.name && (
-													<div className="text-xs text-muted-foreground/50 mb-1 truncate">
+												{note.name && (() => {
+													// 后端无标题时用「YYYY-MM-DD HH:mm」兜底——时间型伪标题按元信息弱化
+													const isAutoName = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(note.name.trim());
+													return (
+													<div className={isAutoName
+														? "text-xs font-normal text-muted-foreground/55 mb-1 truncate tabular-nums"
+														: "text-sm font-medium text-foreground/85 mb-1.5 truncate"}>
 														{pinnedIds.includes(note.id) && (
 															<Pin className="w-3 h-3 inline-block mr-1 text-primary/60 -mt-0.5" />
 														)}
 														<span className="truncate">{note.name}</span>
 														{note.origin && note.origin !== "manual" && (
-															<span className="inline-flex items-center gap-0.5 ml-1 text-[9px] text-muted-foreground/60 shrink-0">
+															<span className="inline-flex items-center gap-0.5 ml-1.5 text-[9px] font-normal text-muted-foreground/60 shrink-0">
 																<CheckSquare className="w-2.5 h-2.5" />
 																{t("todoNoteBadge")}
 															</span>
 														)}
 													</div>
-												)}
+											);
+										})()}
 											</div>
 											{!isEditing && (
 												<>
@@ -930,10 +941,10 @@ export function DiaryEditor({
 											</DropdownMenu>
 										</div>
 						<div
-							className="text-sm leading-relaxed text-muted-foreground cursor-pointer"
+							className="text-sm leading-[1.7] font-body text-foreground/80 cursor-pointer"
 											onDoubleClick={() => startEditing(note)}
 										>
-											<NoteMarkdown content={displayContent.join("\n")} />
+											<NoteMarkdown content={displayContent.join("\n")} className="text-foreground/80" />
 											{!isExpanded && isLong && (
 												<span className="text-muted-foreground/40">{"\n"}...</span>
 											)}

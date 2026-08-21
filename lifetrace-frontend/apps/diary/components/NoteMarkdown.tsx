@@ -23,7 +23,7 @@ function NoteImage({ src, alt }: React.ImgHTMLAttributes<HTMLImageElement>) {
 					e.stopPropagation();
 					setZoom(true);
 				}}
-				className="block w-[120px] h-[120px] object-cover rounded my-1 cursor-zoom-in"
+				className="block w-[160px] h-[160px] object-cover rounded my-1 cursor-zoom-in"
 			/>
 			{zoom &&
 				typeof document !== "undefined" &&
@@ -47,10 +47,10 @@ function NoteImage({ src, alt }: React.ImgHTMLAttributes<HTMLImageElement>) {
 	);
 }
 
-export function NoteMarkdown({ content }: { content: string }) {
+export function NoteMarkdown({ content, className = "" }: { content: string; className?: string }) {
 	const segments = useMemo(() => segmentContent(content), [content]);
 	return (
-		<div className="text-sm text-muted-foreground leading-relaxed space-y-1">
+		<div className={`text-sm text-muted-foreground leading-relaxed space-y-1 ${className}`}>
 			{segments.map((seg, i) =>
 				seg.type === "images" ? (
 					<NoteImageGrid key={i} images={seg.images} />
@@ -172,7 +172,7 @@ function NoteImageGrid({ images }: { images: { src: string; alt: string }[] }) {
 	const overflow = Math.max(0, images.length - GRID_MAX);
 	const shown = images.slice(0, GRID_MAX);
 	return (
-		<div className="my-1 grid grid-cols-3 gap-1 max-w-[380px]">
+		<div className="my-1 grid grid-cols-3 gap-1.5">
 			{shown.map((im, i) => {
 				const isMoreCell = overflow > 0 && i === GRID_MAX - 1;
 				return (

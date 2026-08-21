@@ -584,7 +584,7 @@ export function DiaryTiptapEditor({
 	};
 
 	const borderClass = variant === "create"
-		? "rounded-xl border border-border/40 bg-background"
+		? "rounded-xl border border-border/40 bg-background shadow-[0_2px_6px_-2px_rgba(0,0,0,0.1),0_1px_2px_0_rgba(0,0,0,0.05)]"
 		: "";
 
 	return (
@@ -670,7 +670,7 @@ export function DiaryTiptapEditor({
 				</div>
 				<div className="flex items-center gap-1">
 					{/* 字数统计 */}
-					<span className="text-[10px] text-muted-foreground/40 select-none tabular-nums mr-1">{wordCount}</span>
+					<span className="text-[10px] text-muted-foreground/55 select-none tabular-nums mr-1">{wordCount}</span>
 					{/* 语音输入（发送按钮左侧） */}
 					<VoiceInputButton
 						ownerId="diary-tiptap"

@@ -122,13 +122,13 @@ export function DiarySearchBar({
 
 	const searchInput = (
 		<div className="relative flex-1">
-			<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
+			<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
 			<input
 				type="text"
 				value={searchQuery}
 				onChange={(e) => setSearchQuery(e.target.value)}
 				placeholder="搜索笔记..."
-				className="w-full h-8 rounded-lg border border-border/30 bg-background/50 pr-8 pl-8 text-xs text-foreground transition-all duration-200 placeholder:text-muted-foreground/30 focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] focus:outline-none"
+				className="w-full h-8 rounded-lg border border-border/30 bg-background/50 pr-8 pl-8 text-xs text-foreground transition-all duration-200 placeholder:text-muted-foreground/45 focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] focus:outline-none"
 			/>
 			{searchQuery && (
 				<button
@@ -179,7 +179,7 @@ export function DiarySearchBar({
 	);
 
 	return (
-		<div className="relative mx-4 mt-2 mb-2 flex items-center gap-1">
+		<div className="relative mt-2 mb-2 flex items-center gap-1">
 			{leftToggle}
 			{viewButton}
 			{searchInput}

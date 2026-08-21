@@ -34,11 +34,6 @@ export function CollectionList({
 					title={collapsed ? t("expand") : t("collapse")}
 				>
 					{t("entryTitle")}
-					{collections.length > 0 && (
-						<span className="font-normal tabular-nums text-muted-foreground/50">
-							{collections.length}
-						</span>
-					)}
 					<Chevron className="h-3 w-3" />
 				</button>
 				<button
