@@ -703,6 +703,8 @@
     },
     "previous": "上一题",
     "nextQuestion": "下一题",
+    "skipQuestion": "跳过",
+    "closeQuestionnaire": "关闭并取消拆解",
     "goToQuestion": "跳转到第 {index} 题",
     "thinking": {
       "processLabel": "思考过程",

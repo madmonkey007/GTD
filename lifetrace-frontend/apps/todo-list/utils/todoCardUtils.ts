@@ -1,3 +1,4 @@
+import { useLocaleStore } from "@/lib/store/locale";
 import type { TodoPriority } from "@/lib/types";
 
 /**
@@ -7,17 +8,18 @@ export function formatScheduleLabel(
 	startTime?: string,
 	endTime?: string,
 ): string | null {
+	const locale = useLocaleStore.getState().locale === "zh" ? "zh-CN" : "en-US";
 	const schedule = startTime ?? endTime;
 	if (!schedule) return null;
 	const startDate = new Date(schedule);
 	if (Number.isNaN(startDate.getTime())) return null;
 
-	const dateLabel = startDate.toLocaleDateString("en-US", {
+	const dateLabel = startDate.toLocaleDateString(locale, {
 		year: "numeric",
 		month: "short",
 		day: "numeric",
 	});
-	const timeLabel = startDate.toLocaleTimeString("en-US", {
+	const timeLabel = startDate.toLocaleTimeString(locale, {
 		hour: "2-digit",
 		minute: "2-digit",
 	});
@@ -30,12 +32,12 @@ export function formatScheduleLabel(
 	const endDate = new Date(endTime);
 	if (Number.isNaN(endDate.getTime())) return startLabel;
 	const sameDay = startDate.toDateString() === endDate.toDateString();
-	const endDateLabel = endDate.toLocaleDateString("en-US", {
+	const endDateLabel = endDate.toLocaleDateString(locale, {
 		year: "numeric",
 		month: "short",
 		day: "numeric",
 	});
-	const endTimeLabel = endDate.toLocaleTimeString("en-US", {
+	const endTimeLabel = endDate.toLocaleTimeString(locale, {
 		hour: "2-digit",
 		minute: "2-digit",
 	});

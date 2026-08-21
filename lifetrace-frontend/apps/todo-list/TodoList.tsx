@@ -62,13 +62,31 @@ export function TodoList() {
 		() => {
 			if (specialMode) return todos;
 			if (projectMemberIds) {
-				// 子待办随父待办保留：父在项目内时其子待办一并展示（否则展开无内容）
-				return todos.filter((t) => {
-					if (projectMemberIds.has(t.id)) return true;
+				// 子待办随根待办保留：项目成员的完整后代链一并展示（否则多层子任务展开无内容）
+				const byParent = new Map<number, number[]>();
+				todos.forEach((t) => {
 					const parentId = t.parentTodoId;
-					return parentId !== null && parentId !== undefined
-						&& projectMemberIds.has(parentId);
+					if (parentId !== null && parentId !== undefined) {
+						const list = byParent.get(parentId) ?? [];
+						list.push(t.id);
+						byParent.set(parentId, list);
+					}
 				});
+				const visible = new Set<number>();
+				const collectDescendants = (id: number) => {
+					for (const childId of byParent.get(id) ?? []) {
+						if (visible.has(childId)) continue;
+						visible.add(childId);
+						collectDescendants(childId);
+					}
+				};
+				todos.forEach((t) => {
+					if (projectMemberIds.has(t.id)) {
+						visible.add(t.id);
+						collectDescendants(t.id);
+					}
+				});
+				return todos.filter((t) => visible.has(t.id));
 			}
 			if (sidebarMode === null || sidebarMode === 'inbox') {
 				return todos.filter((t) => t.isInbox !== false);
@@ -476,8 +494,7 @@ export function TodoList() {
 								{tTodoList(sidebarMode === "archived" ? "noArchived" : "noTrashed")}
 							</div>
 						) : todoProjectFilter ? (
-							// 左对齐：空文案与项目标题同一起点，居中会显得错位
-							<div className="flex h-[200px] flex-col items-start justify-center gap-2 px-4 text-left">
+							<div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 text-center">
 								<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/5 ring-1 ring-primary/10">
 									<FolderKanban className="h-5 w-5 text-primary/50" />
 								</div>

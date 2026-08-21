@@ -703,6 +703,8 @@
     },
     "previous": "Previous",
     "nextQuestion": "Next",
+    "skipQuestion": "Skip",
+    "closeQuestionnaire": "Close and cancel breakdown",
     "goToQuestion": "Go to question {index}",
     "thinking": {
       "processLabel": "Thinking Process",

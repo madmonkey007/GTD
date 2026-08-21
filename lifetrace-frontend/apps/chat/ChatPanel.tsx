@@ -114,17 +114,18 @@ export function ChatPanel() {
 					<div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-end overflow-y-auto">
 						{breakdownQuestionnaire.stage === "questionnaire" &&
 							breakdownQuestionnaire.questions.length > 0 ? (
-							<div className="pointer-events-auto mx-auto w-full max-w-2xl px-4">
+							<div className="pointer-events-auto w-full px-4 pb-1">
 								<BreakdownQuestionnaireModal
 									questions={breakdownQuestionnaire.questions}
 									answers={breakdownQuestionnaire.answers}
 									onAnswerChange={breakdownQuestionnaire.setAnswer}
 									onSubmit={breakdownQuestionnaire.handleSubmitAnswers}
 									isSubmitting={breakdownQuestionnaire.isGeneratingSummary}
+									onClose={breakdownQuestionnaire.handleCancelBreakdown}
 								/>
 							</div>
 						) : (
-							<div className="pointer-events-auto mx-auto w-full max-w-2xl px-4">
+							<div className="pointer-events-auto w-full px-4 pb-1">
 								<BreakdownStageRenderer
 									stage={breakdownQuestionnaire.stage}
 									questions={breakdownQuestionnaire.questions}
@@ -162,7 +163,8 @@ export function ChatPanel() {
 				onToggleExpand={() => setShowTodosExpanded((prev) => !prev)}
 				onToggleTodo={toggleTodoSelection}
 
-				showSuggestions={chatController.messages.length === 0 || (chatController.messages.length === 1 && chatController.messages[0].role === "assistant") || chatController.messages.every((msg) => msg.role === "assistant")}
+				// 拆解弹窗激活时隐藏建议按钮组，让弹窗紧贴输入框顶部
+				showSuggestions={breakdownQuestionnaire.stage === "idle" && (chatController.messages.length === 0 || (chatController.messages.length === 1 && chatController.messages[0].role === "assistant") || chatController.messages.every((msg) => msg.role === "assistant"))}
 onSelectPrompt={handleSelectPrompt}
 onTranscript={(text) => chatController.setInputValue((prev) => (prev ? prev + " " + text : text))}
 />

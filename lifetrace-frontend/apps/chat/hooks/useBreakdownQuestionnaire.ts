@@ -159,6 +159,11 @@ export const useBreakdownQuestionnaire = () => {
 		await applyBreakdown();
 	}, [applyBreakdown]);
 
+	// 取消拆解流程，关闭弹窗
+	const handleCancelBreakdown = useCallback(() => {
+		useBreakdownStore.getState().resetBreakdown();
+	}, []);
+
 	return {
 		activeBreakdownTodo,
 		stage,
@@ -176,5 +181,6 @@ export const useBreakdownQuestionnaire = () => {
 		setAnswer,
 		handleSubmitAnswers,
 		handleAcceptBreakdown,
+		handleCancelBreakdown,
 	};
 };
