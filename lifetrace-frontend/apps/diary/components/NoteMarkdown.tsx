@@ -66,7 +66,7 @@ export function NoteMarkdown({ content, className = "" }: { content: string; cla
 function TextBlock({ text }: { text: string }) {
 	const processed = text.replace(
 		/#(\S+)/g,
-		'<span class="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground align-middle">#$1</span>',
+		'<span class="inline-flex items-center rounded-[50px] px-[10px] py-[3px] font-body text-xs tracking-[0.02em]" style="background-color: color-mix(in oklch, var(--color-card-primary, var(--primary)) 10%, transparent); color: var(--color-card-primary, var(--primary));">#$1</span>',
 	);
 	return (
 		<ReactMarkdown

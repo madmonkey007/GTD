@@ -2,6 +2,16 @@
 
 import { useRef, useState, useMemo, useEffect, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+	DndContext,
+	PointerSensor,
+	pointerWithin,
+	useDraggable,
+	useDroppable,
+	useSensor,
+	useSensors,
+	type DragEndEvent,
+} from "@dnd-kit/core";
 import { AnimatePresence, motion } from "framer-motion";
 import {
 	ChevronDown,
@@ -165,8 +175,31 @@ export function DiaryEditor({
 	const t = useTranslations("journalPanel");
 	const locale = useLocale();
 	const isMobile = useIsMobile();
+	// 拖拽建链：桌面端、非时光机、且宿主提供了 onLinkNote 时启用
+	const linkDragEnabled = !isMobile && !timeMachinePending && !timeMachineDate && !!onLinkNote;
+	const linkDragSensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+	);
+	const handleLinkDragEnd = (event: DragEndEvent) => {
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+		// 拖 A 盖到 B 上：B 为源、A 为目标（被盖住的笔记支撑被拖来的笔记）
+		const sourceId = Number(over.id);
+		const targetId = Number(active.id);
+		// 卡片「引用 N 条」读的是本地 allNotes 副本里的 relatedNoteIds，
+		// 建链的缓存补丁不经过这里，直接乐观更新源卡片（被盖住那张）的引用列表
+		setAllNotes((prev) =>
+			prev.map((n) =>
+				n.id === sourceId && !(n.relatedNoteIds ?? []).includes(targetId)
+					? { ...n, relatedNoteIds: [...(n.relatedNoteIds ?? []), targetId] }
+					: n,
+			),
+		);
+		onLinkNote?.(targetId, sourceId);
+	};
 	// 时光机器沉浸模式：动画中或已落定，独占顶部（隐藏视图切换/搜索/输入框）
 	const isTimeMachineMode = !!(timeMachinePending || timeMachineDate);
+
 	// 时光机卡片样式：随机 = 按笔记 id 分配；固定 = 全部使用选中的风格
 	const timeMachineStyleMode = useJournalStore((s) => s.timeMachineStyleMode);
 	const timeMachineStyle = useJournalStore((s) => s.timeMachineStyle);
@@ -175,6 +208,7 @@ export function DiaryEditor({
 		const [refsExpanded, setRefsExpanded] = useState<Set<number>>(new Set());
 	const [deleteDialogNote, setDeleteDialogNote] = useState<JournalView | null>(null);
 	const addLinkedNote = useNoteChatStore((s) => s.addLinkedNote);
+	const triggerInsight = useNoteChatStore((s) => s.triggerInsight);
 	const [editingCardId, setEditingCardId] = useState<number | null>(null);
 	const [editName, setEditName] = useState("");
 	const [editContent, setEditContent] = useState("");
@@ -427,6 +461,7 @@ export function DiaryEditor({
 	}, [showInstantList, instantLiteData, journalQuery, debouncedSearch]);
 
 	const notesList = allNotes.length > 0 ? allNotes : instantNotes;
+
 	const sortedNotes = useMemo(() => {
 		// 时光机器动画期间不展示任何笔记内容（时间先走完，内容再加载）
 		if (timeMachinePending) return [];
@@ -489,7 +524,7 @@ export function DiaryEditor({
 	return (
 		<div className="flex h-full flex-col">
 			{headerSlot}
-			<div className={cn("flex-1 min-h-0 overflow-y-auto", isMobile && "scrollbar-none")}>
+			<div className={cn("@container flex-1 min-h-0 overflow-y-auto", isMobile && "scrollbar-none")}>
 			{/* Input area - auto-expanding (hidden when searching or filtering) */}
 			{/* Search bar */}
 			{/* Search bar — 时光机器模式下隐藏视图切换与搜索，让沉浸式 header 独占顶部 */}
@@ -778,7 +813,17 @@ export function DiaryEditor({
 						t={t}
 					/>
 				) : (
-					<div className={viewMode === "double" ? "columns-2 gap-2 [&>*]:mb-2 [&>*]:break-inside-avoid" : "space-y-2"}>
+					<DndContext
+						sensors={linkDragSensors}
+						collisionDetection={pointerWithin}
+						onDragEnd={handleLinkDragEnd}
+					>
+					<div
+						className={viewMode === "double"
+							// 多列自适应：滚动容器是 @container，按其实际宽度分级列数（保底 2 列）
+							? "columns-2 gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid @min-[940px]:columns-3 @min-[1240px]:columns-4"
+							: "space-y-2"}
+					>
 					{sortedNotes.map((note) => {
 						const isExpanded = expandedCards.has(note.id);
 						const contentLines = note.userNotes?.split("\n") ?? [];
@@ -787,7 +832,7 @@ export function DiaryEditor({
 						const isEditing = editingCardId === note.id;
 
 						return (
-						<div key={note.id}>
+						<NoteLinkDropCard key={note.id} noteId={note.id} disabled={!linkDragEnabled || isEditing}>
 
 							{isTimeMachineMode && !isEditing ? (
 								<TimeMachineNoteCard
@@ -837,19 +882,6 @@ export function DiaryEditor({
 									</>
 								}
 							/>
-							{(() => {
-								const et = extractTagsFromContent(editContent);
-								if (et.length === 0) return null;
-								return (
-									<div className="flex flex-wrap gap-1 px-0.5 pb-1">
-										{et.map((t) => (
-											<span key={t} className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary/70">
-												#{t}
-											</span>
-										))}
-									</div>
-								);
-							})()}
 						</div>
 ) : (
 		// --- Display mode ---
@@ -878,11 +910,18 @@ export function DiaryEditor({
 										})()}
 											</div>
 											{!isEditing && (
-												<>
+												<div className="flex items-center -space-x-1">
 													<button
 														type="button"
-											onClick={(e) => { e.stopPropagation(); addLinkedNote({ id: note.id, name: note.name, userNotes: note.userNotes, date: note.date, tags: note.tags.map((t) => t.tagName) }); }}
-														title={locale === "zh" ? "添加到对话" : "Add to chat"}
+														onClick={(e) => {
+															e.stopPropagation();
+															const linked = { id: note.id, name: note.name, userNotes: note.userNotes, date: note.date, tags: note.tags.map((t) => t.tagName) };
+															addLinkedNote(linked);
+															// 直接打开对话面板并触发默认洞察，无需再手动发送
+															useMobileToolbarStore.getState().setDiaryRightOpen(true);
+															triggerInsight(linked);
+														}}
+														title={locale === "zh" ? "AI 洞察" : "AI insight"}
 														className={cn("rounded p-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-all duration-150 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30", isMobile && "p-2 opacity-100")}
 													>
 														<MessageCircle className="w-3.5 h-3.5" />
@@ -895,7 +934,7 @@ export function DiaryEditor({
 													>
 														<Link2 className="w-3.5 h-3.5" />
 													</button>
-												</>
+												</div>
 											)}
 											<DropdownMenu>
 												<DropdownMenuTrigger asChild>
@@ -966,12 +1005,12 @@ export function DiaryEditor({
 											<button
 												type="button"
 												onClick={() => toggleCard(note.id)}
-												className="flex items-center gap-1 text-xs text-primary/70 hover:text-primary mt-1 transition-colors"
+												className="flex items-center gap-1 text-xs text-[#CC785C] hover:opacity-80 mt-1 transition-colors"
 											>
 												{isExpanded ? (
-													<><ChevronUp className="w-3 h-3" />{" "}</>
+													<><ChevronUp className="w-3 h-3" />{" "}{locale === "zh" ? "收起" : "Collapse"}</>
 												) : (
-													<><ChevronDown className="w-3 h-3" />{" "}({contentLines.length})</>
+													<><ChevronDown className="w-3 h-3" />{" "}{locale === "zh" ? "展开" : "Expand"}</>
 												)}
 											</button>
 										)}
@@ -1007,8 +1046,8 @@ export function DiaryEditor({
 															onClick={() => setReferenceViewNote(note)}
 															className={cn("flex items-start gap-1.5 mt-1.5 text-sm text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left", isMobile && "px-1 py-1")}
 														>
-															<span className="w-3 h-3 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-																<ArrowUpRight className="w-2 h-2 text-primary/60" />
+															<span className="w-3 h-3 rounded-full [background-color:color-mix(in_oklch,var(--color-card-primary,var(--primary))_10%,transparent)] flex items-center justify-center shrink-0 mt-0.5">
+																<ArrowUpRight className="w-2 h-2 [color:var(--color-card-primary,var(--primary))]" />
 															</span>
 															<span className="text-xs text-muted-foreground/40 leading-relaxed line-clamp-1 text-left break-words min-w-0 flex-1">
 																{((ref.name ?? "") + " " + (ref.userNotes ?? "").slice(0, 80)).trim()}
@@ -1022,8 +1061,8 @@ export function DiaryEditor({
 															onClick={() => setReferenceViewNote(note)}
 															className={cn("flex items-start gap-1.5 mt-1.5 text-sm text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left", isMobile && "px-1 py-1")}
 														>
-															<span className="w-3 h-3 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-																<ArrowDownLeft className="w-2 h-2 text-primary/60" />
+															<span className="w-3 h-3 rounded-full [background-color:color-mix(in_oklch,var(--color-card-primary,var(--primary))_10%,transparent)] flex items-center justify-center shrink-0 mt-0.5">
+																<ArrowDownLeft className="w-2 h-2 [color:var(--color-card-primary,var(--primary))]" />
 															</span>
 															<span className="text-xs text-muted-foreground/40 leading-relaxed line-clamp-1 text-left break-words min-w-0 flex-1">
 																{((ref.name ?? "") + " " + (ref.userNotes ?? "").slice(0, 80)).trim()}
@@ -1037,10 +1076,11 @@ export function DiaryEditor({
 									)}
 									</motion.div>
 							)}
-						</div>
+						</NoteLinkDropCard>
 						);
 					})}
 					</div>
+						</DndContext>
 				)}
 				{/* 时光机：底部常驻「再次出发」按钮，纯文字无边框无图标，重新随机穿越；卡片渲染完毕后才显示 */}
 			{isTimeMachineMode && !editingCardId && !timeMachinePending && sortedNotes.length > 0 && (
@@ -1110,6 +1150,51 @@ export function DiaryEditor({
 				)}
 				</div>
 			</div>
+		</div>
+	);
+}
+
+/**
+ * 拖拽建链容器：卡片可整体拖起（distance 8 激活，不干扰点击），
+ * 拖到另一张卡片上方时目标显示高亮环与「松手建立关联」提示；
+ * 放下后由外层 DndContext 的 onDragEnd 调 onLinkNote(target, source) 建链。
+ */
+function NoteLinkDropCard({
+	noteId,
+	disabled,
+	children,
+}: {
+	noteId: number;
+	disabled?: boolean;
+	children: React.ReactNode;
+}) {
+	const { listeners, setNodeRef, isDragging } = useDraggable({
+		id: noteId,
+		disabled,
+	});
+	const { setNodeRef: setDropRef, isOver } = useDroppable({ id: noteId });
+	return (
+		<div
+			ref={(el) => {
+				setNodeRef(el);
+				setDropRef(el);
+			}}
+			{...listeners}
+			className={cn(
+				"relative",
+				!disabled && "cursor-grab active:cursor-grabbing",
+				isDragging && "opacity-40",
+			)}
+		>
+			{children}
+			{isOver && !isDragging && (
+				<div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl ring-2 ring-primary/60 bg-primary/[0.06]">
+					<span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow-md">
+						<Link2 className="h-3.5 w-3.5" />
+						松手建立关联
+					</span>
+				</div>
+			)}
 		</div>
 	);
 }

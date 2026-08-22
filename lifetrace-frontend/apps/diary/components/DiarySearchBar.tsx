@@ -92,8 +92,8 @@ export function DiarySearchBar({
 								? "单列"
 								: "Single column"
 							: locale === "zh"
-								? "双列"
-								: "Double column"
+								? "多列"
+								: "Multi-column"
 					}
 					className="flex h-8 flex-shrink-0 items-center gap-1 rounded-lg border border-border/30 bg-background/50 px-2 text-muted-foreground/60 transition-colors hover:bg-muted/40 hover:text-foreground"
 				>
@@ -113,7 +113,7 @@ export function DiarySearchBar({
 				</DropdownMenuItem>
 				<DropdownMenuItem onClick={() => setViewMode("double")}>
 					<LayoutGrid className="h-3.5 w-3.5 mr-2" />
-					{locale === "zh" ? "双列" : "Double column"}
+					{locale === "zh" ? "多列" : "Multi-column"}
 					{viewMode === "double" && <Check className="h-3.5 w-3.5 ml-auto" />}
 				</DropdownMenuItem>
 			</DropdownMenuContent>

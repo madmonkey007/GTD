@@ -166,12 +166,22 @@ export function useNoteLinkMutations() {
 			sourceNoteId: number;
 			input: NoteLinkInput;
 		}) => {
-			const response = await createLinkApiNotesSourceIdLinksPost(sourceNoteId, {
-				target_note_id: input.targetNoteId,
-				relation_type: input.relationType ?? "RELATES",
-				user_note: input.userNote ?? null,
-			});
-			const data = unwrapApiData<NoteLinkResponse>(response);
+			let data: NoteLinkResponse | null | undefined;
+			try {
+				const response = await createLinkApiNotesSourceIdLinksPost(sourceNoteId, {
+					target_note_id: input.targetNoteId,
+					relation_type: input.relationType ?? "RELATES",
+					user_note: input.userNote ?? null,
+				});
+				data = unwrapApiData<NoteLinkResponse>(response);
+			} catch (err) {
+				// 409 = 两篇笔记已关联：按幂等成功处理，仍走缓存补丁
+				// （不用 instanceof ApiError，双模块实例下会判定失败）
+				if ((err as { status?: number })?.status === 409) {
+					return { sourceNoteId, targetNoteId: input.targetNoteId };
+				}
+				throw err;
+			}
 			return data
 				? normalizeLink(data as unknown as Record<string, unknown>)
 				: null;

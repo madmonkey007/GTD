@@ -8,13 +8,14 @@ import Mention from "@tiptap/extension-mention";
 import { EditorContent, useEditor, ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import MarkdownIt from "markdown-it";
-import { Bold, Highlighter, Underline, ListOrdered, List, Hash, AtSign, Search as SearchIcon, ImagePlus  } from "lucide-react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Bold, Highlighter, Underline, ListOrdered, List, Hash, AtSign, Search as SearchIcon, ImagePlus, MoreHorizontal  } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import TurndownService from "turndown";
 import { uploadJournalImage } from "@/lib/api";
 import { compressImageIfNeeded } from "@/lib/imageCompress";
 import { toast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 type Variant = "create" | "edit";
@@ -53,6 +54,15 @@ interface FormatAction {
 	icon: React.FC<{ className?: string }>;
 	title: string;
 }
+
+// 各格式按钮的显示阈值：容器宽度达标才显示，否则收进「…」菜单
+const FORMAT_CQ = [
+	"@min-[340px]:block", // underline
+	"@min-[380px]:block", // highlight
+	"@min-[420px]:block", // ul
+	"@min-[460px]:block", // ol
+	"@min-[500px]:block", // tag
+];
 
 const FORMAT_ACTIONS: FormatAction[] = [
 	{ key: "bold", icon: Bold, title: "加粗" },
@@ -315,6 +325,8 @@ export function DiaryTiptapEditor({
 	const onBlurRef = useRef(onBlur);
 	onBlurRef.current = onBlur;
 	const [linkPopupOpen, setLinkPopupOpen] = useState(false);
+	// 更多格式弹出（窄卡片下隐藏部分工具栏按钮，点「…」向上展开）
+	const [moreFmtOpen, setMoreFmtOpen] = useState(false);
 	const [linkSearch, setLinkSearch] = useState('');
 	const [linkSort, setLinkSort] = useState<'default' | 'newest' | 'oldest'>('default');
 	const [linkTag, setLinkTag] = useState<string>('all');
@@ -511,7 +523,7 @@ export function DiaryTiptapEditor({
 			Highlight,
 			Mention.configure({
 				HTMLAttributes: {
-					class: "inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary",
+					class: "inline-flex items-center rounded-[50px] px-[10px] py-[3px] font-body text-xs tracking-[0.02em] [background-color:color-mix(in_oklch,var(--color-card-primary,var(--primary))_10%,transparent)] [color:var(--color-card-primary,var(--primary))]",
 				},
 				renderLabel: ({ node }: { node: any }) =>
 					"#" + (node.attrs.label ?? node.attrs.id ?? ""),
@@ -627,11 +639,12 @@ export function DiaryTiptapEditor({
 				.ProseMirror li { margin: 0; }
 				.ProseMirror li::marker { color: rgb(var(--muted-foreground) / 0.8); }
 			`}</style>
-			<div className="DiaryTiptapEditor-toolbar flex items-center justify-between px-2 pb-2 pt-1">
-				<div className="flex items-center gap-0.5">
-				{FORMAT_ACTIONS.map(({ key, icon: Icon, title }) => (
-						<Fragment key={key}>
+<div className="DiaryTiptapEditor-toolbar @container relative flex items-center justify-between gap-1 px-3 pb-2 pt-1">
+					<div className="flex items-center gap-0.5 min-w-0">
+						{/* 常驻：加粗 / 插入图片（多列窄卡片下其余收入「…」菜单，避免溢出） */}
+						{FORMAT_ACTIONS.filter((a) => a.key === "bold").map(({ key, icon: Icon, title }) => (
 							<button
+								key={key}
 								type="button"
 								title={title}
 								onClick={() => runFormat(key)}
@@ -639,51 +652,96 @@ export function DiaryTiptapEditor({
 							>
 								<Icon className="w-4 h-4" />
 							</button>
-							{key === "bold" && (
-								<button
-									type="button"
-									title="插入图片"
-									onClick={onPickFile}
-									className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
-								>
-									<ImagePlus className="w-4 h-4" />
-								</button>
-							)}
-						</Fragment>
-					))}
-					{/* @ 关联笔记 */}
-					{noteLinkList && onLinkNote && (
+						))}
 						<button
 							type="button"
-							onClick={(e) => {
-								if (linkPopupOpen) { setLinkPopupOpen(false); return; }
-								const r = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-								openLinkPopup({ top: r.bottom + 4, left: r.left });
-							}}
-							title="关联笔记"
+							title="插入图片"
+							onClick={onPickFile}
 							className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
 						>
-							<AtSign className="w-4 h-4" />
+							<ImagePlus className="w-4 h-4" />
 						</button>
-					)}
-					<input ref={fileInputRef} type="file" accept="image/*" multiple onChange={onFileChange} className="hidden" />
+						{/* @ 关联笔记 */}
+						{noteLinkList && onLinkNote && (
+							<button
+								type="button"
+								onClick={(e) => {
+									if (linkPopupOpen) { setLinkPopupOpen(false); return; }
+									const r = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+									openLinkPopup({ top: r.bottom + 4, left: r.left });
+								}}
+								title="关联笔记"
+								className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+							>
+								<AtSign className="w-4 h-4" />
+							</button>
+						)}
+						<input ref={fileInputRef} type="file" accept="image/*" multiple onChange={onFileChange} className="hidden" />
+						{/* 格式按钮按容器宽度渐进显示（容器查询），放不下的通过「…」向上弹出访问 */}
+						{FORMAT_ACTIONS.filter((a) => a.key !== "bold").map(({ key, icon: Icon, title }, i) => (
+							<button
+								key={key}
+								type="button"
+								title={title}
+								onClick={() => runFormat(key)}
+								className={cn(
+									"hidden rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors",
+									FORMAT_CQ[i],
+								)}
+							>
+								<Icon className="w-4 h-4" />
+							</button>
+						))}
+						<div className="relative @min-[520px]:hidden">
+							<button
+								type="button"
+								title="更多格式"
+								onClick={() => setMoreFmtOpen((v) => !v)}
+								className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+							>
+								<MoreHorizontal className="w-4 h-4" />
+							</button>
+							{moreFmtOpen && (
+								<>
+									<button
+										type="button"
+										aria-label="关闭"
+										className="fixed inset-0 z-40 cursor-default"
+										onClick={() => setMoreFmtOpen(false)}
+									/>
+									<div className="absolute bottom-full left-0 z-50 mb-1 flex items-center gap-0.5 rounded-lg border border-border/50 bg-popover px-1.5 py-1 shadow-md">
+										{FORMAT_ACTIONS.filter((a) => a.key !== "bold").map(({ key, icon: Icon, title }) => (
+											<button
+												key={key}
+												type="button"
+												title={title}
+												onClick={() => { runFormat(key); setMoreFmtOpen(false); }}
+												className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+											>
+												<Icon className="w-4 h-4" />
+											</button>
+										))}
+									</div>
+								</>
+							)}
+						</div>
+					</div>
+					<div className="flex items-center gap-1 shrink-0">
+						{/* 字数统计 */}
+						<span className="text-[10px] text-muted-foreground/55 select-none tabular-nums mr-1">{wordCount}</span>
+						{/* 语音输入（发送按钮左侧） */}
+						<VoiceInputButton
+							ownerId="diary-tiptap"
+							stopPropagation
+							editorRef={editorRef}
+							onTranscript={(text) => {
+								const ed = editorRef.current;
+								if (ed) ed.chain().focus().insertContent(` ${text}`).run();
+							}}
+						/>
+						{toolbarEnd}
+					</div>
 				</div>
-				<div className="flex items-center gap-1">
-					{/* 字数统计 */}
-					<span className="text-[10px] text-muted-foreground/55 select-none tabular-nums mr-1">{wordCount}</span>
-					{/* 语音输入（发送按钮左侧） */}
-					<VoiceInputButton
-						ownerId="diary-tiptap"
-						stopPropagation
-						editorRef={editorRef}
-						onTranscript={(text) => {
-							const ed = editorRef.current;
-							if (ed) ed.chain().focus().insertContent(` ${text}`).run();
-						}}
-					/>
-					{toolbarEnd}
-				</div>
-			</div>
 			{/* @ 候选弹窗：Portal 到 body，fixed 定位，避免被父容器 overflow/层叠遮挡 */}
 			{linkPopupOpen && noteLinkList && onLinkNote && createPortal(
 				<div

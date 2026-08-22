@@ -135,6 +135,13 @@ export function DiaryPanel() {
 	// So at containerWidth >= ~976, all 3 panels can fit
 	const showLeftInline = !isMobile && (containerWidth >= 1000 || containerWidth === 0);
 	const showRightInline = !isMobile && (containerWidth >= 900 || containerWidth === 0);
+	// 桌面首次进入笔记面板时默认展开对话面板（用户可通过右上角关闭/搜索栏开关再控制）
+	const rightDefaultAppliedRef = useRef(false);
+	useEffect(() => {
+		if (isMobile || rightDefaultAppliedRef.current) return;
+		rightDefaultAppliedRef.current = true;
+		if (!rightDrawerOpen) setRightDrawerOpen(true);
+	}, [isMobile, rightDrawerOpen, setRightDrawerOpen]);
 	const {
 		leftWidth,
 		rightWidth,
@@ -882,7 +889,7 @@ const handleSaveCardEdit = async (
 							notesResetSignal={notesResetSignal}
 							onInlineTag={handleInlineTag}
 							showLeftToggle={!showLeftInline}
-							showRightToggle={!showRightInline}
+							showRightToggle
 							isLeftOpen={leftDrawerOpen}
 							isRightOpen={rightDrawerOpen}
 							onToggleLeft={() => setLeftDrawerOpen(!leftDrawerOpen)}
@@ -960,7 +967,7 @@ const handleSaveCardEdit = async (
 							notesResetSignal={notesResetSignal}
 							onInlineTag={handleInlineTag}
 							showLeftToggle={!showLeftInline}
-							showRightToggle={!showRightInline}
+							showRightToggle
 							isLeftOpen={leftDrawerOpen}
 							isRightOpen={rightDrawerOpen}
 							onToggleLeft={() => setLeftDrawerOpen(!leftDrawerOpen)}
@@ -970,14 +977,14 @@ const handleSaveCardEdit = async (
 					)}
 				</div>
 		{/* Right-side chat panel for AI analysis — inline when wide, otherwise hidden (drawer overlay) */}
-		{showRightInline && collectionView === "none" && (
+		{showRightInline && collectionView === "none" && rightDrawerOpen && (
 			<>
 				<ResizeHandle
 					onPointerDown={handleRightResizePointerDown}
 					isDragging={isDraggingRight}
 				/>
 				<div className="flex-shrink flex flex-col rounded-(--radius) bg-[oklch(var(--card))] shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_1px_3px_0_rgba(0,0,0,0.06)] overflow-hidden" style={{ width: rightWidth }}>
-					<DiaryChatPanel noteContent={noteContent} currentJournalId={activeJournal?.id ?? null} onNoteMutated={handleNoteMutated} />
+					<DiaryChatPanel noteContent={noteContent} currentJournalId={activeJournal?.id ?? null} onClose={() => setRightDrawerOpen(false)} onNoteMutated={handleNoteMutated} />
 				</div>
 			</>
 		)}

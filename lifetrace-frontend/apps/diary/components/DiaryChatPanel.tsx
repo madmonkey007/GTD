@@ -227,7 +227,7 @@ function EmptyState({ onTabSelect }: { onTabSelect: (tab: TabDef) => void }) {
 
         <div className="space-y-1.5">
           <h2 className="text-base font-semibold tracking-tight text-foreground">
-            思维分析
+            AI 洞察
           </h2>
           <p className="text-sm text-muted-foreground/70 leading-relaxed max-w-[240px]">
             选择一个分析维度开始探索，或直接输入你的问题
@@ -380,6 +380,8 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const clearLinkedNotes = useNoteChatStore((s) => s.clearLinkedNotes);
+  const pendingInsight = useNoteChatStore((s) => s.pendingInsight);
+  const clearPendingInsight = useNoteChatStore((s) => s.clearPendingInsight);
   const { locale } = useLocaleStore();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -581,6 +583,30 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
     doStream(noteCtx ? `${noteCtx}\n\n${basePrompt}` : basePrompt, aid);
   }, [noteContent, isStreaming, doStream]);
 
+  // 卡片「添加到对话」直接触发默认洞察：消费 pendingInsight，
+  // 以该笔记正文为分析对象，其余关联笔记作为上下文
+  const handledInsightRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!pendingInsight || isStreaming) return;
+    if (handledInsightRef.current === pendingInsight.id) return;
+    handledInsightRef.current = pendingInsight.id;
+    const note = pendingInsight;
+    clearPendingInsight();
+    const uid = createId();
+    const aid = createId();
+    setMessages((prev) => [
+      ...prev,
+      { id: uid, role: "user", content: `🧠 默认洞察 · ${note.name || note.date}` },
+      { id: aid, role: "assistant", content: "" },
+    ]);
+    const basePrompt = TAB_PROMPTS.insight.replace(
+      "{{notes}}",
+      `笔记标题: ${note.name || "未命名"}\n笔记内容: ${note.userNotes || "无内容"}\n日期: ${note.date}`,
+    );
+    const noteCtx = buildNoteContext();
+    doStream(noteCtx ? `${noteCtx}\n\n${basePrompt}` : basePrompt, aid);
+  }, [pendingInsight, isStreaming, clearPendingInsight, doStream]);
+
   const handleSendInput = useCallback(async () => {
     if (isStreaming) return;
     const linked = useNoteChatStore.getState().linkedNotes;
@@ -648,7 +674,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
             <Sparkles className="w-3.5 h-3.5 text-primary/60" />
           </div>
           <span className="text-sm font-semibold tracking-tight text-foreground/80">
-            思维分析
+            AI 洞察
           </span>
           {/* 右侧：生成中指示 + 历史记录 */}
           <div className="ml-auto flex items-center gap-1.5">
@@ -711,6 +737,19 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
                   </div>
                 </>
               )}
+            {!showBackButton && onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                title="关闭"
+                className="ml-1 p-1 text-muted-foreground/70 hover:text-foreground transition-colors rounded-md hover:bg-muted/50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18"/>
+                  <path d="m6 6 12 12"/>
+                </svg>
+              </button>
+            )}
             </div>
           </div>
         </div>
