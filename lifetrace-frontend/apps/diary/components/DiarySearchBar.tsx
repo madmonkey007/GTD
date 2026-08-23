@@ -3,6 +3,7 @@
 import {
 	Check,
 	ChevronDown,
+	Layers,
 	List,
 	LayoutGrid,
 	Search,
@@ -24,8 +25,8 @@ interface DiarySearchBarProps {
 	isRightOpen: boolean;
 	onToggleLeft?: () => void;
 	onToggleRight?: () => void;
-	viewMode: "single" | "double";
-	setViewMode: (m: "single" | "double") => void;
+	viewMode: "single" | "double" | "relation";
+	setViewMode: (m: "single" | "double" | "relation") => void;
 	searchQuery: string;
 	setSearchQuery: (v: string) => void;
 	locale: string;
@@ -91,14 +92,20 @@ export function DiarySearchBar({
 							? locale === "zh"
 								? "单列"
 								: "Single column"
-							: locale === "zh"
-								? "多列"
-								: "Multi-column"
+							: viewMode === "relation"
+								? locale === "zh"
+									? "关系"
+									: "Relations"
+								: locale === "zh"
+									? "多列"
+									: "Multi-column"
 					}
 					className="flex h-8 flex-shrink-0 items-center gap-1 rounded-lg border border-border/30 bg-background/50 px-2 text-muted-foreground/60 transition-colors hover:bg-muted/40 hover:text-foreground"
 				>
 					{viewMode === "single" ? (
 						<List className="h-3.5 w-3.5" />
+					) : viewMode === "relation" ? (
+						<Layers className="h-3.5 w-3.5" />
 					) : (
 						<LayoutGrid className="h-3.5 w-3.5" />
 					)}
@@ -115,6 +122,11 @@ export function DiarySearchBar({
 					<LayoutGrid className="h-3.5 w-3.5 mr-2" />
 					{locale === "zh" ? "多列" : "Multi-column"}
 					{viewMode === "double" && <Check className="h-3.5 w-3.5 ml-auto" />}
+				</DropdownMenuItem>
+				<DropdownMenuItem onClick={() => setViewMode("relation")}>
+					<Layers className="h-3.5 w-3.5 mr-2" />
+					{locale === "zh" ? "关系" : "Relations"}
+					{viewMode === "relation" && <Check className="h-3.5 w-3.5 ml-auto" />}
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>

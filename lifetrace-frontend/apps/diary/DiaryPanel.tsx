@@ -101,6 +101,22 @@ export function DiaryPanel() {
 	const [pendingLinks, setPendingLinks] = useState<{ id: number; name: string }[]>([]);
 	// 提交成功后自增，通知 DiaryEditor 重置分页到第一页（否则滚动加载后新建的笔记不显示）
 	const [notesResetSignal, setNotesResetSignal] = useState(0);
+	// 离线优先的本地笔记变更事件：新建/删除后由 DiaryEditor 直接改本地列表即时显示，
+	// 不依赖缓存补丁/后端往返（云端后端延迟高时也能"删除即消失、新增即出现"）
+	const [localNoteEvent, setLocalNoteEvent] = useState<{
+		seq: number;
+		type: "create" | "delete";
+		note?: JournalView;
+		id?: number;
+	} | null>(null);
+	const localNoteSeqRef = useRef(0);
+	const emitLocalNote = useCallback(
+		(event: { type: "create" | "delete"; note?: JournalView; id?: number }) => {
+			localNoteSeqRef.current += 1;
+			setLocalNoteEvent({ seq: localNoteSeqRef.current, ...event });
+		},
+		[],
+	);
 	const {
 		refreshMode,
 		fixedTime,
@@ -488,6 +504,7 @@ const handleDeleteJournal = async (note: TrashEntry) => {
 		});
 		await deleteJournal(note.id);
 		clearAfterSubmit.current = true;
+		emitLocalNote({ type: "delete", id: note.id });
 		// 删除的正是当前打开/编辑的笔记：清空草稿，避免编辑器残留已删除内容
 		if (draft.id === note.id) {
 			setNotesResetSignal((v) => v + 1);
@@ -744,6 +761,7 @@ const handleSaveCardEdit = async (
 				if (result) {
 					setAnnotateTarget(null);
 					clearAfterSubmit.current = true;
+					emitLocalNote({ type: "create", note: result });
 					// 项目视图下批注产生的新笔记自动加入当前项目，使其出现在项目笔记列表
 					if (projectViewOpen && project) {
 						try {
@@ -781,6 +799,7 @@ const handleSaveCardEdit = async (
 			// 保存失败时保留草稿不清空，避免内容丢失
 			if (!saved) return;
 			// 新笔记已由 mutation onSuccess 直接写入列表/统计缓存，无需全量 refetch
+			emitLocalNote({ type: "create", note: saved });
 			setNotesResetSignal((v) => v + 1);
 			setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "" }));
 			clearAfterSubmit.current = true;
@@ -895,6 +914,7 @@ const handleSaveCardEdit = async (
 							onSubmit={handleSubmitNotes}
 							submitting={isSubmitting}
 							notesResetSignal={notesResetSignal}
+							localNoteEvent={localNoteEvent}
 							onInlineTag={handleInlineTag}
 							showLeftToggle={!showLeftInline}
 							showRightToggle
@@ -973,6 +993,7 @@ const handleSaveCardEdit = async (
 							onSubmit={handleSubmitNotes}
 							submitting={isSubmitting}
 							notesResetSignal={notesResetSignal}
+							localNoteEvent={localNoteEvent}
 							onInlineTag={handleInlineTag}
 							showLeftToggle={!showLeftInline}
 							showRightToggle

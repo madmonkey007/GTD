@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type DiaryViewMode = "single" | "double";
+type DiaryViewMode = "single" | "double" | "relation";
 
 /**
  * 移动端单标题栏工具栏状态。
@@ -32,8 +32,10 @@ export const useMobileToolbarStore = create<MobileToolbarState>((set) => ({
 	setDiarySearchQuery: (query) => set({ diarySearchQuery: query }),
 	diaryViewMode:
 		typeof window !== "undefined" &&
-		window.localStorage.getItem("diary-view-mode") === "double"
-			? "double"
+		["double", "relation"].includes(
+			window.localStorage.getItem("diary-view-mode") ?? "",
+		)
+			? (window.localStorage.getItem("diary-view-mode") as DiaryViewMode)
 			: "single",
 	setDiaryViewMode: (mode) => {
 		if (typeof window !== "undefined") {

@@ -22,6 +22,7 @@ import {
 	AudioConfigSection,
 	AutomationTasksSection,
 	AutoTodoDetectionSection,
+	InboxDraftSettingsSection,
 	JournalSettingsSection,
 	LlmConfigSection,
 	NotificationPermissionSection,
@@ -148,6 +149,7 @@ export function SettingsPanel() {
 					<>
 						<AppearanceSection />
 						<TimeMachineStyleSection />
+						<InboxDraftSettingsSection />
 						<NotificationPermissionSection loading={loading} />
 					</>
 				);

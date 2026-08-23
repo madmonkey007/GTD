@@ -17,6 +17,10 @@ import { useMobileToolbarStore } from "@/lib/store/mobile-toolbar-store";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useTodoStore } from "@/lib/store/todo-store";
 import { useFocusTarget } from "@/lib/store/focus-target-store";
+import { useInboxDraftStore, type InboxDraft } from "@/lib/store/inbox-draft-store";
+import { useTodoMutations } from "@/lib/query/todos";
+import { useJournalMutations } from "@/lib/query";
+import { toast } from "@/lib/toast";
 import { queryKeys } from "@/lib/query/keys";
 import { useChatSessions, useChatHistory } from "@/lib/query/chat";
 import { MessageBubble } from "@/apps/chat/components/chat-ui/index";
@@ -236,6 +240,30 @@ export function QuickCommandPanel() {
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  // 收集箱草稿（仅本地）：Enter 存草稿；右上角收集箱入口可转待办/笔记或交给 agent
+  const drafts = useInboxDraftStore((s) => s.drafts);
+  const addDraft = useInboxDraftStore((s) => s.addDraft);
+  const removeDraft = useInboxDraftStore((s) => s.removeDraft);
+  const pruneExpired = useInboxDraftStore((s) => s.pruneExpired);
+  const { createTodo } = useTodoMutations();
+  const { createJournal } = useJournalMutations();
+  const [inboxOpen, setInboxOpen] = useState(false);
+  // 打开面板/挂载时清理过期草稿（失效时长在设置中配置，默认 24 小时）
+  useEffect(() => {
+    pruneExpired();
+  }, [pruneExpired]);
+  // 点击收集箱面板外部时收起
+  const inboxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!inboxOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (inboxRef.current && !inboxRef.current.contains(e.target as Node)) {
+        setInboxOpen(false);
+      }
+    };
+    setTimeout(() => document.addEventListener("mousedown", handler), 0);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [inboxOpen]);
 
   // 历史记录（移动端由 MobileTopBar 的 History 按钮驱动，状态上提到全局 store）
   const { agentHistoryOpen: historyOpen, setAgentHistoryOpen: setHistoryOpen } =
@@ -382,12 +410,66 @@ export function QuickCommandPanel() {
   );
 
   const onSubmit = useCallback(() => {
+    // 回车/发送 = 收集箱草稿：不触发 agent，内容仅存本地，后续可转待办或交给 agent
+    const text = input.trim();
+    if (!text || isStreaming) return;
+    addDraft(text);
+    setInput("");
+    if (taRef.current) taRef.current.style.height = "auto";
+    toast(locale === "zh" ? "已存入收集箱草稿" : "Saved to inbox drafts");
+  }, [input, isStreaming, addDraft, locale]);
+
+  const onAgentSubmit = useCallback(() => {
+    // 输入框内的 ✨ 按钮 = agent 模式：按现有 quick_command 流程执行
     const text = input.trim();
     if (!text || isStreaming) return;
     setInput("");
     if (taRef.current) taRef.current.style.height = "auto";
     void doStream(text);
   }, [input, isStreaming, doStream]);
+
+  const sendDraftToAgent = useCallback(
+    (draft: InboxDraft) => {
+      if (isStreaming) return;
+      removeDraft(draft.id);
+      void doStream(draft.text);
+    },
+    [isStreaming, removeDraft, doStream],
+  );
+
+  const promoteDraft = useCallback(
+    async (draft: InboxDraft) => {
+      try {
+        await createTodo({ name: draft.text });
+        removeDraft(draft.id);
+        toast(locale === "zh" ? "已转为待办" : "Promoted to todo");
+      } catch {
+        toast(locale === "zh" ? "创建待办失败" : "Failed to create todo", { type: "warning" });
+      }
+    },
+    [createTodo, removeDraft, locale],
+  );
+
+  const promoteDraftToNote = useCallback(
+    async (draft: InboxDraft) => {
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const pseudoName = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      try {
+        await createJournal({
+          name: pseudoName,
+          user_notes: draft.text,
+          date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+          content_format: "markdown",
+        });
+        removeDraft(draft.id);
+        toast(locale === "zh" ? "已转为笔记" : "Promoted to note");
+      } catch {
+        toast(locale === "zh" ? "创建笔记失败" : "Failed to create note", { type: "warning" });
+      }
+    },
+    [createJournal, removeDraft, locale],
+  );
 
   const onStop = useCallback(() => {
     abortRef.current?.abort();
@@ -499,6 +581,92 @@ export function QuickCommandPanel() {
         )}
       </div>
 
+      {/* 收集箱入口：页面右上角，展示未处理草稿数，点开为面板 */}
+      <div ref={inboxRef} className={isMobile ? "absolute right-3 top-14 z-30" : "absolute right-3 top-3 z-30"}>
+        <button
+          type="button"
+          onClick={() => setInboxOpen((v) => !v)}
+          title={locale === "zh" ? "收集箱草稿" : "Inbox drafts"}
+          className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+        >
+          <ListTodo className="h-4 w-4" />
+          {drafts.length > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium leading-none text-primary-foreground">
+              {drafts.length}
+            </span>
+          )}
+        </button>
+        {inboxOpen && (
+          <div className="absolute right-0 top-11 w-80 max-w-[calc(100vw-1.5rem)] rounded-xl border border-border/60 bg-popover p-2 shadow-lg">
+            <div className="flex items-center justify-between px-1.5 pb-1.5">
+              <span className="text-xs font-semibold text-foreground">
+                {locale === "zh" ? `收集箱草稿 ${drafts.length} 条` : `${drafts.length} drafts`}
+              </span>
+              {drafts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => useInboxDraftStore.getState().clearDrafts()}
+                  className="text-[10px] text-muted-foreground/60 hover:text-destructive transition-colors"
+                >
+                  {locale === "zh" ? "清空" : "Clear"}
+                </button>
+              )}
+            </div>
+            {drafts.length === 0 ? (
+              <p className="px-1.5 py-4 text-center text-xs text-muted-foreground/60">
+                {locale === "zh" ? "暂无草稿，Enter 即可存入" : "No drafts yet; press Enter to save"}
+              </p>
+            ) : (
+              <div className="max-h-72 space-y-1.5 overflow-y-auto">
+                {drafts.map((d) => (
+                  <div key={d.id} className="rounded-lg border border-border/50 bg-background px-2.5 py-2">
+                    <p className="break-words text-xs leading-relaxed text-foreground/85">{d.text}</p>
+                    <div className="mt-1.5 flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => void promoteDraft(d)}
+                        title={locale === "zh" ? "转为待办" : "To todo"}
+                        className="flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                      >
+                        <ListTodo className="h-3 w-3" />
+                        {locale === "zh" ? "待办" : "Todo"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void promoteDraftToNote(d)}
+                        title={locale === "zh" ? "转为笔记" : "To note"}
+                        className="flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                      >
+                        <BookOpen className="h-3 w-3" />
+                        {locale === "zh" ? "笔记" : "Note"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => sendDraftToAgent(d)}
+                        disabled={isStreaming}
+                        title={locale === "zh" ? "交给 Agent" : "Ask agent"}
+                        className="flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-30"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        Agent
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeDraft(d.id)}
+                        title={locale === "zh" ? "删除" : "Delete"}
+                        className="ml-auto rounded p-1 text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* 输入区 */}
       <div className="border-t border-border/30 px-4 py-3">
         <div className="mx-auto flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3 py-2 focus-within:border-primary/40 transition-colors" style={{ width: isMobile ? "100%" : "70%" }}>
@@ -512,7 +680,7 @@ export function QuickCommandPanel() {
             }}
             onKeyDown={onKeyDown}
             rows={1}
-            placeholder={locale === "zh" ? "输入指令…（Enter 发送，Shift+Enter 换行）" : "Type a command… (Enter to send)"}
+            placeholder={locale === "zh" ? "输入内容，Enter 存为收集箱草稿；点 ✨ 交给 Agent" : "Type… Enter saves a draft; ✨ asks the agent"}
             className="flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/40 max-h-40"
           />
           <VoiceInputButton
@@ -528,6 +696,16 @@ export function QuickCommandPanel() {
             }}
             className="flex-shrink-0 rounded-lg p-2.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           />
+          {/* Agent 按钮：输入框内，点击走现有 agent 模式（不点则 Enter 仅存本地草稿） */}
+          <button
+            type="button"
+            onClick={onAgentSubmit}
+            disabled={!input.trim() || isStreaming}
+            title={locale === "zh" ? "交给 Agent 执行" : "Ask agent"}
+            className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
           {isStreaming ? (
             <button
               type="button"
@@ -542,7 +720,7 @@ export function QuickCommandPanel() {
               type="button"
               onClick={onSubmit}
               disabled={!input.trim()}
-              title="发送"
+              title={locale === "zh" ? "存为草稿" : "Save draft"}
               className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ArrowUp className="w-4 h-4" />

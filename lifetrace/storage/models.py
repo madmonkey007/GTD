@@ -201,6 +201,21 @@ class AutomationTask(TimestampMixin, table=True):
         return f"<AutomationTask(id={self.id}, name={self.name}, enabled={self.enabled})>"
 
 
+class JournalImage(SQLModel, table=True):
+    """笔记图片（serverless 部署落盘不可靠，图片字节直接入库，经 /api/journals/images/{name} 服务）"""
+
+    __tablename__: ClassVar[str] = "journal_images"
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(max_length=100, unique=True, index=True)
+    mime_type: str = Field(default="image/png", max_length=100)
+    data: bytes = Field(sa_column=Column(LargeBinary))
+    created_at: datetime = Field(default_factory=get_utc_time)
+
+    def __repr__(self):
+        return f"<JournalImage(id={self.id}, name={self.name})>"
+
+
 class Attachment(TimestampMixin, table=True):
     """附件信息模型"""
 

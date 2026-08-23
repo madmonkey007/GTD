@@ -6,6 +6,7 @@ import {
 	Check,
 	History,
 	LayoutGrid,
+	Layers,
 	List,
 	Search,
 	Sparkles,
@@ -125,14 +126,20 @@ export function MobileTopBar() {
 							? locale === "zh"
 								? "单列"
 								: "Single column"
-							: locale === "zh"
-								? "双列"
-								: "Double column"
+							: diaryViewMode === "relation"
+								? locale === "zh"
+									? "关系"
+									: "Relations"
+								: locale === "zh"
+									? "双列"
+									: "Double column"
 					}
 					className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-border/30 bg-background/50 text-muted-foreground/60 transition-colors hover:bg-muted/40 hover:text-foreground"
 				>
 					{diaryViewMode === "single" ? (
 						<List className="h-3.5 w-3.5" />
+					) : diaryViewMode === "relation" ? (
+						<Layers className="h-3.5 w-3.5" />
 					) : (
 						<LayoutGrid className="h-3.5 w-3.5" />
 					)}
@@ -148,6 +155,11 @@ export function MobileTopBar() {
 					<LayoutGrid className="h-3.5 w-3.5 mr-2" />
 					{locale === "zh" ? "双列" : "Double column"}
 					{diaryViewMode === "double" && <Check className="h-3.5 w-3.5 ml-auto" />}
+				</DropdownMenuItem>
+				<DropdownMenuItem onClick={() => setDiaryViewMode("relation")}>
+					<Layers className="h-3.5 w-3.5 mr-2" />
+					{locale === "zh" ? "关系" : "Relations"}
+					{diaryViewMode === "relation" && <Check className="h-3.5 w-3.5 ml-auto" />}
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>

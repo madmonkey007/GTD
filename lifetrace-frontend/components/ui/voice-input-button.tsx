@@ -2,6 +2,7 @@
 
 import { Mic, MicOff } from "lucide-react";
 import { useEffect, useState, type MouseEvent } from "react";
+import { useConfig } from "@/lib/query";
 import { useVoiceInput } from "@/lib/hooks/useVoiceInput";
 
 interface VoiceInputButtonProps {
@@ -37,6 +38,17 @@ export function VoiceInputButton({
 	});
 
 	const [elapsedTime, setElapsedTime] = useState(0);
+
+	// 云端语音输入尚不完善：云端 /api/get-config 不下发 ASR key（返回空配置），
+	// 配置未就绪时直接隐藏麦克风按钮；本地配置了 ASR 则照常显示
+	const { data: appConfig } = useConfig();
+	const asrKey = String(
+		(appConfig as Record<string, unknown> | undefined)?.audio_asr_api_key ??
+			(appConfig as Record<string, unknown> | undefined)?.audioAsrApiKey ??
+			"",
+	).trim();
+	const asrConfigured = asrKey.length > 0 && !/YOUR_(LLM|ASR|API)_KEY_HERE|XXX/.test(asrKey.toUpperCase());
+
 	useEffect(() => {
 		const start = voice.recordingStartedAt;
 		if (!voice.isRecording || !start) {
@@ -52,6 +64,13 @@ export function VoiceInputButton({
 		const interval = setInterval(update, 1000);
 		return () => clearInterval(interval);
 	}, [voice.isRecording, voice.recordingStartedAt]);
+
+	// 云端语音输入尚不完善：云端 /api/get-config 不下发 ASR key（返回空配置），
+	// 配置未就绪时直接隐藏麦克风按钮；本地配置了 ASR 则照常显示。
+	// 注意必须放在所有 hooks 之后，避免条件渲染破坏 hooks 规则。
+	if (appConfig !== undefined && !asrConfigured) {
+		return null;
+	}
 
 	const formatTime = (seconds: number) => {
 		const mins = Math.floor(seconds / 60);

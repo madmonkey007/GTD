@@ -25,3 +25,4 @@ export { ToggleSwitch } from "./ToggleSwitch";
 export { AppearanceSection } from "./AppearanceSection";
 export { VersionInfoSection } from "./VersionInfoSection";
 export { TimeMachineStyleSection } from "./TimeMachineStyleSection";
+export { InboxDraftSettingsSection } from "./InboxDraftSettingsSection";

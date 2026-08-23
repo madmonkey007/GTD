@@ -5,7 +5,7 @@ from pathlib import Path as PathLibPath
 from uuid import uuid4
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, File, UploadFile, Response
 
 from lifetrace.core.dependencies import get_journal_service
 from lifetrace.schemas.journal import (
@@ -59,12 +59,31 @@ def _sanitize_alt(filename: str) -> str:
     return stem[:50] or "image"
 
 
+_IMAGE_MIME_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
+
+
+def _store_image_in_db() -> bool:
+    """serverless（Vercel）部署文件系统临时且无 StaticFiles，图片字节直接入库。"""
+    import os
+
+    return bool(os.environ.get("VERCEL") or os.environ.get("LIFETRACE_DB_IMAGES"))
+
+
 @router.post("/api/journals/upload-image", status_code=201)
 async def upload_journal_image(file: UploadFile = File(..., description="图片文件")):
-    """上传笔记图片，落盘到 uploads/journal-images/，返回可在前端访问的相对 URL。
+    """上传笔记图片，返回可在前端访问的相对 URL。
 
     返回结构: {url, filename, alt, size}
-    url 形如 /uploads/journal-images/<uuid>.<ext>，前端经 next.config rewrite 代理到后端 StaticFiles。
+    - 常规部署：落盘 uploads/journal-images/，url 形如 /uploads/journal-images/<uuid>.<ext>，
+      前端经 next.config rewrite 代理到后端 StaticFiles。
+    - serverless 部署：文件系统不可靠，字节写入 journal_images 表，
+      url 形如 /api/journals/images/<uuid>.<ext>，由 GET 接口从 DB 读取。
     """
     content = await file.read()
     if not content:
@@ -77,13 +96,29 @@ async def upload_journal_image(file: UploadFile = File(..., description="图片�
         raise HTTPException(status_code=400, detail="仅支持 PNG/JPEG/GIF/WEBP 图片")
 
     storage_name = f"{uuid4().hex}{ext}"
-    image_dir = get_journal_image_dir()
-    image_dir.mkdir(parents=True, exist_ok=True)
-    (image_dir / storage_name).write_bytes(content)
-
-    rel_dir = settings.journal_images_dir.strip("/")
-    url = f"/{rel_dir}/{storage_name}"
     alt = _sanitize_alt(file.filename or storage_name)
+
+    if _store_image_in_db():
+        from lifetrace.storage.database import SessionLocal
+        from lifetrace.storage.models import JournalImage
+
+        with SessionLocal() as session:
+            session.add(
+                JournalImage(
+                    name=storage_name,
+                    mime_type=_IMAGE_MIME_TYPES.get(ext, "image/png"),
+                    data=content,
+                )
+            )
+            session.commit()
+        url = f"/api/journals/images/{storage_name}"
+    else:
+        image_dir = get_journal_image_dir()
+        image_dir.mkdir(parents=True, exist_ok=True)
+        (image_dir / storage_name).write_bytes(content)
+        rel_dir = settings.journal_images_dir.strip("/")
+        url = f"/{rel_dir}/{storage_name}"
+
     logger.info(
         f"笔记图片上传: {file.filename} -> {storage_name} ({len(content)} bytes)"
     )
@@ -93,6 +128,26 @@ async def upload_journal_image(file: UploadFile = File(..., description="图片�
         "alt": alt,
         "size": len(content),
     }
+
+
+@router.get("/api/journals/images/{image_name}", status_code=200)
+async def get_journal_image(image_name: str = Path(..., description="图片存储名")):
+    """从 journal_images 表读取图片字节（serverless 上传路径的读取端）。"""
+    from lifetrace.storage.database import SessionLocal
+    from lifetrace.storage.models import JournalImage
+
+    if not re.fullmatch(r"[0-9a-f]{32}\.(png|jpg|jpeg|gif|webp)", image_name):
+        raise HTTPException(status_code=404, detail="图片不存在")
+
+    with SessionLocal() as session:
+        row = (
+            session.query(JournalImage)
+            .filter(JournalImage.name == image_name)
+            .first()
+        )
+    if row is None:
+        raise HTTPException(status_code=404, detail="图片不存在")
+    return Response(content=row.data, media_type=row.mime_type)
 
 
 @router.post("/api/journals", response_model=JournalResponse, status_code=201)

@@ -35,6 +35,8 @@ import {
 	Link2,
 	CheckSquare,
 	Plus,
+	Copy,
+	Layers,
 } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import type { JournalDraft } from "@/apps/diary/types";
@@ -48,6 +50,7 @@ import {
 import { queryKeys } from "@/lib/query/keys";
 import { unwrapApiData } from "@/lib/api/fetcher";
 import { cn } from "@/lib/utils";
+import { toast } from "@/lib/toast";
 
 import {
 	DropdownMenu,
@@ -80,6 +83,19 @@ import { useJournalStore } from "@/lib/store/journal-store";
 import { useMobileToolbarStore } from "@/lib/store/mobile-toolbar-store";
 
 export type DiaryFilterMode = "all" | "last7" | "random" | "todo";
+
+// 鼠标专用指针传感器：忽略 touch 指针，触摸手势统一走 TouchSensor 的长按激活。
+// iOS（尤其 PWA standalone）中 touch 流可能先触发 PointerSensor 的 distance 激活，
+// 且浏览器接管滚动后不总是派发 pointercancel，导致长按拖拽失效或滚动误判为拖拽。
+class MouseSensor extends PointerSensor {
+	static override activators = [
+		{
+			eventName: "onPointerDown" as const,
+			handler: ({ nativeEvent: event }: { nativeEvent: PointerEvent }) =>
+				event.pointerType !== "touch",
+		},
+	];
+}
 
 interface DiaryEditorProps {
 	draft: JournalDraft;
@@ -129,6 +145,8 @@ interface DiaryEditorProps {
 	filterJournalIds?: number[] | null;
 	/** 渲染在笔记区顶部（输入区上方）的自定义头部，如项目标题栏 */
 	headerSlot?: ReactNode;
+	/** 离线优先的本地笔记变更事件：新建/删除后直接改本地列表，不等后端缓存刷新 */
+	localNoteEvent?: { seq: number; type: "create" | "delete"; note?: JournalView; id?: number } | null;
 }
 
 export function DiaryEditor({
@@ -171,15 +189,16 @@ export function DiaryEditor({
 	notesResetSignal = 0,
 	filterJournalIds,
 	headerSlot,
+	localNoteEvent,
 }: DiaryEditorProps) {
 	const t = useTranslations("journalPanel");
 	const locale = useLocale();
 	const isMobile = useIsMobile();
 	// 拖拽建链：非时光机、且宿主提供了 onLinkNote 时启用（移动端长按 250ms 激活，不影响列表滚动）
 	const linkDragEnabled = !timeMachinePending && !timeMachineDate && !!onLinkNote;
-	// 桌面：移动 8px 即激活；移动端：长按 250ms 激活，按压期间移动超过容差视为滚动并取消
+	// 桌面：鼠标移动 8px 即激活；移动端：长按 250ms 激活，按压期间移动超过容差视为滚动并取消
 	const linkDragSensors = useSensors(
-		useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+		useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
 		useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
 	);
 	const handleLinkDragEnd = (event: DragEndEvent) => {
@@ -208,6 +227,8 @@ export function DiaryEditor({
 	const autoFilledRef = { current: false };
 		const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
 		const [refsExpanded, setRefsExpanded] = useState<Set<number>>(new Set());
+	// 关系视图：已展开的叠放组（key = 组内最新一张笔记的 id）
+	const [expandedStacks, setExpandedStacks] = useState<Set<number>>(new Set());
 	const [deleteDialogNote, setDeleteDialogNote] = useState<JournalView | null>(null);
 	const addLinkedNote = useNoteChatStore((s) => s.addLinkedNote);
 	const triggerInsight = useNoteChatStore((s) => s.triggerInsight);
@@ -364,6 +385,22 @@ export function DiaryEditor({
 		loadedPagesRef.current = 0;
 	}, [notesResetSignal]);
 
+	// 离线优先：新建/删除笔记事件直接改本地 allNotes（云端后端往返慢时也能即时显示/消失），
+	// 后台缓存补丁与自然刷新稍后自动对齐
+	const prevLocalEventRef = useRef(0);
+	useEffect(() => {
+		if (!localNoteEvent || localNoteEvent.seq === prevLocalEventRef.current) return;
+		prevLocalEventRef.current = localNoteEvent.seq;
+		if (localNoteEvent.type === "delete" && localNoteEvent.id != null) {
+			setAllNotes((prev) => prev.filter((n) => n.id !== localNoteEvent.id));
+		} else if (localNoteEvent.type === "create" && localNoteEvent.note) {
+			const note = localNoteEvent.note;
+			setAllNotes((prev) =>
+				prev.some((n) => n.id === note.id) ? prev : [note, ...prev],
+			);
+		}
+	}, [localNoteEvent]);
+
 	// 滚动加载更多（IntersectionObserver）
 	useEffect(() => {
 		const el = sentinelRef.current;
@@ -517,6 +554,67 @@ export function DiaryEditor({
 		}
 		return sorted;
 	}, [notesList, pinnedIds, filterMode, tagFilter, similarToNoteId, randomShuffle, filterJournalIds, timeMachinePending]);
+
+	// ---- 关系视图 ----
+	// 按引用关系的无向连通分量分组：有关联的笔记叠成一摞（顶部最新一张 + 后层卡片阴影），
+	// 无关联的独立一张。relatedNoteIds 有向，但叠放视觉按"互相有关"理解，用并查集求连通分量。
+	// stacks: 顶部笔记 id -> 组大小；relationNotes: 实际渲染序列（未展开的组仅渲染顶部一张）
+	const { relationStacks, relationNotes } = useMemo(() => {
+		const empty = { relationStacks: new Map<number, { size: number }>(), relationNotes: sortedNotes };
+		if (viewMode !== "relation") return empty;
+		const ids = new Set(sortedNotes.map((n) => n.id));
+		const parent = new Map<number, number>();
+		const find = (x: number): number => {
+			let r = x;
+			while (parent.get(r) !== r) r = parent.get(r) as number;
+			let cur = x;
+			while (parent.get(cur) !== cur) {
+				const next = parent.get(cur) as number;
+				parent.set(cur, r);
+				cur = next;
+			}
+			return r;
+		};
+		for (const id of ids) parent.set(id, id);
+		// 边来自当前列表与全量列表两边的 relatedNoteIds（仅两端都在当前列表时才连）
+		for (const n of [...notesList, ...((relatedNotesData ?? []) as JournalView[])]) {
+			for (const rid of n.relatedNoteIds ?? []) {
+				if (ids.has(n.id) && ids.has(rid)) {
+					const ra = find(n.id);
+					const rb = find(rid);
+					if (ra !== rb) parent.set(ra, rb);
+				}
+			}
+		}
+		// 按首次出现顺序聚组；叠放顶部 = 组内列表顺序第一张（最新）
+		const membersByRoot = new Map<number, JournalView[]>();
+		for (const n of sortedNotes) {
+			const root = find(n.id);
+			const arr = membersByRoot.get(root);
+			if (arr) arr.push(n);
+			else membersByRoot.set(root, [n]);
+		}
+		const stacks = new Map<number, { size: number }>();
+		const hidden = new Set<number>();
+		for (const members of membersByRoot.values()) {
+			if (members.length < 2) continue;
+			const top = members[0];
+			stacks.set(top.id, { size: members.length });
+			if (!expandedStacks.has(top.id)) {
+				for (const m of members.slice(1)) hidden.add(m.id);
+			}
+		}
+		return { relationStacks: stacks, relationNotes: sortedNotes.filter((n) => !hidden.has(n.id)) };
+	}, [viewMode, sortedNotes, notesList, relatedNotesData, expandedStacks]);
+
+	const toggleStack = (topId: number) => {
+		setExpandedStacks((prev) => {
+			const next = new Set(prev);
+			if (next.has(topId)) next.delete(topId);
+			else next.add(topId);
+			return next;
+		});
+	};
 
 	const formatTime = (dateStr: string) => {
 		const d = new Date(dateStr);
@@ -820,13 +918,14 @@ export function DiaryEditor({
 						onDragEnd={handleLinkDragEnd}
 					>
 					<div
-						className={viewMode === "double"
+						className={viewMode === "single"
+							? "space-y-2"
 							// 多列自适应：滚动容器是 @container，按其实际宽度分级列数（保底 2 列）；
-							// 编辑直接在卡片原位进行（双列窄卡也能编辑，工具栏按容器宽度自适应收纳）
-							? "columns-2 gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid @min-[940px]:columns-3 @min-[1240px]:columns-4"
-							: "space-y-2"}
+							// 编辑直接在卡片原位进行（双列窄卡也能编辑，工具栏按容器宽度自适应收纳）；
+							// 关系视图沿用多列瀑布流，叠放组作为整体落在同一列
+							: "columns-2 gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid @min-[940px]:columns-3 @min-[1240px]:columns-4"}
 					>
-					{sortedNotes.map((note) => {
+					{(viewMode === "relation" ? relationNotes : sortedNotes).map((note) => {
 						const isExpanded = expandedCards.has(note.id);
 						// 展开收起统一阈值：行数 >6 或字符数 >200（移动端折行后长度差异大，仅按行数判断会不统一）
 						const fullText = note.userNotes ?? "";
@@ -837,9 +936,12 @@ export function DiaryEditor({
 							: fullText.slice(0, 200).replace(/\n[^\n]*$/, "");
 						const displayContent = isExpanded || !isLong ? fullText.split("\n") : collapsedText.split("\n");
 						const isEditing = editingCardId === note.id;
+						// 关系视图：叠放组顶部卡（未展开时渲染成"一摞"——后层卡片阴影 + 数量角标）
+						const stack = viewMode === "relation" ? relationStacks.get(note.id) : undefined;
+						const stackExpanded = stack ? expandedStacks.has(note.id) : false;
 
-						return (
-						<NoteLinkDropCard key={note.id} noteId={note.id} disabled={!linkDragEnabled || isEditing}>
+						const card = (
+						<NoteLinkDropCard noteId={note.id} disabled={!linkDragEnabled || isEditing}>
 
 							{isTimeMachineMode && !isEditing ? (
 								<TimeMachineNoteCard
@@ -871,10 +973,10 @@ export function DiaryEditor({
 								style={isEditing ? { borderWidth: 1.5 } : undefined}
 								className={"group w-full transition-all duration-200 "
 									+ (isEditing
-											? "rounded-xl border border-foreground/70 bg-card hover:border-foreground px-4 py-3"
+											? "rounded-xl border border-foreground/70 bg-card hover:border-foreground " + (viewMode === "relation" ? "px-3 py-2" : "px-4 py-3")
 										: draft.id === note.id
-											? "rounded-xl border border-primary/30 bg-primary/[0.02] ring-1 ring-primary/10 px-5 py-4"
-											: "rounded-xl border border-border/50 bg-card shadow-[0_2px_6px_-2px_rgba(0,0,0,0.1),0_1px_2px_0_rgba(0,0,0,0.05)] hover:border-border/70 hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.14),0_1px_3px_0_rgba(0,0,0,0.06)] motion-safe:hover:-translate-y-px px-5 py-4")
+											? "rounded-xl border border-primary/30 bg-primary/[0.02] ring-1 ring-primary/10 " + (viewMode === "relation" ? "px-3.5 py-2.5" : "px-5 py-4")
+											: "rounded-xl border border-border/50 bg-card shadow-[0_2px_6px_-2px_rgba(0,0,0,0.1),0_1px_2px_0_rgba(0,0,0,0.05)] hover:border-border/70 hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.14),0_1px_3px_0_rgba(0,0,0,0.06)] motion-safe:hover:-translate-y-px " + (viewMode === "relation" ? "px-3.5 py-2.5" : "px-5 py-4"))
 									+ (pinnedIds.includes(note.id) ? " relative" : "")}
 							>
 								{isEditing ? (
@@ -967,6 +1069,22 @@ export function DiaryEditor({
 												<DropdownMenuItem onClick={() => startEditing(note)}>
 													<Pencil className="w-3.5 h-3.5 mr-2" />
 													{t("edit")}
+												</DropdownMenuItem>
+												<DropdownMenuItem
+													onClick={() => {
+														const isAutoName = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test((note.name ?? "").trim());
+														const text = [!isAutoName ? note.name : "", note.userNotes]
+															.filter(Boolean)
+															.join("\n\n");
+														void navigator.clipboard
+															.writeText(text)
+															.then(() => toast(locale === "zh" ? "已复制笔记内容" : "Note copied"))
+															.catch(() =>
+																toast(locale === "zh" ? "复制失败" : "Copy failed", { type: "warning" }));
+													}}
+												>
+													<Copy className="w-3.5 h-3.5 mr-2" />
+													{locale === "zh" ? "复制" : "Copy"}
 												</DropdownMenuItem>
 												<DropdownMenuItem onClick={() => onAnnotate?.(note)}>
 													<MessageSquarePlus className="w-3.5 h-3.5 mr-2" />
@@ -1112,7 +1230,45 @@ export function DiaryEditor({
 							)}
 						</NoteLinkDropCard>
 						);
-					})}
+
+						if (!stack) {
+							return <div key={note.id}>{card}</div>;
+						}
+						if (stackExpanded) {
+							// 展开态：整组平铺，顶部卡保留角标用于收起
+							return (
+								<div key={note.id} className="relative">
+									{card}
+									<button
+										type="button"
+										onClick={() => toggleStack(note.id)}
+										title={locale === "zh" ? "收起叠放" : "Collapse stack"}
+										className="absolute -top-2.5 -right-2.5 z-10 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground shadow-md hover:bg-muted/70 active:scale-95 transition-all"
+									>
+										<Layers className="h-3 w-3" />
+										{stack.size}
+									</button>
+								</div>
+							);
+						}
+						// 叠放视觉：顶部卡片后面垫两层错位的"纸"，角标显示整组张数，点击展开
+						return (
+							<div key={note.id} className="relative">
+								<div className="pointer-events-none absolute inset-0 translate-x-1 translate-y-1 rounded-xl border border-border/40 bg-card shadow-[0_1px_4px_-2px_rgba(0,0,0,0.10)]" />
+								<div className="pointer-events-none absolute inset-0 translate-x-2 translate-y-2 rounded-xl border border-border/30 bg-card/80 shadow-[0_2px_5px_-3px_rgba(0,0,0,0.08)]" />
+								<div className="relative">{card}</div>
+								<button
+									type="button"
+									onClick={() => toggleStack(note.id)}
+									title={locale === "zh" ? `展开 ${stack.size} 张关联笔记` : `Expand ${stack.size} linked notes`}
+									className="absolute -top-2.5 -right-2.5 z-10 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground shadow-md hover:bg-primary/90 active:scale-95 transition-all"
+								>
+									<Layers className="h-3 w-3" />
+									{stack.size}
+								</button>
+							</div>
+						);
+						})}
 					</div>
 						</DndContext>
 				)}
@@ -1214,9 +1370,15 @@ function NoteLinkDropCard({
 				setDropRef(el);
 			}}
 			{...listeners}
+			// PWA standalone 下长按会触发系统上下文菜单（图片预览/拷贝），拦截掉保证长按拖拽可用
+			onContextMenu={(e) => {
+				if (!disabled) e.preventDefault();
+			}}
+			// Android Chrome/PWA：禁用双击缩放延迟，让 TouchSensor 的长按激活不被浏览器手势干扰
+			style={{ touchAction: disabled ? undefined : "manipulation" }}
 			className={cn(
 				"relative",
-				!disabled && "cursor-grab active:cursor-grabbing select-none [-webkit-touch-callout:none]",
+				!disabled && "cursor-grab active:cursor-grabbing select-none [-webkit-touch-callout:none] [-webkit-user-select:none] [user-select:none]",
 				isDragging && "opacity-40",
 			)}
 		>
