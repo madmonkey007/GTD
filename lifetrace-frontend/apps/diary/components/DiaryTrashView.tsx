@@ -160,7 +160,7 @@ export function DiaryTrashView({
 
 			{/* Clear all confirmation */}
 			<AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
-				<AlertDialogContent className="p-0 gap-0 overflow-hidden max-w-sm border-l-[3px] border-l-destructive/30 shadow-xl">
+				<AlertDialogContent className="p-0 gap-0 overflow-hidden max-w-sm shadow-xl">
 					<div className="flex gap-4 p-6 pb-5">
 						<div className="flex-shrink-0 w-10 h-10 rounded-full bg-destructive/8 flex items-center justify-center ring-1 ring-destructive/15">
 							<AlertCircle className="w-5 h-5 text-destructive/60" />
@@ -180,7 +180,7 @@ export function DiaryTrashView({
 							{t("cancel")}
 						</AlertDialogCancel>
 						<AlertDialogAction
-							className="relative rounded-lg h-9 px-4 text-xs font-medium bg-destructive/90 text-destructive-foreground hover:bg-destructive active:scale-[0.97] transition-all"
+							className="relative rounded-lg h-9 px-4 text-xs font-medium bg-destructive/90 text-white hover:bg-destructive active:scale-[0.97] transition-all"
 							onClick={() => {
 								onClearTrash();
 								setClearDialogOpen(false);

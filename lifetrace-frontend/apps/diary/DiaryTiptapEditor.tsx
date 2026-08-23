@@ -18,7 +18,7 @@ import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
-type Variant = "create" | "edit";
+type Variant = "create" | "edit" | "sheet";
 
 export interface NoteLinkItem {
 	id: number;
@@ -538,9 +538,9 @@ export function DiaryTiptapEditor({
 		content: value ? wrapImageGroups(md.render(wrapTagsAsMentions(value))) : "",
 		editorProps: {
 			attributes: {
-				class: variant === "create"
-					? "w-full text-sm leading-relaxed text-foreground focus:outline-none px-3 pt-3 pb-2 min-h-[80px] max-h-[50vh] overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-li:my-0"
-					: "w-full text-sm leading-relaxed text-foreground focus:outline-none min-h-[120px] max-h-[50vh] overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-li:my-0",
+				class: variant === "edit"
+					? "w-full text-sm leading-relaxed text-foreground focus:outline-none min-h-[120px] max-h-[50vh] overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-li:my-0"
+					: `w-full text-sm leading-relaxed text-foreground focus:outline-none ${variant === "sheet" ? "min-h-[140px]" : "px-3 pt-3 pb-2 min-h-[80px]"} max-h-[50vh] overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-li:my-0`,
 			},
 			transformPastedHTML: sanitizePastedHtml,
 			handleKeyDown: handleEditorKeyDown,
@@ -639,8 +639,8 @@ export function DiaryTiptapEditor({
 				.ProseMirror li { margin: 0; }
 				.ProseMirror li::marker { color: rgb(var(--muted-foreground) / 0.8); }
 			`}</style>
-<div className="DiaryTiptapEditor-toolbar @container relative flex items-center justify-between gap-1 px-3 pb-2 pt-1">
-					<div className="flex items-center gap-0.5 min-w-0">
+<div className={`DiaryTiptapEditor-toolbar @container relative flex items-center justify-between gap-1 ${variant === "sheet" ? "px-0 pb-2 pt-2" : "px-3 pb-2 pt-1"}`}>
+					<div className="flex flex-wrap items-center gap-0.5 min-w-0">
 						{/* 常驻：加粗 / 插入图片（多列窄卡片下其余收入「…」菜单，避免溢出） */}
 						{FORMAT_ACTIONS.filter((a) => a.key === "bold").map(({ key, icon: Icon, title }) => (
 							<button
@@ -677,7 +677,7 @@ export function DiaryTiptapEditor({
 							</button>
 						)}
 						<input ref={fileInputRef} type="file" accept="image/*" multiple onChange={onFileChange} className="hidden" />
-						{/* 格式按钮按容器宽度渐进显示（容器查询），放不下的通过「…」向上弹出访问 */}
+						{/* 格式按钮按容器宽度渐进显示（容器查询），放不下的通过「…」向上弹出访问；sheet 弹层全宽，直接全部展示 */}
 						{FORMAT_ACTIONS.filter((a) => a.key !== "bold").map(({ key, icon: Icon, title }, i) => (
 							<button
 								key={key}
@@ -685,13 +685,15 @@ export function DiaryTiptapEditor({
 								title={title}
 								onClick={() => runFormat(key)}
 								className={cn(
-									"hidden rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors",
-									FORMAT_CQ[i],
+									"rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors",
+									variant !== "sheet" && "hidden",
+									variant !== "sheet" && FORMAT_CQ[i],
 								)}
 							>
 								<Icon className="w-4 h-4" />
 							</button>
 						))}
+						{variant !== "sheet" && (
 						<div className="relative @min-[520px]:hidden">
 							<button
 								type="button"
@@ -725,6 +727,7 @@ export function DiaryTiptapEditor({
 								</>
 							)}
 						</div>
+						)}
 					</div>
 					<div className="flex items-center gap-1 shrink-0">
 						{/* 字数统计 */}

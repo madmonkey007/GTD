@@ -30,7 +30,7 @@ import {
 	MessageSquarePlus,
 	ArrowUpRight,
 	ArrowDownLeft,
-	MessageCircle,
+	Sparkles,
 	Link2,
 	CheckSquare,
 	Plus,
@@ -515,14 +515,6 @@ export function DiaryEditor({
 		return sorted;
 	}, [notesList, pinnedIds, filterMode, tagFilter, similarToNoteId, randomShuffle, filterJournalIds, timeMachinePending]);
 
-	// 头部元信息用的紧凑时间：当年省年份，如 "08-23 14:05" / "2025-12-31 09:00"
-	const formatTimeCompact = (dateStr: string) => {
-		const d = new Date(dateStr);
-		const md = String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-		const hm = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
-		return d.getFullYear() === new Date().getFullYear() ? `${md} ${hm}` : `${d.getFullYear()}-${md} ${hm}`;
-	};
-
 	const formatTime = (dateStr: string) => {
 		const d = new Date(dateStr);
 		return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
@@ -531,7 +523,7 @@ export function DiaryEditor({
 	return (
 		<div className="flex h-full flex-col">
 			{headerSlot}
-			<div className={cn("@container flex-1 min-h-0 overflow-y-auto", isMobile && "scrollbar-none")}>
+			<div className={cn("@container flex-1 min-h-0 overflow-y-auto", isMobile && "scrollbar-none px-4")}>
 			{/* Input area - auto-expanding (hidden when searching or filtering) */}
 			{/* Search bar */}
 			{/* Search bar — 时光机器模式下隐藏视图切换与搜索，让沉浸式 header 独占顶部 */}
@@ -625,24 +617,23 @@ export function DiaryEditor({
 											animate={{ y: 0 }}
 											exit={{ y: "100%" }}
 											transition={{ type: "spring", damping: 30, stiffness: 300 }}
-											className="fixed inset-x-0 bottom-0 z-50 bg-background shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.25)]"
+											className="fixed inset-x-0 bottom-0 z-50 bg-background shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.25)] px-4 pt-3"
+											style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
 										>
-											<div className="px-4 pt-3 pb-4" style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}>
-												<DiaryTiptapEditor
-													noteLinkList={noteLinkList}
-													onLinkNote={onLinkNote}
-													onRemoveLink={onRemoveLink}
-													linkedNoteTitles={linkedNoteTitles}
-													variant="create"
-													value={draft.userNotes}
-													onChange={handleComposerChange}
-													onBlur={() => onUserNotesBlur(draft.userNotes)}
-													recentTags={recentTags}
-													onInlineTag={onInlineTag}
-													placeholder={t("contentPlaceholder")}
-													toolbarEnd={sendButton}
-												/>
-											</div>
+											<DiaryTiptapEditor
+												noteLinkList={noteLinkList}
+												onLinkNote={onLinkNote}
+												onRemoveLink={onRemoveLink}
+												linkedNoteTitles={linkedNoteTitles}
+												variant="sheet"
+												value={draft.userNotes}
+												onChange={handleComposerChange}
+												onBlur={() => onUserNotesBlur(draft.userNotes)}
+												recentTags={recentTags}
+												onInlineTag={onInlineTag}
+												placeholder={t("contentPlaceholder")}
+												toolbarEnd={sendButton}
+											/>
 										</motion.div>
 									</>
 								)}
@@ -893,138 +884,134 @@ export function DiaryEditor({
 ) : (
 		// --- Display mode ---
 									<>
-										<div className="flex items-center justify-between gap-2">
-											<div className="flex-1 min-w-0 transition-[padding] duration-200 group-hover:pr-14">
-												{note.name && (() => {
-													// 后端无标题时用「YYYY-MM-DD HH:mm」兜底——时间型伪标题按元信息弱化
-													const isAutoName = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(note.name.trim());
-													return (
-													<div className={isAutoName
-														? "text-xs font-normal text-muted-foreground/55 mb-1 truncate tabular-nums"
-														: "text-[15px] font-medium text-foreground/90 mb-1.5 truncate leading-snug"}>
-														{pinnedIds.includes(note.id) && (
-															<Pin className="w-3 h-3 inline-block mr-1 text-primary/60 -mt-0.5" />
-														)}
-														<span className="truncate">{note.name}</span>
-														{note.origin && note.origin !== "manual" && (
-															<span className="inline-flex items-center gap-0.5 ml-1.5 text-[9px] font-normal text-muted-foreground/60 shrink-0">
-																<CheckSquare className="w-2.5 h-2.5" />
-																{t("todoNoteBadge")}
-															</span>
-														)}
+<div className="flex items-center justify-between gap-2">
+									{/* 时间 · 左上角（标题已并入正文首行，此处仅保留时间） */}
+									<span className="text-xs font-normal leading-none text-muted-foreground/55 tabular-nums shrink-0 pt-0.5">{formatTime(note.createdAt)}</span>
+									<div className="flex items-center gap-1">
+										{!isEditing && (
+											<>
+												{!isMobile && (
+													<div className="flex items-center -space-x-1 opacity-0 pointer-events-none transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
+														<button
+															type="button"
+															onClick={(e) => {
+																e.stopPropagation();
+																const linked = { id: note.id, name: note.name, userNotes: note.userNotes, date: note.date, tags: note.tags.map((t) => t.tagName) };
+																addLinkedNote(linked);
+																// 直接打开对话面板并触发默认洞察，无需再手动发送
+																useMobileToolbarStore.getState().setDiaryRightOpen(true);
+																triggerInsight(linked);
+															}}
+															title={locale === "zh" ? "Agent" : "Agent"}
+															className="rounded p-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+														>
+															<Sparkles className="w-3.5 h-3.5" />
+														</button>
+														<button
+															type="button"
+															onClick={(e) => { e.stopPropagation(); setAddLinkNote(note); }}
+															title={t("linkNote")}
+															className="rounded p-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+														>
+															<Link2 className="w-3.5 h-3.5" />
+														</button>
 													</div>
-											);
-										})()}
-											</div>
-											{!isEditing && (
-												<div className="relative flex items-center">
-													{/* 悬停时时间左移、操作按钮在原位浮现；移动端无悬停，按钮常驻常规流 */}
-													{!isMobile && (
-														<div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center -space-x-1 opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
-															<button
-																type="button"
-																onClick={(e) => {
-																	e.stopPropagation();
-																	const linked = { id: note.id, name: note.name, userNotes: note.userNotes, date: note.date, tags: note.tags.map((t) => t.tagName) };
-																	addLinkedNote(linked);
-																	// 直接打开对话面板并触发默认洞察，无需再手动发送
-																	useMobileToolbarStore.getState().setDiaryRightOpen(true);
-																	triggerInsight(linked);
-																}}
-																title={locale === "zh" ? "AI 洞察" : "AI insight"}
-																className="rounded p-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-															>
-																<MessageCircle className="w-3.5 h-3.5" />
-															</button>
-															<button
-																type="button"
-																onClick={(e) => { e.stopPropagation(); setAddLinkNote(note); }}
-																title={t("linkNote")}
-																className="rounded p-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-															>
-																<Link2 className="w-3.5 h-3.5" />
-															</button>
-														</div>
+												)}
+												{isMobile && (
+													<>
+														<button
+															type="button"
+															onClick={(e) => {
+																e.stopPropagation();
+																const linked = { id: note.id, name: note.name, userNotes: note.userNotes, date: note.date, tags: note.tags.map((t) => t.tagName) };
+																addLinkedNote(linked);
+																useMobileToolbarStore.getState().setDiaryRightOpen(true);
+																triggerInsight(linked);
+															}}
+															title={locale === "zh" ? "Agent" : "Agent"}
+															className="rounded p-1.5 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors"
+														>
+															<Sparkles className="w-3.5 h-3.5" />
+														</button>
+														<button
+															type="button"
+															onClick={(e) => { e.stopPropagation(); setAddLinkNote(note); }}
+															title={t("linkNote")}
+															className="rounded p-1.5 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors"
+														>
+															<Link2 className="w-3.5 h-3.5" />
+														</button>
+													</>
+												)}
+											</>
+										)}
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<button
+													type="button"
+													className={cn("rounded p-1 text-muted-foreground/40 hover:text-foreground hover:bg-muted/40 transition-colors -mr-1 flex-shrink-0", isMobile && "p-2")}
+												>
+													<MoreHorizontal className="w-3.5 h-3.5" />
+												</button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end" className="min-w-[120px]">
+												<DropdownMenuItem onClick={() => startEditing(note)}>
+													<Pencil className="w-3.5 h-3.5 mr-2" />
+													{t("edit")}
+												</DropdownMenuItem>
+												<DropdownMenuItem onClick={() => onAnnotate?.(note)}>
+													<MessageSquarePlus className="w-3.5 h-3.5 mr-2" />
+													批注
+												</DropdownMenuItem>
+												<DropdownMenuItem onClick={() => onSimilarClick?.(note.id)}>
+													<GitFork className="w-3.5 h-3.5 mr-2" />
+													{t("similarNotes")}
+												</DropdownMenuItem>
+												<DropdownMenuItem onClick={() => setAddLinkNote(note)}>
+													<Link2 className="w-3.5 h-3.5 mr-2" />
+													链接
+												</DropdownMenuItem>
+												<DropdownMenuItem onClick={() => onTogglePin(note.id)}>
+													{pinnedIds.includes(note.id) ? (
+														<><PinOff className="w-3.5 h-3.5 mr-2" />{t("unpin")}</>
+													) : (
+														<><Pin className="w-3.5 h-3.5 mr-2" />{t("pin")}</>
 													)}
-													<span className={cn(
-														"text-[10px] leading-none text-muted-foreground/45 tabular-nums shrink-0 pt-0.5",
-														!isMobile && "mr-1.5 transition-transform duration-200 group-hover:-translate-x-[52px]",
-													)}>{formatTimeCompact(note.createdAt)}</span>
-													{isMobile && (
-														<>
-															<button
-																type="button"
-																onClick={(e) => {
-																	e.stopPropagation();
-																	const linked = { id: note.id, name: note.name, userNotes: note.userNotes, date: note.date, tags: note.tags.map((t) => t.tagName) };
-																	addLinkedNote(linked);
-																	useMobileToolbarStore.getState().setDiaryRightOpen(true);
-																	triggerInsight(linked);
-																}}
-																title={locale === "zh" ? "AI 洞察" : "AI insight"}
-																className="rounded p-2 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors"
-															>
-																<MessageCircle className="w-3.5 h-3.5" />
-															</button>
-															<button
-																type="button"
-																onClick={(e) => { e.stopPropagation(); setAddLinkNote(note); }}
-																title={t("linkNote")}
-																className="rounded p-2 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors"
-															>
-																<Link2 className="w-3.5 h-3.5" />
-															</button>
-														</>
-													)}
-												</div>
-											)}
-											<DropdownMenu>
-												<DropdownMenuTrigger asChild>
-													<button
-														type="button"
-														className={cn("rounded p-1 text-muted-foreground/40 hover:text-foreground hover:bg-muted/40 transition-colors -mr-1 flex-shrink-0", isMobile && "p-2")}
-													>
-														<MoreHorizontal className="w-3.5 h-3.5" />
-													</button>
-												</DropdownMenuTrigger>
-												<DropdownMenuContent align="end" className="min-w-[120px]">
-													<DropdownMenuItem onClick={() => startEditing(note)}>
-														<Pencil className="w-3.5 h-3.5 mr-2" />
-														{t("edit")}
-													</DropdownMenuItem>
-													<DropdownMenuItem onClick={() => onAnnotate?.(note)}>
-														<MessageSquarePlus className="w-3.5 h-3.5 mr-2" />
-														批注
-													</DropdownMenuItem>
-													<DropdownMenuItem onClick={() => onSimilarClick?.(note.id)}>
-														<GitFork className="w-3.5 h-3.5 mr-2" />
-														{t("similarNotes")}
-													</DropdownMenuItem>
-													<DropdownMenuItem onClick={() => setAddLinkNote(note)}>
-														<Link2 className="w-3.5 h-3.5 mr-2" />
-														链接
-													</DropdownMenuItem>
-													<DropdownMenuItem onClick={() => onTogglePin(note.id)}>
-														{pinnedIds.includes(note.id) ? (
-															<><PinOff className="w-3.5 h-3.5 mr-2" />{t("unpin")}</>
-														) : (
-															<><Pin className="w-3.5 h-3.5 mr-2" />{t("pin")}</>
-														)}
-													</DropdownMenuItem>
-													<DropdownMenuItem
-														onClick={() => setDeleteDialogNote(note)}
-														className="text-destructive focus:text-destructive"
-													>
-														<Trash2 className="w-3.5 h-3.5 mr-2" />
-														{t("delete")}
-													</DropdownMenuItem>
-												</DropdownMenuContent>
-											</DropdownMenu>
-										</div>
+												</DropdownMenuItem>
+												<DropdownMenuItem
+													onClick={() => setDeleteDialogNote(note)}
+													className="text-destructive focus:text-destructive"
+												>
+													<Trash2 className="w-3.5 h-3.5 mr-2" />
+													{t("delete")}
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</div>
+								</div>
 						<div
 							className="text-sm leading-[1.7] font-body text-foreground/80 cursor-pointer"
 											onDoubleClick={() => startEditing(note)}
 										>
+									{note.name && (() => {
+										// 标题并入正文首行：仅真实标题渲染；时间型伪标题不展示（时间已在卡片左上角）
+										const isAutoName = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(note.name.trim());
+										if (isAutoName) return null;
+										return (
+										<div className="text-[15px] font-medium text-foreground/90 mb-1.5 truncate leading-snug">
+											{pinnedIds.includes(note.id) && (
+												<Pin className="w-3 h-3 inline-block mr-1 text-primary/60 -mt-0.5" />
+											)}
+											<span className="truncate">{note.name}</span>
+											{note.origin && note.origin !== "manual" && (
+												<span className="inline-flex items-center gap-0.5 ml-1.5 text-[9px] font-normal text-muted-foreground/60 shrink-0">
+													<CheckSquare className="w-2.5 h-2.5" />
+													{t("todoNoteBadge")}
+												</span>
+											)}
+										</div>
+									);
+								})()}
 											<NoteMarkdown content={displayContent.join("\n")} className="text-foreground/80" />
 											{!isExpanded && isLong && (
 												<span className="text-muted-foreground/40">{"\n"}...</span>
@@ -1137,7 +1124,7 @@ export function DiaryEditor({
 					<div className="text-xs text-muted-foreground/40 text-center py-2">加载中...</div>
 				)}
 				<AlertDialog open={deleteDialogNote !== null} onOpenChange={(open) => { if (!open) setDeleteDialogNote(null); }}>
-					<AlertDialogContent className="p-0 gap-0 overflow-hidden max-w-sm border-l-[3px] border-l-destructive/40 shadow-xl">
+					<AlertDialogContent className="p-0 gap-0 overflow-hidden max-w-sm shadow-xl">
 						<div className="flex gap-4 p-6 pb-5">
 							<div className="flex-shrink-0 w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center ring-1 ring-destructive/20">
 								<TriangleAlert className="w-5 h-5 text-destructive" />
@@ -1157,7 +1144,7 @@ export function DiaryEditor({
 								{t("cancel")}
 							</AlertDialogCancel>
 							<AlertDialogAction
-								className="relative rounded-lg h-9 px-4 text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-[0.97] transition-all shadow-sm"
+								className="relative rounded-lg h-9 px-4 text-xs font-medium bg-destructive text-white hover:bg-destructive/90 active:scale-[0.97] transition-all shadow-sm"
 								onClick={() => {
 									if (deleteDialogNote !== null) onDelete(deleteDialogNote);
 									setDeleteDialogNote(null);
