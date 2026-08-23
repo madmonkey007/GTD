@@ -4,7 +4,7 @@
     {
       "name": "Frontend (Next.js 3001)",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["-C", "D:/manus/GTD/lifetrace-frontend", "run", "dev:frontend:default-port"],
+      "runtimeArgs": ["run", "dev:frontend:web"],
       "port": 3001,
       "autoPort": true,
       "env": {

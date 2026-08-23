@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600&display=swap");
 @import "tailwindcss";
 
 /* Tailwind v4 自定义 dark 模式变体 - 基于 .dark 类 */
@@ -10,16 +8,19 @@
  * 而不需要在每个地方手写 bg-[oklch(var(--xxx)/0.xx)] 这种“细节色”。
  */
 @theme {
-	/* 全局无衬线字体，使用 next/font 注入的 CSS 变量 */
-	--font-sans: "Plus Jakarta Sans", "Segoe UI", -apple-system,
+	/* 全局无衬线字体。注意：不引用 next/font 的 var(--font-jakarta)，
+	 * 因为该变量只定义在 <body> 上；若 :root 上的 --font-sans 引用它，
+	 * 变量会因引用未定义变量而 guaranteed-invalid、不再向下继承，
+	 * 导致 body 的 font-family 失效回退系统默认。直接写 family 名即可命中自托管字体。 */
+	--font-sans: "MiSans", "Plus Jakarta Sans", "Segoe UI", -apple-system,
 		BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
 
 	/* 衬线 display 字体（参考网页 --font-display：卡片时间行、magazine/quote 引文正文） */
-	--font-display: "Noto Serif SC", "Songti SC", "STSong", "Source Han Serif SC",
-		serif;
+	--font-display: "Noto Serif SC", "Songti SC", "STSong",
+		"Source Han Serif SC", serif;
 
 	/* 中文正文黑体（参考网页 --font-body：卡片正文、标签） */
-	--font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei",
+	--font-body: "MiSans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei",
 		"Helvetica Neue", sans-serif;
 
 	/* 等宽字体（参考网页 --font-mono：SF Mono；卡片创建时间戳、标签等均用 mono） */

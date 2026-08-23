@@ -901,7 +901,7 @@ export function DiaryEditor({
 													return (
 													<div className={isAutoName
 														? "text-xs font-normal text-muted-foreground/55 mb-1 truncate tabular-nums"
-														: "text-sm font-medium text-foreground/85 mb-1.5 truncate"}>
+														: "text-[15px] font-medium text-foreground/90 mb-1.5 truncate leading-snug"}>
 														{pinnedIds.includes(note.id) && (
 															<Pin className="w-3 h-3 inline-block mr-1 text-primary/60 -mt-0.5" />
 														)}
