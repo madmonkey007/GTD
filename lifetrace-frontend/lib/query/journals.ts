@@ -75,6 +75,12 @@ interface UseJournalLitesParams {
 }
 
 /** 轻量笔记列表：仅 id/name/date/createdAt/userNotes（服务端无 N+1，统计/标签/时光机/聊天上下文用） */
+/** 后端 created_at/updated_at 为 naive UTC，序列化无时区标记；补 Z 让浏览器正确换算本地时区（date 例外，为本地时间） */
+const asUtcIso = (v: unknown) => {
+	const s = typeof v === "string" ? v : "";
+	return s && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(s) ? s + "Z" : s;
+};
+
 export function useJournalLites(params?: UseJournalLitesParams) {
 	const { enabled: _enabled, ...keyParams } = params ?? {};
 	const queryParams = {
@@ -98,7 +104,8 @@ export function useJournalLites(params?: UseJournalLitesParams) {
 				`/api/journals/lite?${search.toString()}`,
 				{ signal },
 			);
-			return unwrapApiData<JournalLiteListData>(res) ?? { total: 0, notes: [] };
+			const data = unwrapApiData<JournalLiteListData>(res) ?? { total: 0, notes: [] };
+			return { ...data, notes: data.notes.map((n) => ({ ...n, createdAt: asUtcIso(n.createdAt) })) };
 		},
 	});
 }
@@ -122,9 +129,9 @@ export const normalizeJournal = (raw: Record<string, unknown>) => {
 		mood: (raw.mood as string) ?? null,
 		energy: (raw.energy as number) ?? null,
 		dayBucketStart: (raw.dayBucketStart as string) ?? null,
-		createdAt: raw.createdAt as string,
-		updatedAt: raw.updatedAt as string,
-		deletedAt: (raw.deletedAt as string) ?? null,
+		createdAt: asUtcIso(raw.createdAt),
+		updatedAt: asUtcIso(raw.updatedAt),
+		deletedAt: asUtcIso(raw.deletedAt),
 		origin: (raw.origin as string) ?? "manual",
 		tags: contentTags.map((t) => ({ id: 0, tagName: t })),
 		relatedTodoIds: (raw.relatedTodoIds as number[]) ?? (raw.related_todo_ids as number[]) ?? [],
@@ -441,7 +448,9 @@ function replaceJournalInCaches(queryClient: QueryClient, record: Record<string,
 	});
 }
 
-/** NoteLink 增删后本地更新源/目标两篇笔记的 relatedNoteIds（lite 不含关联字段，无需处理） */
+/** NoteLink 增删后本地更新源笔记的 relatedNoteIds（lite 不含关联字段，无需处理）。
+ * relatedNoteIds 是有向的（仅"我引用了谁"，与后端 _get_related_note_ids 一致），
+ * 所以只补丁源笔记；目标笔记不动，否则目标会在源卡片的"引用"和"被引用"里重复出现。 */
 export function patchNoteLinkInCaches(
 	queryClient: QueryClient,
 	opts: { sourceNoteId: number; targetNoteId: number; linked: boolean },
@@ -449,8 +458,7 @@ export function patchNoteLinkInCaches(
 	const { sourceNoteId, targetNoteId, linked } = opts;
 	const patchRecord = (rec: Record<string, unknown>) => {
 		const id = rec.id as number;
-		if (id !== sourceNoteId && id !== targetNoteId) return rec;
-		const other = id === sourceNoteId ? targetNoteId : sourceNoteId;
+		if (id !== sourceNoteId) return rec;
 		const keyName = Array.isArray(rec.relatedNoteIds)
 			? "relatedNoteIds"
 			: Array.isArray(rec.related_note_ids)
@@ -459,10 +467,10 @@ export function patchNoteLinkInCaches(
 		if (!keyName) return rec;
 		const cur = (rec[keyName] as number[]) ?? [];
 		const next = linked
-			? cur.includes(other)
+			? cur.includes(targetNoteId)
 				? cur
-				: [...cur, other]
-			: cur.filter((x) => x !== other);
+				: [...cur, targetNoteId]
+			: cur.filter((x) => x !== targetNoteId);
 		if (next === cur || next.length === cur.length) return rec;
 		return { ...rec, [keyName]: next };
 	};

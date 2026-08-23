@@ -160,7 +160,7 @@ export function DiaryTrashView({
 
 			{/* Clear all confirmation */}
 			<AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
-				<AlertDialogContent className="p-0 gap-0 overflow-hidden max-w-sm shadow-xl">
+				<AlertDialogContent className="p-0 gap-0 overflow-hidden max-w-sm w-[calc(100vw-2rem)] shadow-xl">
 					<div className="flex gap-4 p-6 pb-5">
 						<div className="flex-shrink-0 w-10 h-10 rounded-full bg-destructive/8 flex items-center justify-center ring-1 ring-destructive/15">
 							<AlertCircle className="w-5 h-5 text-destructive/60" />

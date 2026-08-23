@@ -56,12 +56,15 @@ interface FormatAction {
 }
 
 // 各格式按钮的显示阈值：容器宽度达标才显示，否则收进「…」菜单
+// 每个格式按钮各自的“放得下才显示”容器宽度阈值（工具栏 @container）。
+// 逐级细粒度适配：卡片越宽显示越多、越窄收纳进「…」越多，不写死收起几个。
+// 基准（工具栏内容盒宽，不含 px-3）：加粗/图片/@ 约 76px，「…」约 26px，每个格式按钮约 26px。
 const FORMAT_CQ = [
-	"@min-[340px]:block", // underline
-	"@min-[380px]:block", // highlight
-	"@min-[420px]:block", // ul
-	"@min-[460px]:block", // ol
-	"@min-[500px]:block", // tag
+	"@min-[128px]:block", // underline
+	"@min-[154px]:block", // highlight
+	"@min-[180px]:block", // ul
+	"@min-[206px]:block", // ol
+	"@min-[232px]:block", // tag
 ];
 
 const FORMAT_ACTIONS: FormatAction[] = [
@@ -639,8 +642,8 @@ export function DiaryTiptapEditor({
 				.ProseMirror li { margin: 0; }
 				.ProseMirror li::marker { color: rgb(var(--muted-foreground) / 0.8); }
 			`}</style>
-<div className={`DiaryTiptapEditor-toolbar @container relative flex items-center justify-between gap-1 ${variant === "sheet" ? "px-0 pb-2 pt-2" : "px-3 pb-2 pt-1"}`}>
-					<div className="flex flex-wrap items-center gap-0.5 min-w-0">
+<div className={`DiaryTiptapEditor-toolbar @container relative flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5 ${variant === "sheet" ? "px-0 pb-2 pt-2" : "px-3 pb-2 pt-1"}`}>
+					<div className="flex items-center gap-0.5 min-w-0">
 						{/* 常驻：加粗 / 插入图片（多列窄卡片下其余收入「…」菜单，避免溢出） */}
 						{FORMAT_ACTIONS.filter((a) => a.key === "bold").map(({ key, icon: Icon, title }) => (
 							<button
@@ -693,8 +696,9 @@ export function DiaryTiptapEditor({
 								<Icon className="w-4 h-4" />
 							</button>
 						))}
+						{/* 所有工具放得下（240px+）时隐藏「…」；放不下时向上弹出被收纳的工具 */}
 						{variant !== "sheet" && (
-						<div className="relative @min-[520px]:hidden">
+						<div className="relative @min-[232px]:hidden">
 							<button
 								type="button"
 								title="更多格式"
@@ -729,9 +733,9 @@ export function DiaryTiptapEditor({
 						</div>
 						)}
 					</div>
-					<div className="flex items-center gap-1 shrink-0">
+					<div className="flex items-center gap-1 shrink-0 ml-auto">
 						{/* 字数统计 */}
-						<span className="text-[10px] text-muted-foreground/55 select-none tabular-nums mr-1">{wordCount}</span>
+						<span className="text-[10px] text-muted-foreground/55 select-none tabular-nums mr-1 hidden @min-[220px]:inline">{wordCount}</span>
 						{/* 语音输入（发送按钮左侧） */}
 						<VoiceInputButton
 							ownerId="diary-tiptap"

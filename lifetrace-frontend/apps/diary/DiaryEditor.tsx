@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
 	DndContext,
 	PointerSensor,
+	TouchSensor,
 	pointerWithin,
 	useDraggable,
 	useDroppable,
@@ -174,10 +175,12 @@ export function DiaryEditor({
 	const t = useTranslations("journalPanel");
 	const locale = useLocale();
 	const isMobile = useIsMobile();
-	// 拖拽建链：桌面端、非时光机、且宿主提供了 onLinkNote 时启用
-	const linkDragEnabled = !isMobile && !timeMachinePending && !timeMachineDate && !!onLinkNote;
+	// 拖拽建链：非时光机、且宿主提供了 onLinkNote 时启用（移动端长按 250ms 激活，不影响列表滚动）
+	const linkDragEnabled = !timeMachinePending && !timeMachineDate && !!onLinkNote;
+	// 桌面：移动 8px 即激活；移动端：长按 250ms 激活，按压期间移动超过容差视为滚动并取消
 	const linkDragSensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+		useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
 	);
 	const handleLinkDragEnd = (event: DragEndEvent) => {
 		const { active, over } = event;
@@ -818,15 +821,21 @@ export function DiaryEditor({
 					>
 					<div
 						className={viewMode === "double"
-							// 多列自适应：滚动容器是 @container，按其实际宽度分级列数（保底 2 列）
+							// 多列自适应：滚动容器是 @container，按其实际宽度分级列数（保底 2 列）；
+							// 编辑直接在卡片原位进行（双列窄卡也能编辑，工具栏按容器宽度自适应收纳）
 							? "columns-2 gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid @min-[940px]:columns-3 @min-[1240px]:columns-4"
 							: "space-y-2"}
 					>
 					{sortedNotes.map((note) => {
 						const isExpanded = expandedCards.has(note.id);
-						const contentLines = note.userNotes?.split("\n") ?? [];
-						const isLong = contentLines.length > 20;
-						const displayContent = isExpanded ? contentLines : contentLines.slice(0, 20);
+						// 展开收起统一阈值：行数 >6 或字符数 >200（移动端折行后长度差异大，仅按行数判断会不统一）
+						const fullText = note.userNotes ?? "";
+						const isLong = fullText.split("\n").length > 6 || fullText.length > 200;
+						// 截断只落在完整行边界：避免把行内 markdown 语法（图片/链接长 URL）拦腰截断导致渲染失效
+						const collapsedText = fullText.length <= 200
+							? fullText
+							: fullText.slice(0, 200).replace(/\n[^\n]*$/, "");
+						const displayContent = isExpanded || !isLong ? fullText.split("\n") : collapsedText.split("\n");
 						const isEditing = editingCardId === note.id;
 
 						return (
@@ -875,8 +884,8 @@ export function DiaryEditor({
 							<DiaryTiptapEditor noteLinkList={noteLinkList?.filter((n) => n.id !== editingCardId)} onLinkNote={onLinkNote ? (id: number) => onLinkNote(id, editingCardId ?? undefined) : undefined} variant="edit" value={editContent} onChange={setEditContent} recentTags={recentTags} placeholder={t("contentPlaceholder")}
 								toolbarEnd={
 									<>
-										<button type="button" onClick={cancelEditing} disabled={isSaving} className="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/40 transition-colors disabled:opacity-50"><X className="w-3.5 h-3.5" />{t("cancel")}</button>
-										<button type="button" onClick={handleSaveEdit} disabled={isSaving} className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"><Check className="w-3.5 h-3.5" />{isSaving ? t("saving") : t("save")}</button>
+										<button type="button" onClick={cancelEditing} disabled={isSaving} className="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/40 transition-colors disabled:opacity-50"><X className="w-3.5 h-3.5" /><span className="hidden @min-[280px]:inline">{t("cancel")}</span></button>
+										<button type="button" onClick={handleSaveEdit} disabled={isSaving} className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"><Check className="w-3.5 h-3.5" /><span className="hidden @min-[280px]:inline">{isSaving ? t("saving") : t("save")}</span></button>
 									</>
 								}
 							/>
@@ -1069,7 +1078,7 @@ export function DiaryEditor({
 															key={ref.id}
 															type="button"
 															onClick={() => setReferenceViewNote(note)}
-															className={cn("flex items-start gap-1.5 mt-1.5 text-sm text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left", isMobile && "px-1 py-1")}
+															className={cn("flex items-start gap-1.5 mt-1.5 text-sm text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left", isMobile && "px-1")}
 														>
 															<span className="w-3 h-3 rounded-full [background-color:color-mix(in_oklch,var(--color-card-primary,var(--primary))_10%,transparent)] flex items-center justify-center shrink-0 mt-0.5">
 																<ArrowUpRight className="w-2 h-2 [color:var(--color-card-primary,var(--primary))]" />
@@ -1084,7 +1093,7 @@ export function DiaryEditor({
 															key={ref.id}
 															type="button"
 															onClick={() => setReferenceViewNote(note)}
-															className={cn("flex items-start gap-1.5 mt-1.5 text-sm text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left", isMobile && "px-1 py-1")}
+															className={cn("flex items-start gap-1.5 mt-1.5 text-sm text-muted-foreground/50 hover:text-primary/70 transition-colors w-full text-left", isMobile && "px-1")}
 														>
 															<span className="w-3 h-3 rounded-full [background-color:color-mix(in_oklch,var(--color-card-primary,var(--primary))_10%,transparent)] flex items-center justify-center shrink-0 mt-0.5">
 																<ArrowDownLeft className="w-2 h-2 [color:var(--color-card-primary,var(--primary))]" />
@@ -1124,7 +1133,7 @@ export function DiaryEditor({
 					<div className="text-xs text-muted-foreground/40 text-center py-2">加载中...</div>
 				)}
 				<AlertDialog open={deleteDialogNote !== null} onOpenChange={(open) => { if (!open) setDeleteDialogNote(null); }}>
-					<AlertDialogContent className="p-0 gap-0 overflow-hidden max-w-sm shadow-xl">
+					<AlertDialogContent className="p-0 gap-0 overflow-hidden max-w-sm w-[calc(100vw-2rem)] shadow-xl">
 						<div className="flex gap-4 p-6 pb-5">
 							<div className="flex-shrink-0 w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center ring-1 ring-destructive/20">
 								<TriangleAlert className="w-5 h-5 text-destructive" />
@@ -1207,7 +1216,7 @@ function NoteLinkDropCard({
 			{...listeners}
 			className={cn(
 				"relative",
-				!disabled && "cursor-grab active:cursor-grabbing",
+				!disabled && "cursor-grab active:cursor-grabbing select-none [-webkit-touch-callout:none]",
 				isDragging && "opacity-40",
 			)}
 		>

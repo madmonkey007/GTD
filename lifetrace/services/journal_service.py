@@ -719,10 +719,31 @@ class JournalService:
 
     def update_journal(self, journal_id: int, data: JournalUpdate) -> JournalResponse:
         """更新日记"""
-        if not self.repository.get_by_id(journal_id):
+        existing = self.repository.get_by_id(journal_id)
+        if not existing:
             raise HTTPException(status_code=404, detail="日记不存在")
 
         payload = self._build_update_payload(data)
+
+        # date-only 更新（前端 formatDateInput 产生的午夜时间）且日期未变时，
+        # 保留库里原有的 date 时间分量，避免失焦自动保存把 date 刷成当前时刻
+        # 导致笔记在“全部笔记”里跳到最前。
+        new_date = getattr(payload, "date", None)
+        if (
+            isinstance(new_date, datetime)
+            and new_date.hour == 0
+            and new_date.minute == 0
+            and new_date.second == 0
+            and new_date.microsecond == 0
+        ):
+            old_raw = existing.get("date")
+            old_date = old_raw if isinstance(old_raw, datetime) else None
+            if (
+                old_date is not None
+                and (old_date.year, old_date.month, old_date.day)
+                == (new_date.year, new_date.month, new_date.day)
+            ):
+                object.__setattr__(payload, "date", old_date)
 
         # 如果更新中包含 tags，确保 tags 以 #标签 形式写入正文
         if payload.tags is not None and payload.tags is not _UNSET:

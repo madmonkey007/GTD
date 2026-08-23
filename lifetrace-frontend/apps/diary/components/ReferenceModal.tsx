@@ -260,6 +260,7 @@ function LinkGroupHeader({
 }
 
 export function ReferenceModal({ isOpen, onClose, note, noteName, allNotes }: ReferenceModalProps) {
+	const isMobile = useIsMobile();
 	const { data: noteLinks, isLoading } = useNoteLinks(note.id);
 	const { updateNoteLink, deleteNoteLink } = useNoteLinkMutations();
 	const tOut = noteLinks?.outgoing ?? [];
@@ -283,7 +284,11 @@ export function ReferenceModal({ isOpen, onClose, note, noteName, allNotes }: Re
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="w-[95vw] max-w-[1120px] h-[80vh] max-h-[600px] gap-0 p-0 overflow-hidden flex flex-col">
+			<DialogContent className={cn(
+				"w-[95vw] max-w-[1120px] h-[80vh] max-h-[600px] gap-0 p-0 overflow-hidden flex flex-col",
+				// 移动端：全屏弹窗，不受 80vh/600px 限制
+				isMobile && "inset-0 translate-x-0 translate-y-0 w-screen h-[100dvh] max-w-none max-h-none rounded-none border-0",
+			)}>
 				<DialogTitle className="sr-only">笔记引用关系</DialogTitle>
 
 				{/* 顶栏：当前笔记名 + 链接总数 + 关闭 */}
