@@ -16,7 +16,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
 	ChevronDown,
 	ChevronUp,
-	Clock,
 	Send,
 	MoreHorizontal,
 	Pencil,
@@ -516,6 +515,14 @@ export function DiaryEditor({
 		return sorted;
 	}, [notesList, pinnedIds, filterMode, tagFilter, similarToNoteId, randomShuffle, filterJournalIds, timeMachinePending]);
 
+	// 头部元信息用的紧凑时间：当年省年份，如 "08-23 14:05" / "2025-12-31 09:00"
+	const formatTimeCompact = (dateStr: string) => {
+		const d = new Date(dateStr);
+		const md = String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+		const hm = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+		return d.getFullYear() === new Date().getFullYear() ? `${md} ${hm}` : `${d.getFullYear()}-${md} ${hm}`;
+	};
+
 	const formatTime = (dateStr: string) => {
 		const d = new Date(dateStr);
 		return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
@@ -887,7 +894,7 @@ export function DiaryEditor({
 		// --- Display mode ---
 									<>
 										<div className="flex items-center justify-between gap-2">
-											<div className="flex-1 min-w-0">
+											<div className="flex-1 min-w-0 transition-[padding] duration-200 group-hover:pr-14">
 												{note.name && (() => {
 													// 后端无标题时用「YYYY-MM-DD HH:mm」兜底——时间型伪标题按元信息弱化
 													const isAutoName = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(note.name.trim());
@@ -910,30 +917,65 @@ export function DiaryEditor({
 										})()}
 											</div>
 											{!isEditing && (
-												<div className="flex items-center -space-x-1">
-													<button
-														type="button"
-														onClick={(e) => {
-															e.stopPropagation();
-															const linked = { id: note.id, name: note.name, userNotes: note.userNotes, date: note.date, tags: note.tags.map((t) => t.tagName) };
-															addLinkedNote(linked);
-															// 直接打开对话面板并触发默认洞察，无需再手动发送
-															useMobileToolbarStore.getState().setDiaryRightOpen(true);
-															triggerInsight(linked);
-														}}
-														title={locale === "zh" ? "AI 洞察" : "AI insight"}
-														className={cn("rounded p-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-all duration-150 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30", isMobile && "p-2 opacity-100")}
-													>
-														<MessageCircle className="w-3.5 h-3.5" />
-													</button>
-													<button
-														type="button"
-														onClick={(e) => { e.stopPropagation(); setAddLinkNote(note); }}
-														title={t("linkNote")}
-														className={cn("rounded p-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-all duration-150 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30", isMobile && "p-2 opacity-100")}
-													>
-														<Link2 className="w-3.5 h-3.5" />
-													</button>
+												<div className="relative flex items-center">
+													{/* 悬停时时间左移、操作按钮在原位浮现；移动端无悬停，按钮常驻常规流 */}
+													{!isMobile && (
+														<div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center -space-x-1 opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
+															<button
+																type="button"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	const linked = { id: note.id, name: note.name, userNotes: note.userNotes, date: note.date, tags: note.tags.map((t) => t.tagName) };
+																	addLinkedNote(linked);
+																	// 直接打开对话面板并触发默认洞察，无需再手动发送
+																	useMobileToolbarStore.getState().setDiaryRightOpen(true);
+																	triggerInsight(linked);
+																}}
+																title={locale === "zh" ? "AI 洞察" : "AI insight"}
+																className="rounded p-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+															>
+																<MessageCircle className="w-3.5 h-3.5" />
+															</button>
+															<button
+																type="button"
+																onClick={(e) => { e.stopPropagation(); setAddLinkNote(note); }}
+																title={t("linkNote")}
+																className="rounded p-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+															>
+																<Link2 className="w-3.5 h-3.5" />
+															</button>
+														</div>
+													)}
+													<span className={cn(
+														"text-[10px] leading-none text-muted-foreground/45 tabular-nums shrink-0 pt-0.5",
+														!isMobile && "mr-1.5 transition-transform duration-200 group-hover:-translate-x-[52px]",
+													)}>{formatTimeCompact(note.createdAt)}</span>
+													{isMobile && (
+														<>
+															<button
+																type="button"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	const linked = { id: note.id, name: note.name, userNotes: note.userNotes, date: note.date, tags: note.tags.map((t) => t.tagName) };
+																	addLinkedNote(linked);
+																	useMobileToolbarStore.getState().setDiaryRightOpen(true);
+																	triggerInsight(linked);
+																}}
+																title={locale === "zh" ? "AI 洞察" : "AI insight"}
+																className="rounded p-2 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors"
+															>
+																<MessageCircle className="w-3.5 h-3.5" />
+															</button>
+															<button
+																type="button"
+																onClick={(e) => { e.stopPropagation(); setAddLinkNote(note); }}
+																title={t("linkNote")}
+																className="rounded p-2 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-colors"
+															>
+																<Link2 className="w-3.5 h-3.5" />
+															</button>
+														</>
+													)}
 												</div>
 											)}
 											<DropdownMenu>
@@ -1015,10 +1057,6 @@ export function DiaryEditor({
 											</button>
 										)}
 
-										<div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground/50 hidden">
-											<Clock className="w-3 h-3 text-muted-foreground/40" />
-											{formatTime(note.createdAt)}
-										</div>
 										{(() => {
 											const refIds = note.relatedNoteIds ?? [];
 											const outgoingNotes = refIds.map((rid: number) => notesList.find(n => n.id === rid) ?? relatedNotesData?.find(n => n.id === rid)).filter(Boolean);

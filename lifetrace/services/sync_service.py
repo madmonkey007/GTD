@@ -24,7 +24,7 @@ from lifetrace.schemas.sync import (
 )
 from lifetrace.schemas.todo import TodoCreate, TodoUpdate
 from lifetrace.services.habit_service import HabitService, _normalize_record_date
-from lifetrace.services.journal_service import JournalService
+from lifetrace.services.journal_service import run_without_ai_title as _no_ai_title,  JournalService
 from lifetrace.services.todo_service import TodoService
 from lifetrace.storage.models import (
     Habit,
@@ -128,7 +128,7 @@ class SyncService:
             self._resolve_todo_parent(payload, op.depends_on)
             entity = self.todo_service.create_todo(TodoCreate.model_validate(payload))
         elif entity_type == "journal":
-            entity = self.journal_service.create_journal(JournalCreate.model_validate(payload))
+            entity = _no_ai_title(self.journal_service.create_journal, JournalCreate.model_validate(payload))
         elif entity_type == "habit":
             entity = self.habit_service.create_habit(HabitCreate.model_validate(payload))
         else:
@@ -181,8 +181,10 @@ class SyncService:
                     payload["user_notes"] = (
                         f"{client_text}\n\n---\n【同步冲突备份 {stamp}】\n{server_text}"
                     )
-            entity = self.journal_service.update_journal(
-                existing.id, JournalUpdate.model_validate(payload)
+            entity = _no_ai_title(
+                self.journal_service.update_journal,
+                existing.id,
+                JournalUpdate.model_validate(payload),
             )
         elif entity_type == "habit":
             entity = self.habit_service.update_habit(

@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import re
+import threading
+from contextvars import ContextVar
 from datetime import datetime, time, timedelta
 from inspect import signature
 from typing import TYPE_CHECKING, Any
@@ -46,6 +48,25 @@ from lifetrace.storage.sql_utils import col
 from lifetrace.util.logging_config import get_logger
 
 logger = get_logger()
+
+def _is_serverless() -> bool:
+    """是否运行在 Vercel 等 serverless 环境（响应后线程会被冻结）。"""
+    import os
+
+    return bool(os.environ.get("VERCEL"))
+
+
+# 同步推送/脚本批量写入时跳过 AI 标题生成（免费小模型限流，批量会拖慢 push）
+_skip_ai_title = ContextVar("skip_ai_title", default=False)
+
+
+def run_without_ai_title(func, *args, **kwargs):
+    """在跳过 AI 标题生成的上下文中执行（离线同步批量推送时使用）。"""
+    token = _skip_ai_title.set(True)
+    try:
+        return func(*args, **kwargs)
+    finally:
+        _skip_ai_title.reset(token)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -92,6 +113,154 @@ class JournalService:
         if fallback_time:
             return fallback_time.strftime("%Y-%m-%d %H:%M")
         return "Untitled"
+
+    # 时间型伪标题（后端 _normalize_name 的兜底值）——只有这种标题才允许 AI 生成覆盖
+    _AUTO_TITLE_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$")
+    # 4.7-flash 限流时的降级模型（智谱，同样免费，非思考型）
+    _TITLE_FALLBACK_MODEL = "glm-4-flash"
+    # 主标题模型配置缓存（config.yaml 的 title_llm 段：SiliconFlow 小模型）
+    _title_llm_cfg: dict[str, str] | None = None
+
+    @classmethod
+    def _get_title_llm_cfg(cls) -> dict[str, str] | None:
+        if cls._title_llm_cfg is not None:
+            return cls._title_llm_cfg or None
+        try:
+            import yaml
+
+            cfg = yaml.safe_load(open("lifetrace/config/config.yaml")) or {}
+            section = (cfg.get("title_llm") or {}).get("api_key") and cfg.get("title_llm") or None
+            cls._title_llm_cfg = section or {}
+        except Exception:
+            cls._title_llm_cfg = {}
+        return cls._title_llm_cfg or None
+
+    def _is_auto_title(self, name: str | None) -> bool:
+        """标题是否为伪标题（空 / Untitled / 时间兜底）。"""
+        cleaned = (name or "").strip()
+        return not cleaned or cleaned == "Untitled" or bool(self._AUTO_TITLE_RE.match(cleaned))
+
+    def _maybe_generate_ai_title(self, journal_id: int, content: str | None) -> None:
+        """用免费小模型为伪标题笔记生成标题（后台线程，不阻塞保存请求）。
+
+        仅当当前标题仍是伪标题时写入，用户编辑过的真实标题永远不会被覆盖；
+        失败/超时静默，保留伪标题兜底。前端在提交后延迟刷新拿生成结果。
+        云端 serverless（Vercel）响应后线程会被冻结，此时退化为同步执行。
+        """
+        if _skip_ai_title.get():
+            return
+        if _is_serverless():
+            self._generate_ai_title_sync(journal_id, content)
+            return
+        threading.Thread(
+            target=self._generate_ai_title_sync,
+            args=(journal_id, content),
+            daemon=True,
+            name=f"ai-title-{journal_id}",
+        ).start()
+
+    def _generate_ai_title_sync(self, journal_id: int, content: str | None) -> None:
+        """实际生成逻辑（可在线程或请求内执行）。"""
+        if _skip_ai_title.get():
+            return
+        text = (content or "").strip()
+        if not text:
+            return
+        try:
+            from lifetrace.llm.llm_client import LLMClient
+
+            client = LLMClient()
+            if not client.is_available():
+                return
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "为笔记生成一个简短、自然、便于以后识别内容的标题。\n\n"
+                        "优先保留原文的关键概念和表达，不要美化、升华或写成文章标题。\n\n"
+                        "只输出标题。\n"
+                        "要求：中文（除非笔记明显是其他语言）；不超过 15 个字；"
+                        "概括核心内容；不加引号、不加书名号、冒号，不以标点结尾。\n\n"
+                        "反向案例\n"
+                        "-矛盾论：普遍性规律与特殊问题\n"
+                        "-专注力提升法：一次一任务\n"
+                        "-XX之道\n\n"
+                        "正向案例\n"
+                        "-一次只做一件事\n"
+                        "-矛盾的普遍性与特殊性"
+                    ),
+                },
+                {"role": "user", "content": text[:1500]},
+            ]
+            # 主通道：智谱 glm-4-flash（免费、响应 ~1-2s、无冷启动）；
+            # 失败降级 SiliconFlow 小模型（config.yaml title_llm 段，冷启动偶发挂起，超时 8s）
+            raw = ""
+            from openai import OpenAI as _OpenAI
+
+            # 专用客户端带 8s 超时：共享客户端无超时，智谱拥堵时后台线程会挂半分钟
+            zhipu = _OpenAI(base_url=client.base_url, api_key=client.api_key, timeout=8)
+            try:
+                resp = zhipu.chat.completions.create(
+                    model=self._TITLE_FALLBACK_MODEL,
+                    messages=messages,  # type: ignore[arg-type]
+                    temperature=0.3,
+                    max_tokens=50,
+                    extra_body={"thinking": {"type": "disabled"}},
+                )
+                raw = resp.choices[0].message.content or ""
+            except Exception as exc:
+                logger.warning(f"标题主通道（智谱 glm-4-flash）失败，降级 SiliconFlow: {exc}")
+            if not raw.strip():
+                # 备选通道（config.yaml 的 title_llm_fallback / title_llm 段），
+                # 依次尝试；agnes 为思考型模型需 reasoning_effort=none 才直出正文
+                channels = []
+                try:
+                    import yaml
+
+                    cfg_all = yaml.safe_load(open("lifetrace/config/config.yaml")) or {}
+                    for section in ("title_llm_fallback", "title_llm"):
+                        c = cfg_all.get(section)
+                        if c and c.get("api_key"):
+                            channels.append(c)
+                except Exception:
+                    pass
+                for c in channels:
+                    try:
+                        fb = _OpenAI(
+                            base_url=c["base_url"], api_key=c["api_key"], timeout=8
+                        )
+                        extra = (
+                            {"reasoning_effort": "none"}
+                            if "agnes" in c.get("model", "")
+                            else None
+                        )
+                        kwargs = {
+                            "model": c["model"],
+                            "messages": messages,
+                            "temperature": 0.3,
+                            "max_tokens": 200,
+                        }
+                        if extra:
+                            kwargs["extra_body"] = extra  # type: ignore[assignment]
+                        resp = fb.chat.completions.create(**kwargs)  # type: ignore[arg-type]
+                        raw = resp.choices[0].message.content or ""
+                        if raw.strip():
+                            break
+                    except Exception as exc:
+                        logger.warning(f"标题备选通道失败 ({c.get('model')}): {exc}")
+            title = (raw or "").strip().splitlines()[0].strip().strip('"“”').strip()
+            # 模型不总是遵守「不加冒号」：程序级兜底，禁用符号替换为空格
+            title = re.sub(r"[：:，,；;·|｜]", " ", title)
+            title = re.sub(r"\s+", " ", title).strip()
+            if not title or len(title) > 30 or self._is_auto_title(title):
+                return
+            current = self.repository.get_by_id(journal_id)
+            if not current or not self._is_auto_title(current.get("name")):
+                return
+            self.repository.update(journal_id, JournalUpdatePayload(name=title))
+            logger.info(f"AI 生成笔记标题: {journal_id} -> {title}")
+        except Exception as exc:  # 生成失败不影响笔记保存
+            logger.warning(f"AI 标题生成失败（保留原伪标题）: {exc}")
 
     @staticmethod
     def _auto_extract_tags(content: str | None) -> list[str]:
@@ -517,6 +686,10 @@ class JournalService:
         if not journal_id:
             raise HTTPException(status_code=500, detail="创建日记失败")
 
+        # 用户未填标题（时间伪标题兜底）→ 用免费小模型生成；用户填过则不动
+        if self._is_auto_title(payload.name):
+            self._maybe_generate_ai_title(journal_id, payload.user_notes)
+
         # 写入向量库（后台异步，不阻塞主请求）
         self._index_journal_async(journal_id, payload.name, payload.user_notes, data.tags)
 
@@ -575,6 +748,14 @@ class JournalService:
                 updated.get("user_notes", ""),
                 updated.get("tags", []),
             )
+
+        # 用户改了正文但没动标题、且当前仍是伪标题 → 补一次 AI 标题生成
+        # （真实标题 / 已生成过的标题不再触发，编辑优先）
+        if payload.user_notes is not _UNSET and payload.name is _UNSET:
+            current_name = (updated or {}).get("name") if updated else None
+            if self._is_auto_title(current_name):
+                self._maybe_generate_ai_title(journal_id, str(payload.user_notes))
+                updated = self.repository.get_by_id(journal_id) or updated
 
         logger.info(f"成功更新日记: {journal_id}")
 

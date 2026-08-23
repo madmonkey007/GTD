@@ -135,13 +135,21 @@ export function DiaryPanel() {
 	// So at containerWidth >= ~976, all 3 panels can fit
 	const showLeftInline = !isMobile && (containerWidth >= 1000 || containerWidth === 0);
 	const showRightInline = !isMobile && (containerWidth >= 900 || containerWidth === 0);
-	// 桌面首次进入笔记面板时默认展开对话面板（用户可通过右上角关闭/搜索栏开关再控制）
+	// 桌面首次进入笔记面板时默认展开对话面板（用户可通过右上角关闭/搜索栏开关再控制）。
+	// useIsMobile 初始为 false（挂载后才更新），必须结合容器/窗口宽度判定，
+	// 否则移动端首帧会误把对话面板打开
 	const rightDefaultAppliedRef = useRef(false);
 	useEffect(() => {
-		if (isMobile || rightDefaultAppliedRef.current) return;
+		if (rightDefaultAppliedRef.current) return;
+		const desktopish =
+			containerWidth >= 900 ||
+			(containerWidth === 0 &&
+				typeof window !== "undefined" &&
+				window.innerWidth >= 900);
+		if (isMobile || !desktopish) return;
 		rightDefaultAppliedRef.current = true;
 		if (!rightDrawerOpen) setRightDrawerOpen(true);
-	}, [isMobile, rightDrawerOpen, setRightDrawerOpen]);
+	}, [isMobile, containerWidth, rightDrawerOpen, setRightDrawerOpen]);
 	const {
 		leftWidth,
 		rightWidth,

@@ -195,7 +195,7 @@ export function MobileTopBar() {
 						<ArrowLeft className="h-4 w-4" />
 					</button>
 					<span className="flex-1 truncate text-base font-medium text-foreground">
-						思维分析
+						AI 洞察
 					</span>
 				</>
 			) : (

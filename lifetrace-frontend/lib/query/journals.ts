@@ -517,12 +517,20 @@ function removeJournalFromCaches(queryClient: QueryClient, id: number) {
 export function useJournalMutations() {
 	const queryClient = useQueryClient();
 
+	// 后台 AI 标题生成完成后延迟刷新列表，让伪标题自动替换为生成标题
+	const scheduleTitleRefresh = () => {
+		setTimeout(() => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
+		}, 4000);
+	};
+
 	const createMutation = useMutation({
 		mutationFn: createJournal,
 		onSuccess: (saved) => {
 			if (saved) {
 				prependJournalToCaches(queryClient, saved as unknown as Record<string, unknown>);
 			}
+			scheduleTitleRefresh();
 		},
 	});
 
@@ -536,6 +544,7 @@ export function useJournalMutations() {
 			// 镜像笔记回写只影响待办详情的背景/备注，只失效 detail，
 			// 不再全量失效 todos（否则左侧栏 limit 2000 的大列表每次保存都重拉）
 			queryClient.invalidateQueries({ queryKey: ["todos", "detail"] });
+			scheduleTitleRefresh();
 		},
 	});
 
