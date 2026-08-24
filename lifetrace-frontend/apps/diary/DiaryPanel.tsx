@@ -26,6 +26,8 @@ import {
 	useProjectMutations,
 } from "@/lib/query";
 import { useNoteLinkMutations } from "@/lib/query/note-links";
+import { listLinksApiNotesNoteIdLinksGet } from "@/lib/generated/note-links/note-links";
+import { unwrapApiData } from "@/lib/api/fetcher";
 import { useJournalStore } from "@/lib/store/journal-store";
 import { useFocusTarget } from "@/lib/store/focus-target-store";
 import { usePinStore } from "@/lib/store/pin-store";
@@ -346,7 +348,7 @@ export function DiaryPanel() {
 		isCreating,
 		isUpdating,
 		} = useJournalMutations();
-	const { createNoteLinkAsync } = useNoteLinkMutations();
+	const { createNoteLinkAsync, deleteNoteLinkAsync } = useNoteLinkMutations();
 	const { addNotesAsync } = useProjectMutations();
 	const noteLinkList = useMemo(() => {
 		if (!allNotesData?.journals) return [];
@@ -396,6 +398,28 @@ export function DiaryPanel() {
 		// 仅移除尚未落库的待处理链接；已保存链接的删除在 ReferenceModal 中处理
 		setPendingLinks((prev) => prev.filter((pl) => pl.id !== targetId));
 	}, []);
+	// 关系视图连线端点拖拽重接：删旧链 + 按新方向建链
+	const handleRerouteLink = useCallback(async (edge: { from: number; to: number }, endpoint: "from" | "to", noteId: number) => {
+		const newFrom = endpoint === "from" ? noteId : edge.from;
+		const newTo = endpoint === "to" ? noteId : edge.to;
+		if (newFrom === newTo) return;
+		try {
+			const resp = await listLinksApiNotesNoteIdLinksGet(edge.from);
+			// customFetcher 已把响应键转为 camelCase（见 note-links.ts normalizeLink 注释）
+			const data = unwrapApiData<{ outgoing?: { id: number; sourceNoteId: number; targetNoteId: number }[] }>(resp);
+			const old = (data?.outgoing ?? []).find((l) => l.targetNoteId === edge.to);
+			if (old) {
+				await deleteNoteLinkAsync({ id: old.id, sourceNoteId: edge.from, targetNoteId: edge.to });
+			}
+			await createNoteLinkAsync({
+				sourceNoteId: newFrom,
+				input: { targetNoteId: newTo, relationType: "SUPPORTS" },
+			});
+			refetchAllNotes();
+		} catch (e) {
+			console.error('Failed to reroute link:', e);
+		}
+	}, [createNoteLinkAsync, deleteNoteLinkAsync, refetchAllNotes]);
 	const syncDraftFromJournal = useCallback(
 		(journal: JournalView) => {
 			const journalDate = parseJournalDate(journal.date);
@@ -907,6 +931,7 @@ const handleSaveCardEdit = async (
 							noteLinkList={noteLinkList}
 							onLinkNote={handleLinkNote}
 							onRemoveLink={handleRemoveLink}
+							onRerouteLink={handleRerouteLink}
 							linkedNoteTitles={pendingLinks}
 							onTitleChange={(value) => setDraft((prev) => ({ ...prev, name: value }))}
 							onUserNotesChange={(value) => setDraft((prev) => ({ ...prev, userNotes: value }))}
@@ -980,6 +1005,7 @@ const handleSaveCardEdit = async (
 							noteLinkList={noteLinkList}
 							onLinkNote={handleLinkNote}
 							onRemoveLink={handleRemoveLink}
+							onRerouteLink={handleRerouteLink}
 							linkedNoteTitles={pendingLinks}
 							onTitleChange={(value) =>
 								setDraft((prev) => ({ ...prev, name: value }))

@@ -75,6 +75,7 @@ import { DiarySearchBar } from "./components/DiarySearchBar";
 import { ReferenceModal } from "./components/ReferenceModal";
 import { AddNoteLinkModal } from "./components/AddNoteLinkModal";
 import { NoteMarkdown } from "./components/NoteMarkdown";
+import { RelationLinksLayer } from "./components/RelationLinksLayer";
 import { TimeMachineHeader } from "./components/TimeMachineHeader";
 import { TimeMachineNoteCard } from "./components/TimeMachineNoteCard";
 import { TimeMachineCarousel } from "./components/TimeMachineCarousel";
@@ -131,6 +132,7 @@ interface DiaryEditorProps {
 	noteLinkList?: NoteLinkItem[];
 	onLinkNote?: (noteId: number, sourceId?: number) => void;
 	onRemoveLink?: (noteId: number) => void;
+	onRerouteLink?: (edge: { from: number; to: number }, endpoint: "from" | "to", noteId: number) => void;
 	linkedNoteTitles?: { id: number; name: string }[];
 	relatedNotesData?: JournalView[];
 	showLeftToggle?: boolean;
@@ -178,6 +180,7 @@ export function DiaryEditor({
 	noteLinkList,
 	onLinkNote,
 	onRemoveLink,
+	onRerouteLink,
 	linkedNoteTitles,
 	relatedNotesData,
 	showLeftToggle = false,
@@ -256,6 +259,7 @@ export function DiaryEditor({
 		const sentinelRef = useRef<HTMLDivElement>(null);
 	const queryClient = useQueryClient();
 	const loadedPagesRef = useRef(0);
+	const notesGridRef = useRef<HTMLDivElement>(null);
 
 
 	// Debounce search input
@@ -596,16 +600,42 @@ export function DiaryEditor({
 		}
 		const stacks = new Map<number, { size: number }>();
 		const hidden = new Set<number>();
+		const stacksById = new Map<number, JournalView[]>();
 		for (const members of membersByRoot.values()) {
 			if (members.length < 2) continue;
-			const top = members[0];
-			stacks.set(top.id, { size: members.length });
-			if (!expandedStacks.has(top.id)) {
+			stacksById.set(members[0].id, members);
+		}
+		// 展开态为"聚焦模式"：仅显示被展开组的成员，其余笔记（含其他叠放组与独立笔记）全部隐藏
+		const focusingRoot = [...expandedStacks.keys()].find((id) => stacksById.has(id)) as number | undefined;
+		if (focusingRoot !== undefined) {
+			const members = stacksById.get(focusingRoot) ?? [];
+			const memberIds = new Set(members.map((m) => m.id));
+			stacks.set(focusingRoot, { size: members.length });
+			for (const n of sortedNotes) {
+				if (!memberIds.has(n.id)) hidden.add(n.id);
+			}
+		} else {
+			for (const [topId, members] of stacksById) {
+				stacks.set(topId, { size: members.length });
 				for (const m of members.slice(1)) hidden.add(m.id);
 			}
 		}
 		return { relationStacks: stacks, relationNotes: sortedNotes.filter((n) => !hidden.has(n.id)) };
 	}, [viewMode, sortedNotes, notesList, relatedNotesData, expandedStacks]);
+
+	// 聚焦模式下展示的有向边：n.relatedNoteIds 含 rid 且两端都在当前渲染列表中 → n 引用 rid
+	const focusedEdges = useMemo(() => {
+		if (viewMode !== "relation" || expandedStacks.size === 0) return [];
+		const visible = new Set(relationNotes.map((n) => n.id));
+		const edges: { from: number; to: number }[] = [];
+		for (const n of notesList) {
+			if (!visible.has(n.id)) continue;
+			for (const rid of n.relatedNoteIds ?? []) {
+				if (rid !== n.id && visible.has(rid)) edges.push({ from: n.id, to: rid });
+			}
+		}
+		return edges;
+	}, [viewMode, expandedStacks, relationNotes, notesList]);
 
 	const toggleStack = (topId: number) => {
 		setExpandedStacks((prev) => {
@@ -918,13 +948,17 @@ export function DiaryEditor({
 						onDragEnd={handleLinkDragEnd}
 					>
 					<div
-						className={viewMode === "single"
+						ref={notesGridRef}
+						className={"relative " + (viewMode === "single"
 							? "space-y-2"
 							// 多列自适应：滚动容器是 @container，按其实际宽度分级列数（保底 2 列）；
 							// 编辑直接在卡片原位进行（双列窄卡也能编辑，工具栏按容器宽度自适应收纳）；
 							// 关系视图沿用多列瀑布流，叠放组作为整体落在同一列
-							: "columns-2 gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid @min-[940px]:columns-3 @min-[1240px]:columns-4"}
+							: "columns-2 gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid @min-[940px]:columns-3 @min-[1240px]:columns-4")}
 					>
+						{focusedEdges.length > 0 && (
+							<RelationLinksLayer containerRef={notesGridRef} edges={focusedEdges} onReroute={onRerouteLink} />
+						)}
 					{(viewMode === "relation" ? relationNotes : sortedNotes).map((note) => {
 						const isExpanded = expandedCards.has(note.id);
 						// 展开收起统一阈值：行数 >6 或字符数 >200（移动端折行后长度差异大，仅按行数判断会不统一）
@@ -1232,12 +1266,12 @@ export function DiaryEditor({
 						);
 
 						if (!stack) {
-							return <div key={note.id}>{card}</div>;
+							return <div key={note.id} data-relation-node={note.id}>{card}</div>;
 						}
 						if (stackExpanded) {
 							// 展开态：整组平铺，顶部卡保留角标用于收起
 							return (
-								<div key={note.id} className="relative">
+								<div key={note.id} className="relative" data-relation-node={note.id}>
 									{card}
 									<button
 										type="button"
@@ -1253,7 +1287,7 @@ export function DiaryEditor({
 						}
 						// 叠放视觉：顶部卡片后面垫两层错位的"纸"，角标显示整组张数，点击展开
 						return (
-							<div key={note.id} className="relative">
+							<div key={note.id} className="relative" data-relation-node={note.id}>
 								<div className="pointer-events-none absolute inset-0 translate-x-1 translate-y-1 rounded-xl border border-border/40 bg-card shadow-[0_1px_4px_-2px_rgba(0,0,0,0.10)]" />
 								<div className="pointer-events-none absolute inset-0 translate-x-2 translate-y-2 rounded-xl border border-border/30 bg-card/80 shadow-[0_2px_5px_-3px_rgba(0,0,0,0.08)]" />
 								<div className="relative">{card}</div>

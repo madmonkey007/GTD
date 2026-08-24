@@ -223,6 +223,7 @@ export function useNoteLinkMutations() {
 		createNoteLinkAsync: createMutation.mutateAsync,
 		updateNoteLink: updateMutation.mutate,
 		deleteNoteLink: deleteMutation.mutate,
+		deleteNoteLinkAsync: deleteMutation.mutateAsync,
 		isPending:
 			createMutation.isPending ||
 			updateMutation.isPending ||
