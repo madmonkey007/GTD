@@ -1208,7 +1208,18 @@ export function DiaryEditor({
 										{(() => {
 											const refIds = note.relatedNoteIds ?? [];
 											const outgoingNotes = refIds.map((rid: number) => notesList.find(n => n.id === rid) ?? relatedNotesData?.find(n => n.id === rid)).filter(Boolean);
-											const incomingNotes = relatedNotesData?.filter(n => n.relatedNoteIds?.includes(note.id) && n.id !== note.id) ?? [];
+											// 被引用来源合并本地列表与全量列表（按 id 去重）：
+											// 建链后源卡片的 relatedNoteIds 已乐观更新进 notesList，
+											// 只查 relatedNotesData 时云端全量刷新慢，目标卡片会迟迟不显示"被引用"
+											const incomingSeen = new Set<number>([note.id]);
+											const incomingNotes = [
+												...notesList,
+												...((relatedNotesData ?? []) as JournalView[]),
+											].filter((n) => {
+												if (incomingSeen.has(n.id)) return false;
+												incomingSeen.add(n.id);
+												return (n.relatedNoteIds ?? []).includes(note.id);
+											});
 											const total = outgoingNotes.length + incomingNotes.length;
 											if (total === 0) return null;
 											const isExpandable = total >= 3;

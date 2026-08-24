@@ -52,14 +52,23 @@ export const useInboxDraftStore = create<InboxDraftState>()(
 				})),
 			removeDraft: (id) => set((s) => ({ drafts: s.drafts.filter((d) => d.id !== id) })),
 			clearDrafts: () => set({ drafts: [] }),
-			setExpiryHours: (hours) =>
-				set({ expiryHours: Number.isFinite(hours) && hours > 0 ? hours : DEFAULT_EXPIRY_HOURS }),
+			setExpiryHours: (hours) => {
+				set({ expiryHours: Number.isFinite(hours) && hours > 0 ? hours : DEFAULT_EXPIRY_HOURS });
+				// 缩短失效时间后立即按新阈值清理，旧草稿不会滞留
+				get().pruneExpired();
+			},
 			pruneExpired: () => {
 				const { drafts, expiryHours } = get();
 				const next = prune(drafts, expiryHours);
 				if (next.length !== drafts.length) set({ drafts: next });
 			},
 		}),
-		{ name: "inbox-drafts" },
+		{
+			name: "inbox-drafts",
+			// 应用启动从 localStorage 恢复时即清理过期草稿（不依赖打开 Agent 面板）
+			onRehydrateStorage: () => (state) => {
+				state?.pruneExpired();
+			},
+		},
 	),
 );

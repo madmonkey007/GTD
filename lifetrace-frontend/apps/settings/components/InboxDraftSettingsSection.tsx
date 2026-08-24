@@ -36,6 +36,24 @@ export function InboxDraftSettingsSection() {
 					<span className="text-xs text-muted-foreground">{t("inboxDraftExpiryUnit")}</span>
 				</div>
 			</div>
+			{/* 常用时长快捷设置 */}
+			<div className="flex flex-wrap items-center gap-1.5">
+				{[12, 24, 48, 72].map((h) => (
+					<button
+						key={h}
+						type="button"
+						onClick={() => setExpiryHours(h)}
+						className={
+							"rounded-full border px-2.5 py-1 text-xs transition-colors " +
+							(expiryHours === h
+								? "border-primary/40 bg-primary/10 text-primary"
+								: "border-border/50 text-muted-foreground hover:bg-muted/40 hover:text-foreground")
+						}
+					>
+						{h} {t("inboxDraftExpiryUnit")}
+					</button>
+				))}
+			</div>
 		</SettingsSection>
 	);
 }

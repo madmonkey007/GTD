@@ -8,7 +8,7 @@ import {
 } from "react";
 import { ArrowUp, BookOpen, Heart, History, ListTodo, Loader2, Plus, Sparkles, Square, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { motion, type Variants } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { sendChatMessageStream, type ToolCallEvent } from "@/lib/api";
 import type { ChatMessage, ToolCallStep } from "@/apps/chat/types";
 import { useLocaleStore } from "@/lib/store/locale";
@@ -245,6 +245,7 @@ export function QuickCommandPanel() {
   const addDraft = useInboxDraftStore((s) => s.addDraft);
   const removeDraft = useInboxDraftStore((s) => s.removeDraft);
   const pruneExpired = useInboxDraftStore((s) => s.pruneExpired);
+  const expiryHours = useInboxDraftStore((s) => s.expiryHours);
   const { createTodo } = useTodoMutations();
   const { createJournal } = useJournalMutations();
   const [inboxOpen, setInboxOpen] = useState(false);
@@ -252,18 +253,43 @@ export function QuickCommandPanel() {
   useEffect(() => {
     pruneExpired();
   }, [pruneExpired]);
-  // 点击收集箱面板外部时收起
+  // 面板打开期间每分钟刷新一次，让每条草稿的"剩余过期时间"走动
+  const [, setInboxTick] = useState(0);
+  useEffect(() => {
+    if (!inboxOpen) return;
+    const timer = setInterval(() => setInboxTick((v) => v + 1), 60 * 1000);
+    return () => clearInterval(timer);
+  }, [inboxOpen]);
+  // 抽屉打开时按 Esc 收起（点击遮罩/关闭按钮也可关闭）
   const inboxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!inboxOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (inboxRef.current && !inboxRef.current.contains(e.target as Node)) {
-        setInboxOpen(false);
-      }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setInboxOpen(false);
     };
-    setTimeout(() => document.addEventListener("mousedown", handler), 0);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [inboxOpen]);
+
+  // 草稿创建时间（今天只显示时分，否则带日期）
+  const formatDraftTime = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const now = new Date();
+    const sameDay =
+      d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    return sameDay ? hm : `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${hm}`;
+  };
+  // 草稿剩余存活时间文案；不足 1 小时标红提醒
+  const draftRemaining = (iso: string): { text: string; urgent: boolean } => {
+    const remainMs = expiryHours * 3600 * 1000 - (Date.now() - Date.parse(iso));
+    if (remainMs <= 0) return { text: "", urgent: true };
+    const hours = remainMs / 3600000;
+    const urgent = hours <= 1;
+    const text = hours >= 1 ? `${Math.floor(hours)}h` : `${Math.max(1, Math.round(remainMs / 60000))}m`;
+    return { text: locale === "zh" ? `剩 ${text}` : `${text} left`, urgent };
+  };
 
   // 历史记录（移动端由 MobileTopBar 的 History 按钮驱动，状态上提到全局 store）
   const { agentHistoryOpen: historyOpen, setAgentHistoryOpen: setHistoryOpen } =
@@ -581,11 +607,11 @@ export function QuickCommandPanel() {
         )}
       </div>
 
-      {/* 收集箱入口：页面右上角，展示未处理草稿数，点开为面板 */}
-      <div ref={inboxRef} className={isMobile ? "absolute right-3 top-14 z-30" : "absolute right-3 top-3 z-30"}>
+      {/* 收集箱入口：页面右上角，展示未处理草稿数；点击从右侧滑出抽屉 */}
+      <div className={isMobile ? "absolute right-3 top-14 z-30" : "absolute right-3 top-3 z-30"}>
         <button
           type="button"
-          onClick={() => setInboxOpen((v) => !v)}
+          onClick={() => setInboxOpen(true)}
           title={locale === "zh" ? "收集箱草稿" : "Inbox drafts"}
           className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
         >
@@ -596,76 +622,123 @@ export function QuickCommandPanel() {
             </span>
           )}
         </button>
-        {inboxOpen && (
-          <div className="absolute right-0 top-11 w-80 max-w-[calc(100vw-1.5rem)] rounded-xl border border-border/60 bg-popover p-2 shadow-lg">
-            <div className="flex items-center justify-between px-1.5 pb-1.5">
-              <span className="text-xs font-semibold text-foreground">
-                {locale === "zh" ? `收集箱草稿 ${drafts.length} 条` : `${drafts.length} drafts`}
-              </span>
-              {drafts.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => useInboxDraftStore.getState().clearDrafts()}
-                  className="text-[10px] text-muted-foreground/60 hover:text-destructive transition-colors"
-                >
-                  {locale === "zh" ? "清空" : "Clear"}
-                </button>
-              )}
-            </div>
-            {drafts.length === 0 ? (
-              <p className="px-1.5 py-4 text-center text-xs text-muted-foreground/60">
-                {locale === "zh" ? "暂无草稿，Enter 即可存入" : "No drafts yet; press Enter to save"}
-              </p>
-            ) : (
-              <div className="max-h-72 space-y-1.5 overflow-y-auto">
-                {drafts.map((d) => (
-                  <div key={d.id} className="rounded-lg border border-border/50 bg-background px-2.5 py-2">
-                    <p className="break-words text-xs leading-relaxed text-foreground/85">{d.text}</p>
-                    <div className="mt-1.5 flex items-center gap-0.5">
-                      <button
-                        type="button"
-                        onClick={() => void promoteDraft(d)}
-                        title={locale === "zh" ? "转为待办" : "To todo"}
-                        className="flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-                      >
-                        <ListTodo className="h-3 w-3" />
-                        {locale === "zh" ? "待办" : "Todo"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void promoteDraftToNote(d)}
-                        title={locale === "zh" ? "转为笔记" : "To note"}
-                        className="flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-                      >
-                        <BookOpen className="h-3 w-3" />
-                        {locale === "zh" ? "笔记" : "Note"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => sendDraftToAgent(d)}
-                        disabled={isStreaming}
-                        title={locale === "zh" ? "交给 Agent" : "Ask agent"}
-                        className="flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-30"
-                      >
-                        <Sparkles className="h-3 w-3" />
-                        Agent
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeDraft(d.id)}
-                        title={locale === "zh" ? "删除" : "Delete"}
-                        className="ml-auto rounded p-1 text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
+
+      {/* 收集箱抽屉：从右侧滑出，点击遮罩 / Esc / 关闭按钮收起 */}
+      <AnimatePresence>
+        {inboxOpen && (
+          <>
+            <motion.div
+              key="inbox-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="absolute inset-0 z-30 bg-black/30"
+              onClick={() => setInboxOpen(false)}
+            />
+            <motion.div
+              key="inbox-drawer"
+              ref={inboxRef}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="absolute inset-y-0 right-0 z-40 flex w-80 max-w-[85vw] flex-col border-l border-border/60 bg-popover shadow-xl"
+            >
+              <div className="flex items-center justify-between px-3 pb-1 pt-3">
+                <span className="text-xs font-semibold text-foreground">
+                  {locale === "zh" ? `收集箱草稿 ${drafts.length} 条` : `${drafts.length} drafts`}
+                </span>
+                <div className="flex items-center gap-1">
+                  {drafts.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => useInboxDraftStore.getState().clearDrafts()}
+                      className="text-[10px] text-muted-foreground/60 hover:text-destructive transition-colors"
+                    >
+                      {locale === "zh" ? "清空" : "Clear"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setInboxOpen(false)}
+                    title={locale === "zh" ? "关闭" : "Close"}
+                    className="rounded p-1.5 text-muted-foreground/60 hover:bg-foreground/5 hover:text-foreground transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <p className="px-3 pb-2 text-[10px] leading-relaxed text-muted-foreground/50">
+                {locale === "zh"
+                  ? `未处理的草稿超过 ${expiryHours} 小时将自动清理（可在设置中调整）`
+                  : `Drafts expire after ${expiryHours}h (configurable in Settings)`}
+              </p>
+              {drafts.length === 0 ? (
+                <p className="px-3 py-8 text-center text-xs text-muted-foreground/60">
+                  {locale === "zh" ? "暂无草稿，Enter 即可存入" : "No drafts yet; press Enter to save"}
+                </p>
+              ) : (
+                <div className="flex-1 space-y-1.5 overflow-y-auto px-2 pb-3">
+                  {drafts.map((d) => (
+                    <div key={d.id} className="rounded-lg border border-border/50 bg-background px-2.5 py-2">
+                      <p className="break-words text-xs leading-relaxed text-foreground/85">{d.text}</p>
+                      <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground/45">
+                        <span>{formatDraftTime(d.createdAt)}</span>
+                        {(() => {
+                          const r = draftRemaining(d.createdAt);
+                          return r.text ? (
+                            <span className={r.urgent ? "text-destructive/70" : undefined}>{r.text}</span>
+                          ) : null;
+                        })()}
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => void promoteDraft(d)}
+                          title={locale === "zh" ? "转为待办" : "To todo"}
+                          className="flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                        >
+                          <ListTodo className="h-3 w-3" />
+                          {locale === "zh" ? "待办" : "Todo"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void promoteDraftToNote(d)}
+                          title={locale === "zh" ? "转为笔记" : "To note"}
+                          className="flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                        >
+                          <BookOpen className="h-3 w-3" />
+                          {locale === "zh" ? "笔记" : "Note"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => sendDraftToAgent(d)}
+                          disabled={isStreaming}
+                          title={locale === "zh" ? "交给 Agent" : "Ask agent"}
+                          className="flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-30"
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          Agent
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeDraft(d.id)}
+                          title={locale === "zh" ? "删除" : "Delete"}
+                          className="ml-auto rounded p-1 text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* 输入区 */}
       <div className="border-t border-border/30 px-4 py-3">
