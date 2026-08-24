@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 import threading
 from contextvars import ContextVar
+from pathlib import Path
 from datetime import datetime, time, timedelta
 from inspect import signature
 from typing import TYPE_CHECKING, Any
@@ -128,7 +129,9 @@ class JournalService:
         try:
             import yaml
 
-            cfg = yaml.safe_load(open("lifetrace/config/config.yaml")) or {}
+            # 相对路径依赖 cwd（本地 cwd=项目根时找不到 lifetrace/ 前缀），用模块位置推导
+            cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
+            cfg = yaml.safe_load(open(cfg_path, encoding="utf-8")) or {}
             section = (cfg.get("title_llm") or {}).get("api_key") and cfg.get("title_llm") or None
             cls._title_llm_cfg = section or {}
         except Exception:
@@ -217,7 +220,8 @@ class JournalService:
                 try:
                     import yaml
 
-                    cfg_all = yaml.safe_load(open("lifetrace/config/config.yaml")) or {}
+                    cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
+                    cfg_all = yaml.safe_load(open(cfg_path, encoding="utf-8")) or {}
                     for section in ("title_llm_fallback", "title_llm"):
                         c = cfg_all.get(section)
                         if c and c.get("api_key"):
@@ -248,7 +252,7 @@ class JournalService:
                             break
                     except Exception as exc:
                         logger.warning(f"标题备选通道失败 ({c.get('model')}): {exc}")
-            title = (raw or "").strip().splitlines()[0].strip().strip('"“”').strip()
+            title = (raw or "").strip().splitlines()[0].strip().strip('"“”').strip() if raw and raw.strip() else ""
             # 模型不总是遵守「不加冒号」：程序级兜底，禁用符号替换为空格
             title = re.sub(r"[：:，,；;·|｜]", " ", title)
             title = re.sub(r"\s+", " ", title).strip()
