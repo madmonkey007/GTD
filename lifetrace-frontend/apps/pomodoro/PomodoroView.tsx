@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, RotateCcw, Settings, Square, Minus, Plus } from "lucide-react";
 import { StatsChart } from "./components/StatsChart";
 import { useTimer } from "./hooks/useTimer";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { usePomodoroFocus } from "@/lib/store/pomodoro-focus-store";
 import { cn } from "@/lib/utils";
 
 interface PomodoroConfig {
@@ -163,6 +164,7 @@ export function PomodoroView() {
 	const [config, setConfig] = useState<PomodoroConfig>(loadConfig);
 	const [showSettings, setShowSettings] = useState(false);
 	const [sessionCounter, setSessionCounter] = useState(0);
+	const [focusTaskTitle, setFocusTaskTitle] = useState<string | null>(null);
 	const timer = useTimer({
 		work: config.workMinutes * 60,
 		break: config.breakMinutes * 60,
@@ -174,6 +176,21 @@ export function PomodoroView() {
 	const isMobile = useIsMobile();
 	const circleSize = isMobile ? 260 : 396;
 
+	// 从待办详情「开始专注」跳转过来：显示任务标题并自动开始计时
+	const pendingTitle = usePomodoroFocus((s) => s.pendingTaskTitle);
+	const clearPendingTask = usePomodoroFocus((s) => s.clearPendingTask);
+	const timerStart = timer.start;
+	const pendingConsumedRef = useRef<string | null>(null);
+	useEffect(() => {
+		if (!pendingTitle || pendingConsumedRef.current === pendingTitle) return;
+		pendingConsumedRef.current = pendingTitle;
+		setFocusTaskTitle(pendingTitle);
+		clearPendingTask();
+		timerStart();
+	}, [pendingTitle, clearPendingTask, timerStart]);
+
+	const exitFocusTask = () => setFocusTaskTitle(null);
+
 	const updateConfig = (patch: Partial<PomodoroConfig>) => {
 		const next = { ...config, ...patch };
 		setConfig(next);
@@ -184,6 +201,18 @@ export function PomodoroView() {
 		<div className={`flex h-full ${isMobile ? "flex-col overflow-y-auto" : ""}`}>
 			{/* Left: Timer */}
 			<div className={`flex flex-1 flex-col items-center justify-center gap-6 ${isMobile ? "p-4" : "p-8"}`}>
+				{/* Focus task title (from todo「开始专注」) */}
+				{focusTaskTitle && (
+					<button
+						type="button"
+						onClick={exitFocusTask}
+						title={focusTaskTitle}
+						className="max-w-full truncate rounded-full border border-border bg-muted/40 px-4 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted/70"
+					>
+						{focusTaskTitle} ×
+					</button>
+				)}
+
 				{/* Phase label */}
 				<span
 					className={`text-sm font-medium tracking-wider ${

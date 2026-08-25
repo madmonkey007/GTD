@@ -1,9 +1,11 @@
 "use client";
 
-import { Calendar, Check, Flag, Tag as TagIcon } from "lucide-react";
+import { Calendar, Check, Flag, Play, Tag as TagIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import type { Todo, TodoPriority, TodoStatus, UpdateTodoInput } from "@/lib/types";
+import { useUiStore } from "@/lib/store/ui-store";
+import { usePomodoroFocus } from "@/lib/store/pomodoro-focus-store";
 import { cn, getPriorityLabel, getStatusLabel } from "@/lib/utils";
 import {
 	formatScheduleSummary,
@@ -33,6 +35,8 @@ export function MetaSection({
 }: MetaSectionProps) {
 	const tCommon = useTranslations("common");
 	const tTodoDetail = useTranslations("todoDetail");
+	const setActiveView = useUiStore((s) => s.setActiveView);
+	const startFocus = usePomodoroFocus((s) => s.startFocus);
 	const statusMenuRef = useRef<HTMLDivElement | null>(null);
 	const priorityMenuRef = useRef<HTMLDivElement | null>(null);
 	const scheduleButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -314,6 +318,17 @@ export function MetaSection({
 					)}
 				</div>
 
+				<button
+					type="button"
+					onClick={() => {
+						startFocus(todo.name || tTodoDetail("focusTaskFallbackTitle"));
+						setActiveView("pomodoro");
+					}}
+					className="flex items-center gap-1 rounded-md border border-transparent px-2 py-1 text-xs transition-colors hover:border-border hover:bg-muted/40"
+				>
+					<Play className="h-3 w-3" />
+					<span className="truncate">{tTodoDetail("startFocus")}</span>
+				</button>
 			</div>
 		</div>
 	);

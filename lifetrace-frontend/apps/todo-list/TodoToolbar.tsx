@@ -70,13 +70,17 @@ export function TodoToolbar({
 		}
 	};
 
-	// 归档/回收站视图的标题（区别于常规「收集箱」标题）
+	// 侧栏过滤视图的标题（区别于常规「收集箱」标题）
 	const modeTitle =
 		sidebarMode === "archived"
 			? tTodoList("archived")
 			: sidebarMode === "trashed"
 				? tTodoList("trashed")
-				: null;
+				: sidebarMode === "today"
+					? tTodoList("today")
+					: sidebarMode === "last7days"
+						? tTodoList("last7days")
+						: null;
 
 	useEffect(() => {
 		if (isSearchOpen && searchInputRef.current) {
