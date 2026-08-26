@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PanelHeader } from "@/components/common/layout/PanelHeader";
+import { ViewExpandButton } from "@/components/common/ViewExpandButton";
 import { useCreateTodo, useTodos } from "@/lib/query";
 import { normalizeReminderOffsets } from "@/lib/reminders";
 import { useTodoStore } from "@/lib/store/todo-store";
@@ -305,7 +306,7 @@ export function CalendarPanel() {
 	return (
 		<div className="flex h-full flex-col overflow-hidden bg-background">
 			{/* 顶部标题栏（移动端由 MobileTopBar 承接，隐藏避免双标题） */}
-			{!isMobile && <PanelHeader icon={Calendar} title={t("title")} />}
+			{!isMobile && <PanelHeader icon={Calendar} title={t("title")} actions={<ViewExpandButton />} />}
 			{/* 顶部工具栏 */}
 			<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
 				<span className="text-sm font-medium text-foreground">

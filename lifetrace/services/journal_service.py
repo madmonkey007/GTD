@@ -117,27 +117,6 @@ class JournalService:
 
     # 时间型伪标题（后端 _normalize_name 的兜底值）——只有这种标题才允许 AI 生成覆盖
     _AUTO_TITLE_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$")
-    # 4.7-flash 限流时的降级模型（智谱，同样免费，非思考型）
-    _TITLE_FALLBACK_MODEL = "glm-4-flash"
-    # 主标题模型配置缓存（config.yaml 的 title_llm 段：SiliconFlow 小模型）
-    _title_llm_cfg: dict[str, str] | None = None
-
-    @classmethod
-    def _get_title_llm_cfg(cls) -> dict[str, str] | None:
-        if cls._title_llm_cfg is not None:
-            return cls._title_llm_cfg or None
-        try:
-            import yaml
-
-            # 相对路径依赖 cwd（本地 cwd=项目根时找不到 lifetrace/ 前缀），用模块位置推导
-            cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
-            cfg = yaml.safe_load(open(cfg_path, encoding="utf-8")) or {}
-            section = (cfg.get("title_llm") or {}).get("api_key") and cfg.get("title_llm") or None
-            cls._title_llm_cfg = section or {}
-        except Exception:
-            cls._title_llm_cfg = {}
-        return cls._title_llm_cfg or None
-
     def _is_auto_title(self, name: str | None) -> bool:
         """标题是否为伪标题（空 / Untitled / 时间兜底）。"""
         cleaned = (name or "").strip()
@@ -196,63 +175,47 @@ class JournalService:
                 },
                 {"role": "user", "content": text[:1500]},
             ]
-            # 主通道：智谱 glm-4-flash（免费、响应 ~1-2s、无冷启动）；
-            # 失败降级 SiliconFlow 小模型（config.yaml title_llm 段，冷启动偶发挂起，超时 8s）
+            # 主通道：config.yaml 的 title_llm 段（agnes-2.0-flash，~2s 直出）；
+            # 依次尝试 title_llm / title_llm_fallback 段，agnes 为思考型模型需 reasoning_effort=none
             raw = ""
+            channels = []
+            try:
+                import yaml
+
+                cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
+                cfg_all = yaml.safe_load(open(cfg_path, encoding="utf-8")) or {}
+                for section in ("title_llm", "title_llm_fallback"):
+                    c = cfg_all.get(section)
+                    if c and c.get("api_key"):
+                        channels.append(c)
+            except Exception:
+                pass
             from openai import OpenAI as _OpenAI
 
-            # 专用客户端带 8s 超时：共享客户端无超时，智谱拥堵时后台线程会挂半分钟
-            zhipu = _OpenAI(base_url=client.base_url, api_key=client.api_key, timeout=8)
-            try:
-                resp = zhipu.chat.completions.create(
-                    model=self._TITLE_FALLBACK_MODEL,
-                    messages=messages,  # type: ignore[arg-type]
-                    temperature=0.3,
-                    max_tokens=50,
-                    extra_body={"thinking": {"type": "disabled"}},
-                )
-                raw = resp.choices[0].message.content or ""
-            except Exception as exc:
-                logger.warning(f"标题主通道（智谱 glm-4-flash）失败，降级 SiliconFlow: {exc}")
-            if not raw.strip():
-                # 备选通道（config.yaml 的 title_llm_fallback / title_llm 段），
-                # 依次尝试；agnes 为思考型模型需 reasoning_effort=none 才直出正文
-                channels = []
+            for c in channels:
                 try:
-                    import yaml
-
-                    cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
-                    cfg_all = yaml.safe_load(open(cfg_path, encoding="utf-8")) or {}
-                    for section in ("title_llm_fallback", "title_llm"):
-                        c = cfg_all.get(section)
-                        if c and c.get("api_key"):
-                            channels.append(c)
-                except Exception:
-                    pass
-                for c in channels:
-                    try:
-                        fb = _OpenAI(
-                            base_url=c["base_url"], api_key=c["api_key"], timeout=8
-                        )
-                        extra = (
-                            {"reasoning_effort": "none"}
-                            if "agnes" in c.get("model", "")
-                            else None
-                        )
-                        kwargs = {
-                            "model": c["model"],
-                            "messages": messages,
-                            "temperature": 0.3,
-                            "max_tokens": 200,
-                        }
-                        if extra:
-                            kwargs["extra_body"] = extra  # type: ignore[assignment]
-                        resp = fb.chat.completions.create(**kwargs)  # type: ignore[arg-type]
-                        raw = resp.choices[0].message.content or ""
-                        if raw.strip():
-                            break
-                    except Exception as exc:
-                        logger.warning(f"标题备选通道失败 ({c.get('model')}): {exc}")
+                    fb = _OpenAI(
+                        base_url=c["base_url"], api_key=c["api_key"], timeout=8
+                    )
+                    extra = (
+                        {"reasoning_effort": "none"}
+                        if "agnes" in c.get("model", "")
+                        else None
+                    )
+                    kwargs = {
+                        "model": c["model"],
+                        "messages": messages,
+                        "temperature": 0.3,
+                        "max_tokens": 200,
+                    }
+                    if extra:
+                        kwargs["extra_body"] = extra  # type: ignore[assignment]
+                    resp = fb.chat.completions.create(**kwargs)  # type: ignore[arg-type]
+                    raw = resp.choices[0].message.content or ""
+                    if raw.strip():
+                        break
+                except Exception as exc:
+                    logger.warning(f"标题生成通道失败 ({c.get('model')}): {exc}")
             title = (raw or "").strip().splitlines()[0].strip().strip('"“”').strip() if raw and raw.strip() else ""
             # 模型不总是遵守「不加冒号」：程序级兜底，禁用符号替换为空格
             title = re.sub(r"[：:，,；;·|｜]", " ", title)

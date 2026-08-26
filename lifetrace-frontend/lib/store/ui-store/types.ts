@@ -108,6 +108,9 @@ export interface UiStoreState {
 		// 侧边栏导航视图
 		activeView: SidebarView;
 		setActiveView: (view: SidebarView) => void;
+		// 日历/四象限视图是否铺满（隐藏左侧筛选栏的运行时态）
+		viewExpanded: boolean;
+		setViewExpanded: (expanded: boolean) => void;
 		// 设置弹窗状态
 		isSettingsOpen: boolean;
 		setSettingsOpen: (open: boolean) => void;

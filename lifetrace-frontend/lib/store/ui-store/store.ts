@@ -42,6 +42,8 @@ export const useUiStore = create<UiStoreState>()(
 			sidebarMode: DEFAULT_PANEL_STATE.sidebarMode as SidebarMode,
 			sidebarTag: DEFAULT_PANEL_STATE.sidebarTag,
 			activeView: DEFAULT_PANEL_STATE.activeView as SidebarView,
+			viewExpanded: false,
+			setViewExpanded: (expanded) => set({ viewExpanded: expanded }),
 			isSettingsOpen: DEFAULT_PANEL_STATE.isSettingsOpen,
 			selectedProjectId: null,
 			todoProjectFilter: null,

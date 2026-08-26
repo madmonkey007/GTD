@@ -257,7 +257,7 @@ export function PanelRegion({
 		setMounted(true);
 	}, []);
 
-	const { activeView, sidebarWidth, setActiveView } = useUiStore();
+	const { activeView, sidebarWidth, setActiveView, viewExpanded } = useUiStore();
 	const isMobile = useIsMobile();
 
 	// 计算容器高度
@@ -330,18 +330,18 @@ export function PanelRegion({
 			</div>
 			)}
 
-				{/* 主内容区 */}
+				{/* 主内容区：清单/日历/四象限视图均保留左侧筛选栏，内容铺满剩余空间 */}
 				<div
 						className={cn(
 							"relative flex flex-1 min-w-0 overflow-hidden gap-1.5",
-							activeView !== "list" && "bg-background",
-							activeView !== "diary" && "py-1.5",
+							activeView !== "list" && activeView !== "calendar" && activeView !== "quadrants" && "bg-background",
+							activeView !== "diary" && activeView !== "calendar" && activeView !== "quadrants" && "py-1.5",
 						)}
 					>
-					{activeView === "list" && !isMobile && <FilterColumn />}
+					{!isMobile && !viewExpanded && (activeView === "list" || activeView === "calendar" || activeView === "quadrants") && <FilterColumn />}
 					{activeView === "list" ? (
 						<ListPanels
-							width={width - (isMobile ? 0 : SIDEBAR_WIDTH + (activeView === "list" ? sidebarWidth : 0))}
+							width={width - (isMobile || viewExpanded ? 0 : SIDEBAR_WIDTH + (activeView === "list" || activeView === "calendar" || activeView === "quadrants" ? sidebarWidth : 0))}
 							mounted={mounted}
 							isDraggingPanelA={isDraggingPanelA}
 							isDraggingPanelC={isDraggingPanelC}

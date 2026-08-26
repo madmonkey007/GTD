@@ -1,6 +1,18 @@
 "use client";
 
-import { Archive, Calendar, CalendarDays, ChevronDown, ChevronRight, Inbox, Tag, Trash2, X } from "lucide-react";
+import { Archive, Calendar, CalendarDays, ChevronDown, ChevronRight, Inbox, LayoutGrid, Tag, Trash2, X } from "lucide-react";
+
+/** 日历主体 + 中间数字 7：区分「最近7天」与「日历」的相似图标 */
+function CalendarRange7({ className }: { className?: string }) {
+	return (
+		<span className={cn("relative inline-flex shrink-0 items-center justify-center", className)}>
+			<CalendarDays className="h-full w-full" />
+			<span className="absolute inset-0 flex items-center justify-center pt-[45%] text-[7px] font-bold leading-none">
+				7
+			</span>
+		</span>
+	);
+}
 import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState } from "react";
 import { ProjectList } from "@/apps/project";
@@ -10,14 +22,16 @@ import { useUiStore } from "@/lib/store/ui-store";
 import { cn } from "@/lib/utils";
 
 const FILTER_ITEMS = [
-	{ id: "today" as const, label: "今天", icon: Calendar },
-	{ id: "last7days" as const, label: "最近7天", icon: CalendarDays },
 	{ id: "inbox" as const, label: "收集箱", icon: Inbox },
+	{ id: "today" as const, label: "今天", icon: Calendar },
+	{ id: "last7days" as const, label: "最近7天", icon: CalendarRange7 },
+	{ id: "calendar" as const, label: "日历", icon: CalendarDays },
+	{ id: "quadrants" as const, label: "四象限", icon: LayoutGrid },
 ] as const;
 
 export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 	const t = useTranslations("todoList");
-	const { sidebarMode, sidebarTag, setSidebarMode, setSidebarTag, sidebarWidth, setSidebarWidth, todoProjectFilter, setTodoProjectFilter } = useUiStore();
+	const { sidebarMode, sidebarTag, setSidebarMode, setSidebarTag, sidebarWidth, setSidebarWidth, todoProjectFilter, setTodoProjectFilter, setActiveView } = useUiStore();
 	const { data: allTodos } = useTodos({ limit: 2000 });
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [isResizing, setIsResizing] = useState(false);
@@ -140,12 +154,24 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 					const isActive =
 						sidebarMode === item.id ||
 						(item.id === "inbox" && sidebarMode === null && !todoProjectFilter);
-					const count = counts[item.id];
+					const isCalendarEntry = item.id === "calendar";
+					const isQuadrantsEntry = item.id === "quadrants";
+					const isViewEntry = isCalendarEntry || isQuadrantsEntry;
+					const count = isViewEntry ? null : counts[item.id as "today" | "last7days" | "inbox"];
 					return (
 						<button
 							key={item.id}
 							type="button"
-							onClick={() => { setTodoProjectFilter(null); setSidebarMode(sidebarMode === item.id ? null : item.id); }}
+							onClick={() => {
+								if (isViewEntry) {
+									setActiveView(item.id as "calendar" | "quadrants");
+									return;
+								}
+								// 从日历/四象限视图切回筛选项时，需先回到清单视图
+								setActiveView("list");
+								setTodoProjectFilter(null);
+								setSidebarMode(sidebarMode === item.id ? null : item.id);
+							}}
 							className={cn(
 								"flex items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors",
 								isMobile ? "min-h-11" : "py-1.5",
@@ -157,9 +183,11 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 						>
 							<Icon className={cn("shrink-0", isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
 							<span className="flex-1 text-left">{item.label}</span>
-							<span className="text-[10px] font-medium tabular-nums text-muted-foreground/70">
-								{count}
-							</span>
+							{!isViewEntry && (
+								<span className="text-[10px] font-medium tabular-nums text-muted-foreground/70">
+									{count}
+								</span>
+							)}
 						</button>
 					);
 				})}
@@ -197,7 +225,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 							<button
 								key={tag}
 								type="button"
-								onClick={() => { setTodoProjectFilter(null); setSidebarTag(sidebarTag === tag ? null : tag); }}
+								onClick={() => { setActiveView("list"); setTodoProjectFilter(null); setSidebarTag(sidebarTag === tag ? null : tag); }}
 								className={cn(
 									"flex items-center gap-2 rounded-md px-2.5 text-sm transition-colors",
 									isMobile ? "min-h-11" : "py-1.5",
@@ -232,6 +260,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 								key={item.id}
 								type="button"
 								onClick={() => {
+									setActiveView("list");
 									setTodoProjectFilter(null);
 									setSidebarTag(null);
 									setSidebarMode(sidebarMode === item.id ? null : item.id);

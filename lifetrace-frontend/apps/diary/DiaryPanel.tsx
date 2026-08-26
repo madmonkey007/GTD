@@ -653,7 +653,12 @@ const handleSaveCardEdit = async (
 		let saved = null;
 		try {
 			if (updatedDraft.id) {
-				const { uid: _uid, ...updatePayload } = payload;
+				const { uid: _uid, name: draftName, ...updatePayload } = payload;
+				// 标题仍是伪标题（空/时间戳兜底）时不回传 name，
+				// 让后端识别为"未动标题"并在正文更新后触发 AI 标题生成
+				if (draftName && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(draftName.trim())) {
+					(updatePayload as JournalCreate).name = draftName;
+				}
 				saved = await updateJournal(updatedDraft.id, updatePayload);
 			} else {
 				saved = await createJournal(payload);

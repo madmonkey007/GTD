@@ -1,16 +1,11 @@
 "use client";
 
 import {
-	Award,
 	BookOpen,
-	BrainCircuit,
-	CalendarDays,
 	Heart,
-	LayoutGrid,
 	ListTodo,
 	Settings,
 	Sparkles,
-	Timer,
 	User,
 } from "lucide-react";
 import Image from "next/image";
@@ -26,13 +21,8 @@ export const SIDEBAR_NAV_ITEMS: {
 }[] = [
 	{ id: "quickCommand", label: "agent", icon: Sparkles },
 	{ id: "list", label: "清单", icon: ListTodo },
-	{ id: "calendar", label: "日历", icon: CalendarDays },
-	{ id: "quadrants", label: "四象限", icon: LayoutGrid },
-	{ id: "pomodoro", label: "番茄时钟", icon: Timer },
-	{ id: "habits", label: "习惯", icon: Heart },
 	{ id: "diary", label: "笔记", icon: BookOpen },
-	{ id: "achievements", label: "成就", icon: Award },
-	{ id: "zeroThink", label: "零秒思考", icon: BrainCircuit },
+	{ id: "habits", label: "习惯", icon: Heart },
 ];
 
 export function SidebarNav() {

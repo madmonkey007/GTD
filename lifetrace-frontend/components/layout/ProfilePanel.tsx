@@ -5,6 +5,7 @@ import {
 	BrainCircuit,
 	Camera,
 	Check,
+	FlaskConical,
 	KeyRound,
 	ChevronRight,
 	LogOut,
@@ -28,7 +29,6 @@ import {
 import { useAuthStore } from "@/lib/auth/session";
 import { customFetcher } from "@/lib/api/fetcher";
 import { PasswordInput } from "@/components/common/ui/PasswordInput";
-import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useOpenSettings } from "@/lib/hooks/useOpenSettings";
 import { toast } from "@/lib/toast";
 import { useUiStore } from "@/lib/store/ui-store";
@@ -188,7 +188,6 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 	const router = useRouter();
 	const { openSettings } = useOpenSettings();
 	const { setActiveView: storeSetActiveView } = useUiStore();
-	const isMobile = useIsMobile();
 	const user = useAuthStore((s) => s.user);
 	const updateUser = useAuthStore((s) => s.updateUser);
 	const clearSession = useAuthStore((s) => s.clearSession);
@@ -327,28 +326,12 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 
 	const MENU_ITEMS = [
 		{
-			id: "pomodoro" as const,
-			label: t("bottomDock.pomodoro"),
-			icon: Timer,
-			color: "text-orange-500",
-			bg: "bg-orange-500/10",
-			onClick: () => navigate("pomodoro"),
-		},
-		{
 			id: "achievements" as const,
 			label: t("bottomDock.achievements"),
 			icon: Award,
 			color: "text-amber-500",
 			bg: "bg-amber-500/10",
 			onClick: () => navigate("achievements"),
-		},
-		{
-			id: "zeroThink" as const,
-			label: t("bottomDock.zeroThink"),
-			icon: BrainCircuit,
-			color: "text-violet-500",
-			bg: "bg-violet-500/10",
-			onClick: () => navigate("zeroThink"),
 		},
 		{
 			id: "password",
@@ -376,13 +359,25 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		},
 	];
 
-	// 番茄时钟/习惯等入口是给移动端底部 tab 放不下时收纳用的，
-	// PC 端侧边栏已有全部入口；账号操作（改密码/退出/设置）两端都显示
-	const menuItems = isMobile
-		? MENU_ITEMS
-		: MENU_ITEMS.filter((item) =>
-				["password", "logout", "settings"].includes(item.id),
-			);
+	// 实验室：收纳实验性功能入口，PC/移动端一致展示
+	const LAB_ITEMS = [
+		{
+			id: "pomodoro" as const,
+			label: t("bottomDock.pomodoro"),
+			icon: Timer,
+			color: "text-orange-500",
+			bg: "bg-orange-500/10",
+			onClick: () => navigate("pomodoro"),
+		},
+		{
+			id: "zeroThink" as const,
+			label: t("bottomDock.zeroThink"),
+			icon: BrainCircuit,
+			color: "text-violet-500",
+			bg: "bg-violet-500/10",
+			onClick: () => navigate("zeroThink"),
+		},
+	];
 
 	return (
 		<div className="flex h-full flex-col overflow-y-auto">
@@ -512,7 +507,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 			{/* Menu Items */}
 			<div className="mx-4 flex-1 py-4">
 				<div className="rounded-xl border border-border/40 bg-card/30 divide-y divide-border/30">
-					{menuItems.map((item) => {
+					{MENU_ITEMS.map((item) => {
 						const Icon = item.icon;
 						return (
 							<button
@@ -533,6 +528,37 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 							</button>
 						);
 					})}
+				</div>
+
+				{/* 实验室 */}
+				<div className="mt-4">
+					<div className="mb-1.5 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
+						<FlaskConical className="h-3.5 w-3.5" />
+						实验室
+					</div>
+					<div className="rounded-xl border border-dashed border-border/50 bg-card/20 divide-y divide-border/30">
+						{LAB_ITEMS.map((item) => {
+							const Icon = item.icon;
+							return (
+								<button
+									key={item.id}
+									type="button"
+									onClick={item.onClick}
+									className="flex w-full items-center gap-3.5 px-4 py-3 text-left transition-colors hover:bg-muted/30 first:rounded-t-xl last:rounded-b-xl"
+								>
+									<span
+										className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.bg} ${item.color}`}
+									>
+										<Icon className="h-4 w-4" />
+									</span>
+									<span className="flex-1 text-sm text-foreground/80">
+										{item.label}
+									</span>
+									<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/30" />
+								</button>
+							);
+						})}
+					</div>
 				</div>
 			</div>
 
