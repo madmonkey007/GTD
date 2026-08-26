@@ -182,7 +182,7 @@ class JournalService:
                         "为笔记生成一个简短、自然、便于以后识别内容的标题。\n\n"
                         "优先保留原文的关键概念和表达，不要美化、升华或写成文章标题。\n\n"
                         "只输出标题。\n"
-                        "要求：中文（除非笔记明显是其他语言）；不超过 15 个字；"
+                        "要求：中文（除非笔记明显是其他语言）；不超过 10 个字，宁可短不可长；"
                         "概括核心内容；不加引号、不加书名号、冒号，不以标点结尾。\n\n"
                         "反向案例\n"
                         "-矛盾论：普遍性规律与特殊问题\n"
@@ -190,7 +190,8 @@ class JournalService:
                         "-XX之道\n\n"
                         "正向案例\n"
                         "-一次只做一件事\n"
-                        "-矛盾的普遍性与特殊性"
+                        "-矛盾的普遍性与特殊性\n"
+                        "-周末出海站分享启发"
                     ),
                 },
                 {"role": "user", "content": text[:1500]},
@@ -256,7 +257,7 @@ class JournalService:
             # 模型不总是遵守「不加冒号」：程序级兜底，禁用符号替换为空格
             title = re.sub(r"[：:，,；;·|｜]", " ", title)
             title = re.sub(r"\s+", " ", title).strip()
-            if not title or len(title) > 30 or self._is_auto_title(title):
+            if not title or len(title) > 20 or self._is_auto_title(title):
                 return
             current = self.repository.get_by_id(journal_id)
             if not current or not self._is_auto_title(current.get("name")):

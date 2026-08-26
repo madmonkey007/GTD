@@ -249,7 +249,14 @@
       "devToolsRecordShortcut": "录制快捷键",
       "devToolsRecordShortcutHint": "设置自定义键盘快捷键以切换开发者工具可见性",
       "devToolsDisableProject": "禁用此项目的 DevTools",
-      "devToolsDisableProjectHint": "要完全禁用此 UI，请在 next.config 中设置 devIndicators: false。"
+      "devToolsDisableProjectHint": "要完全禁用此 UI，请在 next.config 中设置 devIndicators: false。",
+      "shortcutTitle": "快捷键",
+      "shortcutDescription": "自定义快速记录的唤起快捷键",
+      "shortcutNoteLabel": "记笔记",
+      "shortcutTodoLabel": "记待办",
+      "shortcutInboxLabel": "收集箱",
+      "shortcutInUse": "已被使用",
+      "shortcutHint": "修改后立即生效。浏览器会保留部分组合键（如 Ctrl+数字），若无效请换一组。"
     },
     "costTracking": {
       "title": "费用统计",
@@ -364,7 +371,7 @@
     "sidebarFilterRandomTooltip": "即将推出",
     "sidebarFilterTodoNotes": "待办笔记",
     "timeMachine": "时光机器",
-		"aiInsight": "AI 洞察",
+    "aiInsight": "AI 洞察",
     "timeMachineTooltip": "随机穿越回到过去的某一天",
     "todoNoteBadge": "待办笔记",
     "linkedTodo": "关联待办：",
@@ -1369,5 +1376,19 @@
     "sortNewest": "最新发布",
     "sortOldest": "最旧发布",
     "tagAll": "全部标签"
+  },
+  "quickCapture": {
+    "noteTitle": "记笔记",
+    "todoTitle": "记待办",
+    "inboxTitle": "收集箱",
+    "notePlaceholder": "记点什么... Enter 保存",
+    "todoPlaceholder": "要做什么？Enter 保存",
+    "inboxPlaceholder": "想到什么先存进来，Enter 保存",
+    "enterHint": "Enter 保存 · Shift+Enter 换行 · Esc 关闭",
+    "save": "保存",
+    "noteSaved": "笔记已保存",
+    "todoSaved": "待办已创建",
+    "inboxSaved": "已存入收集箱",
+    "saveFailed": "保存失败，请重试"
   }
 }

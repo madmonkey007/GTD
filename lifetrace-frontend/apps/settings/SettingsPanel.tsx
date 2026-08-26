@@ -31,6 +31,7 @@ import {
 	type SettingsCategory,
 	type SettingsCategoryId,
 	SettingsSection,
+	ShortcutSettingsSection,
 	TavilyConfigSection,
 	TimeMachineStyleSection,
 	VersionInfoSection,
@@ -148,6 +149,7 @@ export function SettingsPanel() {
 				return (
 					<>
 						<AppearanceSection />
+						<ShortcutSettingsSection />
 						<TimeMachineStyleSection />
 						<InboxDraftSettingsSection />
 						<NotificationPermissionSection loading={loading} />

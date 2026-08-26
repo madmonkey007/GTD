@@ -10,6 +10,8 @@ import { PomodoroView } from "@/apps/pomodoro/PomodoroView";
 import { QuadrantsView } from "@/apps/quadrants/QuadrantsView";
 import { QuickCommandPanel } from "@/apps/quick-command/QuickCommandPanel";
 import { ProfilePanel } from "./ProfilePanel";
+import { useQuickCapture, matchShortcut } from "@/lib/store/quick-capture-store";
+import { QuickCaptureModal } from "@/components/common/QuickCaptureModal";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useWindowAdaptivePanels } from "@/lib/hooks/useWindowAdaptivePanels";
 import { useUiStore } from "@/lib/store/ui-store";
@@ -366,7 +368,37 @@ export function PanelRegion({
 			</div>
 			{isMobile && <MobileBottomNav />}
 			<SettingsModal />
+			<QuickCaptureHotkeys />
+			<QuickCaptureModal />
 		</div>
 	</div>
 	);
+}
+
+/**
+ * 网页端快速记录快捷键（可在设置中自定义，默认 Alt+1/2/3）：
+ * 分别唤起记笔记、记待办、收集箱弹窗。弹窗打开时不响应。
+ */
+function QuickCaptureHotkeys() {
+	const open = useQuickCapture((s) => s.open);
+	const isOpen = useQuickCapture((s) => s.isOpen);
+	const shortcuts = useQuickCapture((s) => s.shortcuts);
+
+	useEffect(() => {
+		if (isOpen) return;
+		const handler = (e: KeyboardEvent) => {
+			const entries = Object.entries(shortcuts) as Array<[keyof typeof shortcuts, string]>;
+			for (const [type, shortcut] of entries) {
+				if (matchShortcut(e, shortcut)) {
+					e.preventDefault();
+					open(type);
+					return;
+				}
+			}
+		};
+		document.addEventListener("keydown", handler);
+		return () => document.removeEventListener("keydown", handler);
+	}, [isOpen, open, shortcuts]);
+
+	return null;
 }

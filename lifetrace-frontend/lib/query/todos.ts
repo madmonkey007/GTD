@@ -264,6 +264,7 @@ export function useCreateTodo() {
 				icalStatus: input.icalStatus,
 				reminderOffsets: input.reminderOffsets,
 				rrule: input.rrule,
+				isInbox: input.isInbox ?? true,
 				status: input.status ?? "active",
 				priority: input.priority ?? "none",
 				completedAt: normalizeDateTimeValue(input.completedAt),

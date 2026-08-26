@@ -249,7 +249,14 @@
       "devToolsRecordShortcut": "Record Shortcut",
       "devToolsRecordShortcutHint": "Set a custom keyboard shortcut to toggle DevTools visibility",
       "devToolsDisableProject": "Disable Dev Tools for this Project",
-      "devToolsDisableProjectHint": "To disable this UI completely, set devIndicators: false in your next.config file."
+      "devToolsDisableProjectHint": "To disable this UI completely, set devIndicators: false in your next.config file.",
+      "shortcutTitle": "Shortcuts",
+      "shortcutDescription": "Customize quick capture shortcuts",
+      "shortcutNoteLabel": "New Note",
+      "shortcutTodoLabel": "New Todo",
+      "shortcutInboxLabel": "Inbox",
+      "shortcutInUse": "in use",
+      "shortcutHint": "Takes effect immediately. Browsers reserve some combos (e.g. Ctrl+number); pick another if it does not work."
     },
     "costTracking": {
       "title": "Cost Tracking",
@@ -364,7 +371,7 @@
     "sidebarFilterRandomTooltip": "Coming soon",
     "sidebarFilterTodoNotes": "Todo Notes",
     "timeMachine": "Time Machine",
-		"aiInsight": "AI insight",
+    "aiInsight": "AI insight",
     "timeMachineTooltip": "Randomly travel back to a past day",
     "todoNoteBadge": "Todo",
     "linkedTodo": "Linked: ",
@@ -1369,5 +1376,19 @@
     "sortNewest": "Newest first",
     "sortOldest": "Oldest first",
     "tagAll": "All tags"
+  },
+  "quickCapture": {
+    "noteTitle": "New Note",
+    "todoTitle": "New Todo",
+    "inboxTitle": "Inbox",
+    "notePlaceholder": "Write a note... Enter to save",
+    "todoPlaceholder": "What needs doing? Enter to save",
+    "inboxPlaceholder": "Capture it now... Enter to save",
+    "enterHint": "Enter to save · Shift+Enter newline · Esc close",
+    "save": "Save",
+    "noteSaved": "Note saved",
+    "todoSaved": "Todo created",
+    "inboxSaved": "Saved to inbox",
+    "saveFailed": "Save failed, try again"
   }
 }
