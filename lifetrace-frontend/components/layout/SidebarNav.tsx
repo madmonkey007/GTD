@@ -20,8 +20,8 @@ export const SIDEBAR_NAV_ITEMS: {
 	icon: typeof ListTodo;
 }[] = [
 	{ id: "quickCommand", label: "收集箱", icon: Inbox },
-	{ id: "list", label: "清单", icon: ListTodo },
-	{ id: "diary", label: "笔记", icon: BookOpen },
+	{ id: "list", label: "行动", icon: ListTodo },
+	{ id: "diary", label: "思考", icon: BookOpen },
 	{ id: "habits", label: "习惯", icon: Heart },
 ];
 

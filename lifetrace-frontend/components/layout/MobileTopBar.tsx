@@ -32,7 +32,7 @@ const EXTRA_LABELS: Record<string, string> = {
 
 /** 待办/日历/四象限：移动顶栏以 tab 组形式切换 */
 const TAB_VIEWS: { id: SidebarView; label: string }[] = [
-	{ id: "list", label: "待办" },
+	{ id: "list", label: "行动" },
 	{ id: "calendar", label: "日历" },
 	{ id: "quadrants", label: "四象限" },
 ];
