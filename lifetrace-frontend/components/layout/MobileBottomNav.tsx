@@ -3,8 +3,8 @@
 import {
 	BookOpen,
 	Heart,
+	Inbox,
 	ListTodo,
-	Sparkles,
 	User,
 } from "lucide-react";
 import { useUiStore } from "@/lib/store/ui-store";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 /** 主 tab：固定 5 个，我的收纳其余视图 */
 const PRIMARY_TABS = [
-	{ id: "quickCommand" as const, label: "AGENT", icon: Sparkles },
+	{ id: "quickCommand" as const, label: "收集箱", icon: Inbox },
 	{ id: "list" as const, label: "待办", icon: ListTodo },
 	{ id: "diary" as const, label: "笔记", icon: BookOpen },
 	{ id: "habits" as const, label: "习惯", icon: Heart },
