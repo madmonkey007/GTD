@@ -3,9 +3,9 @@
 import {
 	BookOpen,
 	Heart,
+	Inbox,
 	ListTodo,
 	Settings,
-	Sparkles,
 	User,
 } from "lucide-react";
 import Image from "next/image";
@@ -19,7 +19,7 @@ export const SIDEBAR_NAV_ITEMS: {
 	label: string;
 	icon: typeof ListTodo;
 }[] = [
-	{ id: "quickCommand", label: "agent", icon: Sparkles },
+	{ id: "quickCommand", label: "收集箱", icon: Inbox },
 	{ id: "list", label: "清单", icon: ListTodo },
 	{ id: "diary", label: "笔记", icon: BookOpen },
 	{ id: "habits", label: "习惯", icon: Heart },
