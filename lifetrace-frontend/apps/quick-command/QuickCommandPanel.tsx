@@ -266,15 +266,15 @@ function DraftBubble({
   })();
   return (
     <div className="flex justify-end" style={{ marginBottom: 18 }}>
-      <div className="group relative max-w-[85%] rounded-2xl rounded-br-md bg-primary/10 px-3.5 py-2.5">
-        <p className="break-words whitespace-pre-wrap pr-5 text-sm leading-relaxed text-foreground">{draft.text}</p>
+      <div className="group relative max-w-[85%] rounded-2xl bg-primary/10 px-3.5 py-2.5">
+        <p className="break-words whitespace-pre-wrap pr-4 text-sm leading-relaxed text-foreground">{draft.text}</p>
         {/* hover 时底部显示创建时间（气泡外、消息间距内，不遮挡下一条） */}
         {createdLabel && (
           <span className="pointer-events-none absolute -bottom-5 right-1 text-[10px] text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60">
             {createdLabel}
           </span>
         )}
-        <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        <div className="absolute right-1.5 top-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
