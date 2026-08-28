@@ -178,22 +178,47 @@ class ProjectService:
 
     # ---- 待办成员 ----
 
+    def _descendant_ids(self, root_id: int) -> list[int]:
+        """收集 root 的全部子孙待办 id（父任务归入项目时，子孙应一并移出收集箱）"""
+        try:
+            all_todos = self.todo_repository.list_todos(
+                limit=100000, offset=0, status=None
+            )
+        except Exception:
+            return []
+        by_parent: dict[int, list[int]] = {}
+        for t in all_todos:
+            pid = t.get("parent_todo_id")
+            if pid:
+                by_parent.setdefault(pid, []).append(t["id"])
+        out: list[int] = []
+        stack = [root_id]
+        while stack:
+            for child in by_parent.get(stack.pop(), []):
+                out.append(child)
+                stack.append(child)
+        return out
+
     def add_todos(self, project_id: int, data: ProjectAddTodosRequest) -> ProjectResponse:
         if not self.repository.get(project_id):
             raise HTTPException(status_code=404, detail="项目不存在")
         valid_ids = [tid for tid in data.todo_ids if self.todo_repository.get_by_id(tid)]
         self.repository.add_todos(project_id, valid_ids)
-        # 归入项目后移出收集箱
+        # 归入项目后移出收集箱；子孙任务一并移出，避免子任务残留在收集箱
         for tid in valid_ids:
             self.todo_repository.update(tid, is_inbox=False)
+            for did in self._descendant_ids(tid):
+                self.todo_repository.update(did, is_inbox=False)
         return self.get_project(project_id)
 
     def remove_todo(self, project_id: int, todo_id: int) -> ProjectResponse:
         if not self.repository.get(project_id):
             raise HTTPException(status_code=404, detail="项目不存在")
         self.repository.remove_todo(project_id, todo_id)
-        # 从项目移除后回到收集箱
+        # 从项目移除后回到收集箱（子孙一并恢复）
         self.todo_repository.update(todo_id, is_inbox=True)
+        for did in self._descendant_ids(todo_id):
+            self.todo_repository.update(did, is_inbox=True)
         return self.get_project(project_id)
 
     # ---- 笔记成员 ----

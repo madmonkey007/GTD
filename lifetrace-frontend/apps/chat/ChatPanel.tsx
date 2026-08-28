@@ -9,9 +9,11 @@ import { ChatInputSection } from "@/apps/chat/components/input/ChatInputSection"
 import { HeaderBar } from "@/apps/chat/components/layout/HeaderBar";
 import { HistoryDrawer } from "@/apps/chat/components/layout/HistoryDrawer";
 import { MessageList } from "@/apps/chat/components/message/MessageList";
+import { ProcessInboxChat } from "@/apps/chat/components/process-inbox/ProcessInboxChat";
 import { useBreakdownQuestionnaire } from "@/apps/chat/hooks/useBreakdownQuestionnaire";
 import { useChatController } from "@/apps/chat/hooks/useChatController";
 import { useChatStore } from "@/lib/store/chat-store";
+import { useProcessInboxStore } from "@/lib/store/process-inbox-store";
 import { useLocaleStore } from "@/lib/store/locale";
 import { useTodoStore } from "@/lib/store/todo-store";
 
@@ -146,6 +148,13 @@ export function ChatPanel() {
 					</div>
 				)}
 			</div>
+
+			{/* GTD 整理收集箱会话：以对话形式逐条过五问，处理全部收集箱待办 */}
+			{useProcessInboxStore((s) => s.active) && (
+				<div className="max-h-[55%] shrink-0 overflow-y-auto border-t border-border/40">
+					<ProcessInboxChat />
+				</div>
+			)}
 
 			<ChatInputSection
 				locale={locale}

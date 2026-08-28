@@ -30,6 +30,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MessageBubble } from "@/apps/chat/components/chat-ui/index";
+import { ProcessInboxChat } from "@/apps/chat/components/process-inbox/ProcessInboxChat";
+import { useProcessInboxStore } from "@/lib/store/process-inbox-store";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 // 三域工具全集：待办 + 笔记 + 习惯。后端 _build_instructions 检测到三类齐全
@@ -663,6 +665,13 @@ export function QuickCommandPanel() {
           </div>
         )}
       </div>
+
+      {/* GTD 整理收集箱会话：以对话形式逐条过五问（移动端 AGENT 视图即 chat 面板） */}
+      {useProcessInboxStore((s) => s.active) && (
+        <div className="max-h-[50%] shrink-0 overflow-y-auto border-t border-border/40">
+          <ProcessInboxChat />
+        </div>
+      )}
 
       {/* 输入区 */}
       <div className="border-t border-border/30 px-4 py-3">

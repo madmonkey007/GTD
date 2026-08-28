@@ -8,7 +8,7 @@
 import { type DragEndEvent, useDndMonitor } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronRight, FolderKanban, Plus } from "lucide-react";
+import { ChevronRight, FolderKanban, ListChecks, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
@@ -18,6 +18,7 @@ import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useProject, useProjectMutations, useTodoMutations, useTodos } from "@/lib/query";
 import type { ReorderTodoItem } from "@/lib/query/todos";
 import { useTodoStore } from "@/lib/store/todo-store";
+import { useProcessInboxStore } from "@/lib/store/process-inbox-store";
 import { useUiStore } from "@/lib/store/ui-store";
 import type { CreateTodoInput, Todo } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -108,6 +109,46 @@ export function TodoList() {
 	} = useTodoStore();
 
 	const [searchQuery, setSearchQuery] = useState("");
+
+	// 整理收集箱：开始 GTD 五问会话（提问渲染在 Chat 面板）并确保 Chat 面板打开
+	const startProcessInbox = useProcessInboxStore((s) => s.start);
+	const setActiveView = useUiStore((s) => s.setActiveView);
+	const getFeatureByPosition = useUiStore((s) => s.getFeatureByPosition);
+	const setPanelFeature = useUiStore((s) => s.setPanelFeature);
+	const inboxParentCount = useMemo(
+		() =>
+			todos.filter(
+				(t) =>
+					(t.isInbox ?? true) &&
+					(t.parentTodoId === null || t.parentTodoId === undefined) &&
+					t.status !== "completed",
+			).length,
+		[todos],
+	);
+	const handleProcessInbox = () => {
+		// 移动端没有多面板：AGENT 视图（quickCommand）即 chat 面板，GTD 会话渲染在其输入区上方
+		if (isMobile) {
+			setActiveView("quickCommand");
+			startProcessInbox();
+			return;
+		}
+		const positions: Array<"panelA" | "panelB" | "panelC"> = [
+			"panelA",
+			"panelB",
+			"panelC",
+		];
+		const uiState = useUiStore.getState();
+		const chatPos = positions.find((pos) => getFeatureByPosition(pos) === "chat");
+		if (chatPos) {
+			if (chatPos === "panelA" && !uiState.isPanelAOpen) uiState.togglePanelA();
+			else if (chatPos === "panelB" && !uiState.isPanelBOpen) uiState.togglePanelB();
+			else if (chatPos === "panelC" && !uiState.isPanelCOpen) uiState.togglePanelC();
+		} else {
+			setPanelFeature("panelB", "chat");
+			if (!uiState.isPanelBOpen) uiState.togglePanelB();
+		}
+		startProcessInbox();
+	};
 	const [newTodoName, setNewTodoName] = useState("");
 	const [isCompletedCollapsed, setIsCompletedCollapsed] = useState(true);
 	const [mobileComposerOpen, setMobileComposerOpen] = useState(false);
@@ -554,8 +595,28 @@ export function TodoList() {
 								</div>
 							)}
 						</>
-					)}
-				</div>
+						)}
+					</div>
+
+					{/* 收集箱视图（含默认态）在清单底部展示「整理收集箱」入口：在 Chat 面板过 GTD 五问 */}
+					{!specialMode &&
+						(sidebarMode === "inbox" || sidebarMode === null) && (
+							<div className="mt-auto px-6 pb-6 pt-2">
+								<button
+									type="button"
+									onClick={handleProcessInbox}
+									className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-muted/[0.03] px-4 py-2.5 text-sm text-muted-foreground transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
+								>
+									<ListChecks className="h-4 w-4 text-primary/60" />
+									<span>整理收集箱</span>
+									{inboxParentCount > 0 && (
+										<span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono text-primary/70">
+											{inboxParentCount}
+										</span>
+									)}
+								</button>
+							</div>
+						)}
 				</div>
 			</MultiTodoContextMenu>
 

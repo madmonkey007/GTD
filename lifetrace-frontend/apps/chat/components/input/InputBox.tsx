@@ -1,8 +1,9 @@
-import { ArrowUp, AtSign, Square } from "lucide-react";
+import { ArrowUp, AtSign, ListChecks, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { useProcessInboxStore } from "@/lib/store/process-inbox-store";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
 import { LinkedNotes } from "./LinkedNotes";
 
@@ -105,8 +106,22 @@ export function InputBox({
 	);
 
 	// 右侧按钮组（@ 按钮和发送/停止按钮）
+	const startProcessInbox = useProcessInboxStore((s) => s.start);
 	const actionButtons = (
 		<div className="flex items-center gap-1">
+			{/* GTD 整理收集箱入口：逐条过五问，处理收集箱父待办 */}
+			<button
+				type="button"
+				onClick={() => startProcessInbox()}
+				title={locale === "zh" ? "整理收集箱" : "Process inbox"}
+				className={cn(
+					"flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground",
+					"hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+				)}
+				aria-label={locale === "zh" ? "整理收集箱" : "Process inbox"}
+			>
+				<ListChecks className="h-4 w-4" />
+			</button>
 			{onTranscript && (
 				<VoiceInputButton ownerId="chat-input" onTranscript={onTranscript} />
 			)}
