@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 import threading
+import time
 from contextvars import ContextVar
 from pathlib import Path
 from datetime import datetime, time, timedelta
@@ -193,29 +194,37 @@ class JournalService:
             from openai import OpenAI as _OpenAI
 
             for c in channels:
-                try:
-                    fb = _OpenAI(
-                        base_url=c["base_url"], api_key=c["api_key"], timeout=8
-                    )
-                    extra = (
-                        {"reasoning_effort": "none"}
-                        if "agnes" in c.get("model", "")
-                        else None
-                    )
-                    kwargs = {
-                        "model": c["model"],
-                        "messages": messages,
-                        "temperature": 0.3,
-                        "max_tokens": 200,
-                    }
-                    if extra:
-                        kwargs["extra_body"] = extra  # type: ignore[assignment]
-                    resp = fb.chat.completions.create(**kwargs)  # type: ignore[arg-type]
-                    raw = resp.choices[0].message.content or ""
-                    if raw.strip():
-                        break
-                except Exception as exc:
-                    logger.warning(f"标题生成通道失败 ({c.get('model')}): {exc}")
+                # 单通道最多 2 次（首试 + 一次重试），累计尝试数受通道数×2 封顶
+                for attempt in range(2):
+                    try:
+                        fb = _OpenAI(
+                            base_url=c["base_url"], api_key=c["api_key"], timeout=8
+                        )
+                        extra = (
+                            {"reasoning_effort": "none"}
+                            if "agnes" in c.get("model", "")
+                            else None
+                        )
+                        kwargs = {
+                            "model": c["model"],
+                            "messages": messages,
+                            "temperature": 0.3,
+                            "max_tokens": 200,
+                        }
+                        if extra:
+                            kwargs["extra_body"] = extra  # type: ignore[assignment]
+                        resp = fb.chat.completions.create(**kwargs)  # type: ignore[arg-type]
+                        raw = resp.choices[0].message.content or ""
+                        if raw.strip():
+                            break
+                    except Exception as exc:
+                        logger.warning(
+                            f"标题生成通道失败 ({c.get('model')}, 第{attempt + 1}次): {exc}"
+                        )
+                        if attempt == 0:
+                            time.sleep(2)  # 重试前短暂等待，避免瞬时抖动连败
+                if raw.strip():
+                    break
             title = (raw or "").strip().splitlines()[0].strip().strip('"“”').strip() if raw and raw.strip() else ""
             # 模型不总是遵守「不加冒号」：程序级兜底，禁用符号替换为空格
             title = re.sub(r"[：:，,；;·|｜]", " ", title)
@@ -279,7 +288,14 @@ class JournalService:
         if self._vector_db is None:
             return
         try:
-            self._vector_db.upsert_journal(self.user_id, journal_id, name or "", user_notes or "", tags)
+            # 两个后端签名不同：PostgresCloudVectorDB 带 user_id，本地 Chroma 不带
+            import inspect
+
+            params = inspect.signature(self._vector_db.upsert_journal).parameters
+            if "user_id" in params:
+                self._vector_db.upsert_journal(self.user_id, journal_id, name or "", user_notes or "", tags)
+            else:
+                self._vector_db.upsert_journal(journal_id, name or "", user_notes or "", tags)
         except Exception as e:
             if getattr(self._vector_db, "propagate_index_errors", False):
                 raise RuntimeError(f"索引笔记 {journal_id} 到云端向量库失败: {e}") from e
@@ -290,7 +306,13 @@ class JournalService:
         if self._vector_db is None:
             return
         try:
-            self._vector_db.delete_journal(self.user_id, journal_id)
+            import inspect
+
+            dparams = inspect.signature(self._vector_db.delete_journal).parameters
+            if "user_id" in dparams:
+                self._vector_db.delete_journal(self.user_id, journal_id)
+            else:
+                self._vector_db.delete_journal(journal_id)
         except Exception as e:
             if getattr(self._vector_db, "propagate_index_errors", False):
                 raise RuntimeError(f"从云端向量库删除笔记 {journal_id} 索引失败: {e}") from e
@@ -739,8 +761,10 @@ class JournalService:
             )
 
         # 用户改了正文但没动标题、且当前仍是伪标题 → 补一次 AI 标题生成
-        # （真实标题 / 已生成过的标题不再触发，编辑优先）
-        if payload.user_notes is not _UNSET and payload.name is _UNSET:
+        # （真实标题 / 已生成过的标题不再触发，编辑优先）。
+        # 前端可能把伪标题原样回传（payload.name 不是 _UNSET），
+        # 只要落库后的标题仍是伪标题就同样触发，避免生成失败/超时后永无重试。
+        if payload.user_notes is not _UNSET:
             current_name = (updated or {}).get("name") if updated else None
             if self._is_auto_title(current_name):
                 self._maybe_generate_ai_title(journal_id, str(payload.user_notes))
