@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { ArrowUp, BookOpen, Check, Copy, Heart, History, ListTodo, Loader2, MoreHorizontal, Plus, Sparkles, Square, Trash2, X } from "lucide-react";
+import { ArrowUp, BookOpen, Copy, Heart, History, ListTodo, Loader2, MoreHorizontal, Plus, Sparkles, Square, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, type Variants } from "framer-motion";
 import { sendChatMessageStream, type ToolCallEvent } from "@/lib/api";
@@ -265,16 +265,10 @@ function DraftBubble({
     return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   })();
   return (
-    <div className="flex justify-end">
+    <div className="flex justify-end" style={{ marginBottom: 18 }}>
       <div className="group relative max-w-[85%] rounded-2xl rounded-br-md bg-primary/10 px-3.5 py-2.5">
         <p className="break-words whitespace-pre-wrap text-sm leading-relaxed text-foreground">{draft.text}</p>
-        {/* 隐蔽的已收集标记：默认隐形，hover 才显示；替代原先的"草稿"文字 */}
-        <div className="mt-1 flex items-center gap-2">
-          <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary/15 text-primary opacity-0 transition-opacity group-hover:opacity-100">
-            <Check className="h-2.5 w-2.5" strokeWidth={3} />
-          </span>
-        </div>
-        {/* hover 时底部显示创建时间 */}
+        {/* hover 时底部显示创建时间（气泡外、消息间距内，不遮挡下一条） */}
         {createdLabel && (
           <span className="pointer-events-none absolute -bottom-5 right-1 text-[10px] text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60">
             {createdLabel}
