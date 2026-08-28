@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { ArrowUp, BookOpen, Copy, Heart, History, ListTodo, Loader2, MoreHorizontal, Plus, Sparkles, Square, Trash2, X } from "lucide-react";
+import { ArrowUp, BookOpen, Copy, Heart, History, ListTodo, Loader2, MoreVertical, Plus, Sparkles, Square, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, type Variants } from "framer-motion";
 import { sendChatMessageStream, type ToolCallEvent } from "@/lib/api";
@@ -267,22 +267,22 @@ function DraftBubble({
   return (
     <div className="flex justify-end" style={{ marginBottom: 18 }}>
       <div className="group relative max-w-[85%] rounded-2xl rounded-br-md bg-primary/10 px-3.5 py-2.5">
-        <p className="break-words whitespace-pre-wrap text-sm leading-relaxed text-foreground">{draft.text}</p>
+        <p className="break-words whitespace-pre-wrap pr-5 text-sm leading-relaxed text-foreground">{draft.text}</p>
         {/* hover 时底部显示创建时间（气泡外、消息间距内，不遮挡下一条） */}
         {createdLabel && (
           <span className="pointer-events-none absolute -bottom-5 right-1 text-[10px] text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60">
             {createdLabel}
           </span>
         )}
-        <div className="absolute right-1.5 top-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
                 aria-label={zh ? "更多操作" : "More actions"}
-                className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/50 hover:text-foreground"
+                className="flex h-4 w-4 items-center justify-center text-muted-foreground/50 hover:text-foreground"
               >
-                <MoreHorizontal className="h-3 w-3" />
+                <MoreVertical className="h-3.5 w-3.5" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" sideOffset={4}>
