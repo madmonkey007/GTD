@@ -149,13 +149,14 @@ export function ChatPanel() {
 				)}
 			</div>
 
-			{/* GTD 整理收集箱会话：以对话形式逐条过五问，处理全部收集箱待办 */}
+			{/* GTD inbox processing: floating overlay, docked above input (same slot as breakdown questionnaire) */}
 			{useProcessInboxStore((s) => s.active) && (
-				<div className="max-h-[55%] shrink-0 overflow-y-auto border-t border-border/40">
-					<ProcessInboxChat />
+				<div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-end overflow-y-auto">
+					<div className="pointer-events-auto w-full px-4 pb-1">
+						<ProcessInboxChat />
+					</div>
 				</div>
 			)}
-
 			<ChatInputSection
 				locale={locale}
 				inputValue={chatController.inputValue}

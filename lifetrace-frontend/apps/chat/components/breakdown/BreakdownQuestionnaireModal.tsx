@@ -13,6 +13,8 @@ interface BreakdownQuestionnaireModalProps {
 	onSubmit: () => void;
 	isSubmitting: boolean;
 	onClose: () => void;
+	/** 单选即时执行模式：点选项立即回调并跳过答题收集/导航栏/自定义输入（供整理收件箱等流程复用） */
+	onOptionSelect?: (option: string) => void;
 }
 
 export function BreakdownQuestionnaireModal({
@@ -22,6 +24,7 @@ export function BreakdownQuestionnaireModal({
 	onSubmit,
 	isSubmitting,
 	onClose,
+	onOptionSelect,
 }: BreakdownQuestionnaireModalProps) {
 	const t = useTranslations("chat");
 	const [currentIndex, setCurrentIndex] = useState(0);
@@ -144,6 +147,87 @@ export function BreakdownQuestionnaireModal({
 	};
 
 	if (!currentQuestion) return null;
+
+	// 单选即时执行模式（整理收件箱等）：选项行点击立即回调，无答题收集
+	if (onOptionSelect) {
+		return (
+			<div className="w-full">
+				<div className="relative rounded-lg border border-border/40 bg-background shadow-sm">
+					<button
+						type="button"
+						onClick={onClose}
+						disabled={isSubmitting}
+						aria-label={t("closeQuestionnaire")}
+						className={cn(
+							"absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+							isSubmitting && "cursor-not-allowed opacity-50",
+						)}
+					>
+						<X className="h-4 w-4" />
+					</button>
+
+					<div className="p-5">
+						<div className="mb-4 pr-8">
+							<div className="flex items-center gap-2">
+								<span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+									{currentIndex + 1}/{totalQuestions}
+								</span>
+								<h4 className="text-base font-medium">
+									{currentQuestion.question}
+								</h4>
+							</div>
+						</div>
+
+						<div className="space-y-2">
+							{currentQuestion.options.map((option) => {
+								const isSkipOption = option === SKIP_OPTION;
+								return (
+									<button
+										key={option}
+										type="button"
+										onClick={() =>
+											!isSubmitting && onOptionSelect(option)
+										}
+										disabled={isSubmitting}
+										className={cn(
+											"flex w-full items-center gap-3 rounded-md border p-3 text-left transition-colors",
+											"border-transparent bg-muted hover:bg-muted/70",
+											isSubmitting && "cursor-not-allowed opacity-50",
+											isSkipOption && "border-dashed border-border",
+										)}
+									>
+										<ChevronRight className="h-4 w-4 shrink-0 text-primary/70" />
+										<span
+											className={cn(
+												"flex-1 text-sm",
+												isSkipOption && "italic text-muted-foreground",
+											)}
+										>
+											{option}
+										</span>
+									</button>
+								);
+							})}
+						</div>
+					</div>
+
+					<div className="flex items-center justify-end gap-2 px-5 py-3">
+						<button
+							type="button"
+							onClick={handleSkip}
+							disabled={isSubmitting}
+							className={cn(
+								"rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted",
+								isSubmitting && "cursor-not-allowed opacity-50",
+							)}
+						>
+							{t("skipQuestion")}
+						</button>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="w-full">

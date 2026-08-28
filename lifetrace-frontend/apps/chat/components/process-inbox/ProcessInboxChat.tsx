@@ -9,15 +9,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-	BookOpen,
 	CalendarClock,
-	ChevronRight,
 	FolderKanban,
-	ListChecks,
 	Loader2,
-	Play,
-	Trash2,
-	X,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocaleStore } from "@/lib/store/locale";
@@ -32,6 +26,8 @@ import {
 } from "@/lib/query";
 import { queryKeys } from "@/lib/query/keys";
 import type { ProjectView } from "@/lib/query/projects";
+import { BreakdownQuestionnaireModal } from "@/apps/chat/components/breakdown/BreakdownQuestionnaireModal";
+import type { Question } from "@/lib/store/breakdown-store";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
@@ -44,13 +40,6 @@ interface ChatTurn {
 	id: number;
 	role: "assistant" | "user";
 	text: string;
-}
-
-interface Choice {
-	label: string;
-	icon: React.ReactNode;
-	onClick: () => void | Promise<void>;
-	destructive?: boolean;
 }
 
 /** 气泡：assistant 靠左、user 靠右（与 chat 消息布局一致） */
@@ -148,8 +137,8 @@ export function ProcessInboxChat() {
 		pushTurn(
 			"assistant",
 			zh
-				? `第 ${Math.min(doneCount + 1, queue.length)} / ${queue.length} 条：\n「${current.name}」\n\n1. 这件事可以行动吗？`
-				: `Item ${Math.min(doneCount + 1, queue.length)} / ${queue.length}:\n"${current.name}"\n\n1. Is it actionable?`,
+				? `第 ${Math.min(doneCount + 1, queue.length)} / ${queue.length} 条：\n「${current.name}」`
+				: `Item ${Math.min(doneCount + 1, queue.length)} / ${queue.length}:\n"${current.name}"`,
 		);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [active, current?.id, sessionId]);
@@ -267,129 +256,145 @@ export function ProcessInboxChat() {
 
 	if (!active) return null;
 
-	// ---- 当前问题与可选回答 ----
-	const choices: Choice[] = !current || projectPicker
-		? []
-		: step === 11
-			? [
-					{
-						label: zh ? "垃圾桶" : "Trash",
-						icon: <Trash2 className="h-3.5 w-3.5" />,
-						destructive: true,
-						onClick: () => void handleTrash(),
-					},
-					{
-						label: zh ? "可能清单" : "Someday list",
-						icon: <ListChecks className="h-3.5 w-3.5" />,
-						onClick: () => void moveToProject(current.id, SOMEDAY_LIST),
-					},
-					{
-						label: zh ? "存为笔记" : "Save as note",
-						icon: <BookOpen className="h-3.5 w-3.5" />,
-						onClick: () => void handleToNote(),
-					},
-				]
-			: step === 1
+	// ---- 当前问题与可选回答（复用 BreakdownQuestionnaireModal 的 Question 结构）----
+	const questions: Question[] =
+		!current || projectPicker
+			? []
+			: step === 11
 				? [
 						{
-							label: zh ? "可行动" : "Actionable",
-							icon: <ChevronRight className="h-3.5 w-3.5" />,
-							onClick: () => {
-								pushTurn("user", zh ? "可行动" : "Actionable");
-								setStep(2);
-								askNext(zh ? "2. 这件事可以一步搞定吗？" : "2. Can it be done in one step?");
-							},
-						},
-						{
-							label: zh ? "不可行动" : "Not actionable",
-							icon: <X className="h-3.5 w-3.5" />,
-							destructive: true,
-							onClick: () => {
-								pushTurn("user", zh ? "不可行动" : "Not actionable");
-								setStep(11);
-								askNext(
-									zh ? "它去了哪里？" : "Where does it go?",
-								);
-							},
+							id: "step11",
+							question: zh ? "它去了哪里？" : "Where does it go?",
+							options: [
+								zh ? "垃圾桶" : "Trash",
+								zh ? "可能清单" : "Someday list",
+								zh ? "存为笔记" : "Save as note",
+							],
 						},
 					]
-				: step === 2
+				: step === 1
 					? [
 							{
-								label: zh ? "可以" : "Yes",
-								icon: <ChevronRight className="h-3.5 w-3.5" />,
-								onClick: () => {
-									pushTurn("user", zh ? "一步搞定" : "One step");
-									setStep(3);
-									askNext(
-										zh ? "3. 这件事可以在 2 分钟内搞定吗？" : "3. Can it be done in 2 minutes?",
-									);
-								},
-							},
-							{
-								label: zh ? "不可以 → 项目清单" : "No → Project list",
-								icon: <FolderKanban className="h-3.5 w-3.5" />,
-								onClick: () => {
-									pushTurn("user", zh ? "不止一步，放项目清单" : "More than one step → project");
-									setProjectPicker(true);
-									askNext(zh ? "移动到哪个清单？" : "Move to which list?");
-								},
+								id: "step1",
+								question: zh ? "1. 这件事可以行动吗？" : "1. Is it actionable?",
+								options: [
+									zh ? "可行动" : "Actionable",
+									zh ? "不可行动" : "Not actionable",
+								],
 							},
 						]
-					: step === 3
+					: step === 2
 						? [
 								{
-									label: zh ? "可以，直接去做" : "Yes, do it now",
-									icon: <Play className="h-3.5 w-3.5" />,
-									onClick: handleDoNow,
-								},
-								{
-									label: zh ? "不可以" : "No",
-									icon: <ChevronRight className="h-3.5 w-3.5" />,
-									onClick: () => {
-										pushTurn("user", zh ? "超过 2 分钟" : "More than 2 min");
-										setStep(4);
-										askNext(zh ? "4. 这件事该我做吗？" : "4. Is it mine to do?");
-									},
+									id: "step2",
+									question: zh
+										? "2. 这件事可以一步搞定吗？"
+										: "2. Can it be done in one step?",
+									options: [
+										zh ? "可以" : "Yes",
+										zh ? "不可以 → 项目清单" : "No → Project list",
+									],
 								},
 							]
-						: step === 4
+						: step === 3
 							? [
 									{
-										label: zh ? "该我做" : "Mine",
-										icon: <ChevronRight className="h-3.5 w-3.5" />,
-										onClick: () => {
-											pushTurn("user", zh ? "该我做" : "Mine");
-											setStep(5);
-											askNext(
-												zh ? "5. 这件事有特定时间吗？" : "5. Does it have a specific time?",
-											);
-										},
-									},
-									{
-										label: zh ? "不该我做 → 等待清单" : "Not mine → Waiting list",
-										icon: <ListChecks className="h-3.5 w-3.5" />,
-										onClick: () => void moveToProject(current.id, WAITING_LIST),
+										id: "step3",
+										question: zh
+											? "3. 这件事可以在 2 分钟内搞定吗？"
+											: "3. Can it be done in 2 minutes?",
+										options: [
+											zh ? "可以，直接去做" : "Yes, do it now",
+											zh ? "不可以" : "No",
+										],
 									},
 								]
-							: step === 5
+							: step === 4
 								? [
 										{
-											label: zh ? "有 → 日历/日程" : "Yes → Calendar",
-											icon: <CalendarClock className="h-3.5 w-3.5" />,
-											onClick: () => {
-												pushTurn("user", zh ? "有特定时间" : "Has a specific time");
-												setStep(51);
-												askNext(zh ? "安排到什么时间？" : "When?");
-											},
-										},
-										{
-											label: zh ? "无 → 执行清单" : "No → Next list",
-											icon: <ListChecks className="h-3.5 w-3.5" />,
-											onClick: () => void moveToProject(current.id, NEXT_LIST),
+											id: "step4",
+											question: zh ? "4. 这件事该我做吗？" : "4. Is it mine to do?",
+											options: [
+												zh ? "该我做" : "Mine",
+												zh ? "不该我做 → 等待清单" : "Not mine → Waiting list",
+											],
 										},
 									]
-								: [];
+								: step === 5
+									? [
+											{
+												id: "step5",
+												question: zh
+													? "5. 这件事有特定时间吗？"
+													: "5. Does it have a specific time?",
+												options: [
+													zh ? "有 → 日历/日程" : "Yes → Calendar",
+													zh ? "无 → 执行清单" : "No → Next list",
+												],
+											},
+										]
+									: [];
+
+	/** 单选即时执行：选项文本 → 对应动作（与原 choices 一一对应） */
+	const handleOptionSelect = (option: string) => {
+		if (!current || step === 51) return;
+		const L = (zhText: string, enText: string) => (zh ? zhText : enText);
+		switch (option) {
+			case L("可行动", "Actionable"):
+				pushTurn("user", L("可行动", "Actionable"));
+				setStep(2);
+				askNext(L("2. 这件事可以一步搞定吗？", "2. Can it be done in one step?"));
+				break;
+			case L("不可行动", "Not actionable"):
+				pushTurn("user", L("不可行动", "Not actionable"));
+				setStep(11);
+				askNext(L("它去了哪里？", "Where does it go?"));
+				break;
+			case L("可以", "Yes"):
+				pushTurn("user", L("一步搞定", "One step"));
+				setStep(3);
+				askNext(L("3. 这件事可以在 2 分钟内搞定吗？", "3. Can it be done in 2 minutes?"));
+				break;
+			case L("不可以 → 项目清单", "No → Project list"):
+				pushTurn("user", L("不止一步，放项目清单", "More than one step → project"));
+				setProjectPicker(true);
+				askNext(L("移动到哪个清单？", "Move to which list?"));
+				break;
+			case L("可以，直接去做", "Yes, do it now"):
+				handleDoNow();
+				break;
+			case L("不可以", "No"):
+				pushTurn("user", L("超过 2 分钟", "More than 2 min"));
+				setStep(4);
+				askNext(L("4. 这件事该我做吗？", "4. Is it mine to do?"));
+				break;
+			case L("该我做", "Mine"):
+				pushTurn("user", L("该我做", "Mine"));
+				setStep(5);
+				askNext(L("5. 这件事有特定时间吗？", "5. Does it have a specific time?"));
+				break;
+			case L("不该我做 → 等待清单", "Not mine → Waiting list"):
+				void moveToProject(current.id, WAITING_LIST);
+				break;
+			case L("有 → 日历/日程", "Yes → Calendar"):
+				pushTurn("user", L("有特定时间", "Has a specific time"));
+				setStep(51);
+				askNext(L("安排到什么时间？", "When?"));
+				break;
+			case L("无 → 执行清单", "No → Next list"):
+				void moveToProject(current.id, NEXT_LIST);
+				break;
+			case L("垃圾桶", "Trash"):
+				void handleTrash();
+				break;
+			case L("可能清单", "Someday list"):
+				void moveToProject(current.id, SOMEDAY_LIST);
+				break;
+			case L("存为笔记", "Save as note"):
+				void handleToNote();
+				break;
+		}
+	};
 
 	return (
 		<div className="flex flex-col gap-2.5 px-4 pb-2">
@@ -478,41 +483,15 @@ export function ProcessInboxChat() {
 							</button>
 						</div>
 					) : (
-						<div className="flex flex-wrap gap-1.5">
-							{choices.map((c) => (
-								<button
-									key={c.label}
-									type="button"
-									disabled={busy}
-									onClick={() => void c.onClick()}
-									className={cn(
-										"flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors disabled:opacity-50",
-										c.destructive
-											? "border-destructive/30 text-destructive hover:border-destructive/50 hover:bg-destructive/5"
-											: "border-border/60 text-foreground hover:border-primary/40 hover:bg-primary/5",
-									)}
-								>
-									<span
-										className={cn(
-											c.destructive ? "text-destructive/70" : "text-primary/70",
-										)}
-									>
-										{c.icon}
-									</span>
-									{c.label}
-								</button>
-							))}
-							<button
-								type="button"
-								onClick={() => {
-									pushTurn("user", zh ? "跳过这条" : "Skip this one");
-									advance();
-								}}
-								className="rounded-full px-3 py-1.5 text-xs text-muted-foreground/60 hover:text-foreground"
-							>
-								{zh ? "跳过 →" : "Skip →"}
-							</button>
-						</div>
+						<BreakdownQuestionnaireModal
+							questions={questions}
+							answers={{}}
+							onAnswerChange={() => {}}
+							onSubmit={() => {}}
+							isSubmitting={busy}
+							onClose={stop}
+							onOptionSelect={handleOptionSelect}
+						/>
 					)}
 				</div>
 			)}
