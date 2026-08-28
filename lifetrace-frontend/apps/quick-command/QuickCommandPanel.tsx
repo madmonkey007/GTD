@@ -274,13 +274,13 @@ function DraftBubble({
             {createdLabel}
           </span>
         )}
-        <div className="absolute -right-1 -top-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        <div className="absolute right-1.5 top-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
                 aria-label={zh ? "更多操作" : "More actions"}
-                className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:text-foreground"
+                className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/50 hover:text-foreground"
               >
                 <MoreHorizontal className="h-3 w-3" />
               </button>
