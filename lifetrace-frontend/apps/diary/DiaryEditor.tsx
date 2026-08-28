@@ -1296,21 +1296,31 @@ export function DiaryEditor({
 								</div>
 							);
 						}
-						// 叠放视觉：顶部卡片后面垫两层错位的"纸"，角标显示整组张数，点击展开
+						// 扇形视觉：灰底容器内，以卡片左下角为圆点向右展开（最多 3 张），角标显示整组张数，点击展开
 						return (
-							<div key={note.id} className="relative" data-relation-node={note.id}>
-								<div className="pointer-events-none absolute inset-0 translate-x-1 translate-y-1 rounded-xl border border-border/40 bg-card shadow-[0_1px_4px_-2px_rgba(0,0,0,0.10)]" />
-								<div className="pointer-events-none absolute inset-0 translate-x-2 translate-y-2 rounded-xl border border-border/30 bg-card/80 shadow-[0_2px_5px_-3px_rgba(0,0,0,0.08)]" />
-								<div className="relative">{card}</div>
-								<button
-									type="button"
-									onClick={() => toggleStack(note.id)}
-									title={locale === "zh" ? `展开 ${stack.size} 张关联笔记` : `Expand ${stack.size} linked notes`}
-									className="absolute -top-2.5 -right-2.5 z-10 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground shadow-md hover:bg-primary/90 active:scale-95 transition-all"
-								>
-									<Layers className="h-3 w-3" />
-									{stack.size}
-								</button>
+							<div key={note.id} data-relation-node={note.id}>
+								<div className="relative rounded-xl bg-primary/[0.045] border border-primary/10 shadow-[inset_0_2px_6px_rgba(0,0,0,0.07),0_4px_12px_-4px_rgba(0,0,0,0.10)] overflow-hidden px-1 pt-3 pb-0 min-h-[176px]">
+									<div className="group relative h-full min-h-[164px] overflow-visible mx-auto max-w-full px-0.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5">
+										<div className="absolute left-0.5 right-1.5 bottom-0 top-5 origin-bottom-left rotate-0 rounded-lg border border-border/30 bg-card shadow-[0_2px_5px_-3px_rgba(0,0,0,0.06)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[1deg]" />
+										<div className="absolute left-0.5 right-1.5 bottom-0 top-2.5 origin-bottom-left rotate-[2deg] rounded-lg border border-border/40 bg-card shadow-[0_4px_8px_-4px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[3deg]" />
+										<div className="absolute left-0.5 right-1.5 bottom-0 top-0 origin-bottom-left rotate-[4deg] rounded-lg border border-border/40 bg-card shadow-[0_6px_14px_-6px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[5.5deg]">
+											<div className="px-3 pt-2">
+												<div className="text-xs font-normal leading-none text-muted-foreground/55 tabular-nums">{formatTime(note.date)}</div>
+												<div className="mt-1 text-[15px] font-medium text-foreground/90 truncate leading-snug">{note.name}</div>
+												<div className="mt-1 text-sm leading-[1.7] font-body text-foreground/80 line-clamp-4"><NoteMarkdown content={(note.userNotes ?? "").slice(0, 220)} className="text-foreground/80" /></div>
+											</div>
+										</div>
+									</div>
+									<button
+										type="button"
+										onClick={() => toggleStack(note.id)}
+										title={locale === "zh" ? `展开 ${stack.size} 张关联笔记` : `Expand ${stack.size} linked notes`}
+										className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full border border-border bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+									>
+										<Layers className="h-3 w-3" />
+										{stack.size}
+									</button>
+								</div>
 							</div>
 						);
 						})}
