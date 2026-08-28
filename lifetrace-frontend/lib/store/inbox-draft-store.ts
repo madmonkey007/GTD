@@ -44,10 +44,10 @@ export const useInboxDraftStore = create<InboxDraftState>()(
 			expiryHours: DEFAULT_EXPIRY_HOURS,
 			addDraft: (text) =>
 				set((s) => ({
-					// 新增时顺带清理过期草稿
+					// 新增时顺带清理过期草稿；追加到尾部，消息流最新在最下
 					drafts: [
-						{ id: newId(), text: text.trim(), createdAt: new Date().toISOString() },
 						...prune(s.drafts, s.expiryHours),
+						{ id: newId(), text: text.trim(), createdAt: new Date().toISOString() },
 					],
 				})),
 			removeDraft: (id) => set((s) => ({ drafts: s.drafts.filter((d) => d.id !== id) })),
