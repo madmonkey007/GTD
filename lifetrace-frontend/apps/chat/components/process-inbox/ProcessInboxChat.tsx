@@ -8,11 +8,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-	CalendarClock,
-	FolderKanban,
-	Loader2,
-} from "lucide-react";
+import { CalendarClock, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocaleStore } from "@/lib/store/locale";
 import { useProcessInboxStore } from "@/lib/store/process-inbox-store";
@@ -31,7 +27,7 @@ import type { Question } from "@/lib/store/breakdown-store";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
-/** GTD 系统清单（项目）名称：不存在时自动创建 */
+/** GTD 系统清单（项目）名称：注册时后端已内置，不存在时（如被删后再次用到）自动重建 */
 const SOMEDAY_LIST = "可能清单";
 const WAITING_LIST = "等待清单";
 const NEXT_LIST = "执行清单";
@@ -99,7 +95,6 @@ export function ProcessInboxChat() {
 	const [turns, setTurns] = useState<ChatTurn[]>([]);
 	const [busy, setBusy] = useState(false);
 	const [projectPicker, setProjectPicker] = useState(false);
-	const [newProjectName, setNewProjectName] = useState("");
 	const [dueValue, setDueValue] = useState("");
 	const turnIdRef = useRef(0);
 
@@ -174,7 +169,11 @@ export function ProcessInboxChat() {
 				(p) => p.name === projectName && !p.isArchived,
 			);
 			if (!project) {
-				project = (await createProjectAsync({ name: projectName })) ?? undefined;
+				project =
+					(await createProjectAsync({
+						name: projectName,
+						projectType: "checklist",
+					})) ?? undefined;
 				await queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
 			}
 			if (!project) throw new Error(zh ? "清单创建失败" : "Failed to create list");
@@ -258,9 +257,17 @@ export function ProcessInboxChat() {
 
 	// ---- 当前问题与可选回答（复用 BreakdownQuestionnaireModal 的 Question 结构）----
 	const questions: Question[] =
-		!current || projectPicker
+		!current
 			? []
-			: step === 11
+			: projectPicker
+				? [
+						{
+							id: "picker",
+							question: zh ? "2+. 移动到哪个清单？" : "2+. Move to which list?",
+							options: projects.filter((p) => !p.isArchived).map((p) => p.name),
+						},
+					]
+				: step === 11
 				? [
 						{
 							id: "step11",
@@ -337,7 +344,13 @@ export function ProcessInboxChat() {
 
 	/** 单选即时执行：选项文本 → 对应动作（与原 choices 一一对应） */
 	const handleOptionSelect = (option: string) => {
-		if (!current || step === 51) return;
+		if (!current) return;
+		// 清单选择问：选项即清单名（新建走卡片内输入行）
+		if (projectPicker) {
+			void moveToProject(current.id, option);
+			return;
+		}
+		if (step === 51) return;
 		const L = (zhText: string, enText: string) => (zh ? zhText : enText);
 		switch (option) {
 			case L("可行动", "Actionable"):
@@ -406,54 +419,7 @@ export function ProcessInboxChat() {
 			{/* 可选回答（提问组件） */}
 			{!done && current && (
 				<div className="flex flex-col gap-1.5">
-					{projectPicker ? (
-						<div className="space-y-1.5 rounded-2xl rounded-tl-md bg-muted/60 p-2.5">
-							<div className="max-h-44 space-y-1 overflow-y-auto">
-								{projects
-									.filter((p) => !p.isArchived)
-									.map((p) => (
-										<button
-											key={p.id}
-											type="button"
-											disabled={busy}
-											onClick={() => void moveToProject(current.id, p.name)}
-											className="flex w-full items-center gap-2 rounded-lg border border-border/50 px-3 py-2 text-left text-sm transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:opacity-50"
-										>
-											<FolderKanban className="h-3.5 w-3.5 text-primary/60" />
-											<span className="min-w-0 flex-1 truncate">{p.name}</span>
-											<span className="text-[10px] text-muted-foreground/50">{p.todoCount}</span>
-										</button>
-									))}
-							</div>
-							<div className="flex items-center gap-1.5">
-								<input
-									value={newProjectName}
-									onChange={(e) => setNewProjectName(e.target.value)}
-									placeholder={zh ? "新建清单…" : "New list…"}
-									className="h-8 flex-1 rounded-lg border border-border/50 bg-background px-2.5 text-sm outline-none focus:border-primary/40"
-								/>
-								<button
-									type="button"
-									disabled={busy || !newProjectName.trim()}
-									onClick={() => {
-										void moveToProject(current.id, newProjectName.trim()).then(() =>
-											setNewProjectName(""),
-										);
-									}}
-									className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
-								>
-									{zh ? "创建并移入" : "Create & move"}
-								</button>
-							</div>
-							<button
-								type="button"
-								onClick={() => setProjectPicker(false)}
-								className="text-xs text-muted-foreground/60 hover:text-foreground"
-							>
-								{zh ? "← 返回" : "← Back"}
-							</button>
-						</div>
-					) : step === 51 ? (
+					{step === 51 ? (
 						<div className="flex items-center gap-1.5 rounded-2xl rounded-tl-md bg-muted/60 p-2.5">
 							<input
 								type="datetime-local"
@@ -491,6 +457,26 @@ export function ProcessInboxChat() {
 							isSubmitting={busy}
 							onClose={stop}
 							onOptionSelect={handleOptionSelect}
+							// 角标与问题编号一致：五问显示 n/5；分支追问沿用其父问题的编号
+							counterLabel={
+								projectPicker
+									? "2/5"
+									: step === 11
+										? "1/5"
+										: step === 51
+											? "5/5"
+											: step >= 1 && step <= 5
+												? `${step}/5`
+												: null
+							}
+							// 清单选择问：卡片内直接输入新清单名（与多选模式的输入行一致）
+							customInputPlaceholder={zh ? "新建清单…" : "New list…"}
+							customInputAction={zh ? "创建并移入" : "Create & move"}
+							onCustomSubmit={
+								projectPicker
+									? (name) => void moveToProject(current.id, name)
+									: undefined
+							}
 						/>
 					)}
 				</div>

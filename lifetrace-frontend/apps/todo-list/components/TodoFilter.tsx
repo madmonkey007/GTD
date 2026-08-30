@@ -22,6 +22,8 @@ export interface TodoFilterState {
 	status: TodoStatus | "all";
 	tag: string | "all";
 	dueTime: DueTimeFilter;
+	/** 隐藏已完成：开启后列表不展示已完成待办（含已完成折叠区） */
+	hideCompleted: boolean;
 }
 
 interface TodoFilterProps {
@@ -41,7 +43,10 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 	).sort();
 
 	const isFilterActive =
-		filter.status !== "all" || filter.tag !== "all" || filter.dueTime !== "all";
+		filter.status !== "all" ||
+		filter.tag !== "all" ||
+		filter.dueTime !== "all" ||
+		filter.hideCompleted;
 
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
@@ -78,6 +83,7 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 			status: "all",
 			tag: "all",
 			dueTime: "all",
+			hideCompleted: false,
 		});
 	};
 
@@ -212,6 +218,34 @@ export function TodoFilter({ todos, filter, onFilterChange }: TodoFilterProps) {
 							</select>
 							<ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
 						</div>
+					</div>
+
+					{/* Hide Completed Toggle */}
+					<div className="space-y-2">
+						<button
+							type="button"
+							role="switch"
+							aria-checked={filter.hideCompleted}
+							onClick={() =>
+								onFilterChange({ ...filter, hideCompleted: !filter.hideCompleted })
+							}
+							className="w-full flex items-center justify-between h-10 px-2.5 rounded-lg border border-border/30 bg-background text-xs text-foreground hover:bg-muted/20 transition-all duration-200"
+						>
+							<span>{tTodoList("hideCompleted")}</span>
+							<span
+								className={cn(
+									"relative h-4 w-7 rounded-full transition-colors duration-200",
+									filter.hideCompleted ? "bg-primary" : "bg-muted",
+								)}
+							>
+								<span
+									className={cn(
+										"absolute top-0.5 h-3 w-3 rounded-full bg-background transition-all duration-200",
+										filter.hideCompleted ? "left-3.5" : "left-0.5",
+									)}
+								/>
+							</span>
+						</button>
 					</div>
 
 					{/* Tag Filter */}

@@ -64,6 +64,15 @@ export function ChatPanel() {
 
 	const [showTodosExpanded, setShowTodosExpanded] = useState(false);
 
+	// GTD 整理收集箱会话激活时隐藏聊天背景（欢迎语、建议按钮），只留提问对话
+	const processInboxActive = useProcessInboxStore((s) => s.active);
+	const startProcessInbox = useProcessInboxStore((s) => s.start);
+
+	// chat 面板内的「整理收集箱」建议按钮：直接开启 GTD 五问会话
+	const handleProcessInbox = useCallback(() => {
+		startProcessInbox();
+	}, [startProcessInbox]);
+
 	const typingText = useMemo(() => tChat("aiThinking"), [tChat]);
 
 	const formatMessageCount = useCallback(
@@ -104,15 +113,17 @@ export function ChatPanel() {
 
 			{/* 内容区：消息列表始终渲染，弹窗以浮层形式覆盖其上 */}
 			<div className="relative flex min-h-0 flex-1 flex-col">
-				<MessageList
-					messages={chatController.messages}
-					isStreaming={chatController.isStreaming}
-					typingText={typingText}
-					effectiveTodos={chatController.effectiveTodos}
-				/>
+				{!processInboxActive && (
+					<MessageList
+						messages={chatController.messages}
+						isStreaming={chatController.isStreaming}
+						typingText={typingText}
+						effectiveTodos={chatController.effectiveTodos}
+					/>
+				)}
 
 				{/* 浮动弹窗：问卷 / 总结 / 流式生成，覆盖消息区、底部贴入输入框 */}
-				{breakdownQuestionnaire.stage !== "idle" && (
+				{!processInboxActive && breakdownQuestionnaire.stage !== "idle" && (
 					<div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-end overflow-y-auto">
 						{breakdownQuestionnaire.stage === "questionnaire" &&
 							breakdownQuestionnaire.questions.length > 0 ? (
@@ -146,17 +157,17 @@ export function ChatPanel() {
 							</div>
 						)}
 					</div>
+					)}
+
+				{/* GTD inbox processing: floating overlay inside the relative content area, docked above input */}
+				{processInboxActive && (
+					<div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-end overflow-y-auto">
+						<div className="pointer-events-auto w-full px-4 pb-1">
+							<ProcessInboxChat />
+						</div>
+					</div>
 				)}
 			</div>
-
-			{/* GTD inbox processing: floating overlay, docked above input (same slot as breakdown questionnaire) */}
-			{useProcessInboxStore((s) => s.active) && (
-				<div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-end overflow-y-auto">
-					<div className="pointer-events-auto w-full px-4 pb-1">
-						<ProcessInboxChat />
-					</div>
-				</div>
-			)}
 			<ChatInputSection
 				locale={locale}
 				inputValue={chatController.inputValue}
@@ -173,9 +184,10 @@ export function ChatPanel() {
 				onToggleExpand={() => setShowTodosExpanded((prev) => !prev)}
 				onToggleTodo={toggleTodoSelection}
 
-				// 拆解弹窗激活时隐藏建议按钮组，让弹窗紧贴输入框顶部
-				showSuggestions={breakdownQuestionnaire.stage === "idle" && (chatController.messages.length === 0 || (chatController.messages.length === 1 && chatController.messages[0].role === "assistant") || chatController.messages.every((msg) => msg.role === "assistant"))}
+				// 拆解弹窗 / GTD 整理会话激活时隐藏建议按钮组，让弹窗紧贴输入框顶部
+				showSuggestions={!processInboxActive && breakdownQuestionnaire.stage === "idle" && (chatController.messages.length === 0 || (chatController.messages.length === 1 && chatController.messages[0].role === "assistant") || chatController.messages.every((msg) => msg.role === "assistant"))}
 onSelectPrompt={handleSelectPrompt}
+				onProcessInbox={handleProcessInbox}
 onTranscript={(text) => chatController.setInputValue((prev) => (prev ? prev + " " + text : text))}
 />
 		</div>

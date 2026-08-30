@@ -15,6 +15,12 @@ interface BreakdownQuestionnaireModalProps {
 	onClose: () => void;
 	/** 单选即时执行模式：点选项立即回调并跳过答题收集/导航栏/自定义输入（供整理收件箱等流程复用） */
 	onOptionSelect?: (option: string) => void;
+	/** 单选模式下自定义角标（如 "2/5"）；传 null 隐藏角标 */
+	counterLabel?: string | null;
+	/** 单选模式下的行内自定义输入：占位文案 + 提交按钮文案 + 提交回调（不传则不渲染输入行） */
+	customInputPlaceholder?: string;
+	customInputAction?: string;
+	onCustomSubmit?: (value: string) => void;
 }
 
 export function BreakdownQuestionnaireModal({
@@ -25,9 +31,14 @@ export function BreakdownQuestionnaireModal({
 	isSubmitting,
 	onClose,
 	onOptionSelect,
+	counterLabel,
+	customInputPlaceholder,
+	customInputAction,
+	onCustomSubmit,
 }: BreakdownQuestionnaireModalProps) {
 	const t = useTranslations("chat");
 	const [currentIndex, setCurrentIndex] = useState(0);
+	const [inlineValue, setInlineValue] = useState("");
 	const [customAnswers, setCustomAnswers] = useState<Record<string, string>>(
 		{},
 	);
@@ -169,9 +180,11 @@ export function BreakdownQuestionnaireModal({
 					<div className="p-5">
 						<div className="mb-4 pr-8">
 							<div className="flex items-center gap-2">
-								<span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
-									{currentIndex + 1}/{totalQuestions}
-								</span>
+								{counterLabel !== null && (
+									<span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+										{counterLabel ?? `${currentIndex + 1}/${totalQuestions}`}
+									</span>
+								)}
 								<h4 className="text-base font-medium">
 									{currentQuestion.question}
 								</h4>
@@ -208,6 +221,43 @@ export function BreakdownQuestionnaireModal({
 									</button>
 								);
 							})}
+
+						{/* 行内自定义输入：与多选模式的输入行同款样式，直接在当前卡片内提交 */}
+						{onCustomSubmit && (
+							<div className="mt-2 flex items-center gap-2 rounded-md border border-transparent bg-background p-3 shadow-sm ring-1 ring-border/50">
+								<input
+									type="text"
+									value={inlineValue}
+									onChange={(e) => setInlineValue(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") {
+											e.preventDefault();
+											if (inlineValue.trim() && !isSubmitting) {
+												onCustomSubmit(inlineValue.trim());
+												setInlineValue("");
+											}
+										}
+									}}
+									placeholder={customInputPlaceholder}
+									disabled={isSubmitting}
+									className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+								/>
+								<button
+									type="button"
+									disabled={!inlineValue.trim() || isSubmitting}
+									onClick={() => {
+										onCustomSubmit(inlineValue.trim());
+										setInlineValue("");
+									}}
+									className={cn(
+										"shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90",
+										(!inlineValue.trim() || isSubmitting) && "opacity-40",
+									)}
+								>
+									{customInputAction}
+								</button>
+							</div>
+						)}
 						</div>
 					</div>
 

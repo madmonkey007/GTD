@@ -83,6 +83,11 @@ export function useOrderedTodos(
 
 		// Apply filters
 		if (filter) {
+			// 隐藏已完成：直接从结果中剔除已完成待办
+			if (filter.hideCompleted) {
+				result = result.filter((todo) => todo.status !== "completed");
+			}
+
 			// Status filter
 			if (filter.status !== "all") {
 				result = result.filter((todo) => todo.status === filter.status);

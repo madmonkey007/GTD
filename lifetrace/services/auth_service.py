@@ -66,7 +66,18 @@ class AuthService:
         except IntegrityError as exc:
             raise DuplicateUserEmailError(normalized) from exc
         self.session.refresh(user)
+        self._seed_default_lists(user)
         return user
+
+    def _seed_default_lists(self, user: User) -> None:
+        """新用户内置 GTD 系统清单（普通项目，用户可自行删除）"""
+        from lifetrace.storage.models import Project
+
+        for name in ("执行清单", "等待清单", "可能清单"):
+            self.session.add(
+                Project(user_id=user.id, name=name, project_type="checklist")
+            )
+        self.session.flush()
 
     def authenticate_user(self, *, email: str, password: str) -> User:
         user = self.get_user_by_email(normalize_email(email))

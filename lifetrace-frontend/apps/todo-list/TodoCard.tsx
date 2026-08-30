@@ -184,74 +184,76 @@ export function TodoCard({
 
 				<div className="flex-1 min-w-0">
 					<div className="flex items-start justify-between gap-2">
-						<div className="min-w-0 flex-1">
-							<TodoCardName
-								todo={todo}
-								isEditing={state.isEditingName}
-								editingName={state.editingName}
-								nameInputRef={state.nameInputRef}
-								onStartEdit={handlers.handleStartEditName}
-								onSave={handlers.handleSaveName}
-								onCancel={handlers.handleCancelEditName}
-								onChange={state.setEditingName}
+							<div className="min-w-0 flex-1">
+								<TodoCardName
+									todo={todo}
+									isEditing={state.isEditingName}
+									editingName={state.editingName}
+									nameInputRef={state.nameInputRef}
+									onStartEdit={handlers.handleStartEditName}
+									onSave={handlers.handleSaveName}
+									onCancel={handlers.handleCancelEditName}
+									onChange={state.setEditingName}
+								/>
+							</div>
+							<div
+								className={cn(
+									"flex items-center gap-0.5 shrink-0 self-start mt-0.5 transition-opacity duration-150",
+									isMobile
+										? "opacity-100"
+										: "opacity-0 group-hover:opacity-100",
+								)}
+							>
+								<button
+									type="button"
+									onClick={(e) => {
+										e.stopPropagation();
+										handlers.handleStartBreakdown();
+									}}
+									className={cn(
+										"flex items-center justify-center rounded-md hover:bg-muted/40 transition-all",
+										isMobile ? "h-9 w-9" : "h-6 w-6",
+									)}
+									aria-label={tTodoDetail("useAiPlan")}
+									title={tTodoDetail("useAiPlanTitle")}
+								>
+									<Hammer className="h-3.5 w-3.5 text-primary/60" />
+								</button>
+								<button
+									type="button"
+									onClick={(e) => {
+										e.stopPropagation();
+										handlers.handleGetAdvice();
+									}}
+									className={cn(
+										"flex items-center justify-center rounded-md hover:bg-muted/40 transition-all",
+										isMobile ? "h-9 w-9" : "h-6 w-6",
+									)}
+									aria-label={tTodoDetail("getAdvice")}
+									title={tTodoDetail("getAdviceTitle")}
+								>
+									<Sparkles className="h-3.5 w-3.5 text-primary/60" />
+								</button>
+							</div>
+
+							<div className="flex items-center gap-2 shrink-0">
+								{todo.attachments && todo.attachments.length > 0 && (
+									<span className="flex items-center gap-0.5 text-[10px] tabular-nums text-muted-foreground/60">
+										<Paperclip className="h-3 w-3" />
+										{todo.attachments.length}
+									</span>
+								)}
+							</div>
+
+							{/* 展开/收起子任务：统一放行尾（数字之后） */}
+							<TodoCardExpandButton
+								hasChildren={hasChildren}
+								isExpanded={isExpanded}
+								onToggle={() => toggleTodoExpanded(todo.id)}
 							/>
 						</div>
-						<TodoCardExpandButton
-							hasChildren={hasChildren}
-							isExpanded={isExpanded}
-							onToggle={() => toggleTodoExpanded(todo.id)}
-						/>
-						<div
-							className={cn(
-								"flex items-center gap-0.5 shrink-0 self-start mt-0.5 transition-opacity duration-150",
-								isMobile
-									? "opacity-100"
-									: "opacity-0 group-hover:opacity-100",
-							)}
-						>
-							<button
-								type="button"
-								onClick={(e) => {
-									e.stopPropagation();
-									handlers.handleStartBreakdown();
-								}}
-								className={cn(
-									"flex items-center justify-center rounded-md hover:bg-muted/40 transition-all",
-									isMobile ? "h-9 w-9" : "h-6 w-6",
-								)}
-								aria-label={tTodoDetail("useAiPlan")}
-								title={tTodoDetail("useAiPlanTitle")}
-							>
-								<Hammer className="h-3.5 w-3.5 text-primary/60" />
-							</button>
-							<button
-								type="button"
-								onClick={(e) => {
-									e.stopPropagation();
-									handlers.handleGetAdvice();
-								}}
-								className={cn(
-									"flex items-center justify-center rounded-md hover:bg-muted/40 transition-all",
-									isMobile ? "h-9 w-9" : "h-6 w-6",
-								)}
-								aria-label={tTodoDetail("getAdvice")}
-								title={tTodoDetail("getAdviceTitle")}
-							>
-								<Sparkles className="h-3.5 w-3.5 text-primary/60" />
-							</button>
-						</div>
 
-						<div className="flex items-center gap-2 shrink-0">
-							{todo.attachments && todo.attachments.length > 0 && (
-								<span className="flex items-center gap-0.5 text-[10px] tabular-nums text-muted-foreground/60">
-									<Paperclip className="h-3 w-3" />
-									{todo.attachments.length}
-								</span>
-							)}
-						</div>
-					</div>
-
-					<TodoCardMetadata todo={todo} />
+						<TodoCardMetadata todo={todo} />
 				</div>
 			</div>
 

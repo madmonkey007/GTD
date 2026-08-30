@@ -508,6 +508,7 @@
     "generateSummaryFailed": "生成总结失败，请重试",
     "loading": "加载中",
     "suggestions": {
+      "processInbox": "整理收集箱",
       "breakdown": "拆解任务",
       "breakdownPrompt": "帮我拆解一下这个任务",
       "plan": "制定计划",
@@ -1013,6 +1014,7 @@
     "dueTimeThisWeek": "本周",
     "dueTimeThisMonth": "本月",
     "dueTimeFuture": "未来",
+    "hideCompleted": "隐藏已完成",
     "clearFilters": "清除筛选",
     "quickFilters": "快速筛选",
     "moreOptions": "更多选项"

@@ -18,6 +18,7 @@ type ChatInputSectionProps = {
 	showTodosExpanded: boolean;
 	showSuggestions: boolean;
 	onSelectPrompt: (prompt: string) => void;
+	onProcessInbox?: () => void;
 	onInputChange: (value: string) => void;
 	onSend: () => void;
 	onStop?: () => void;
@@ -45,6 +46,7 @@ export function ChatInputSection({
 	onToggleExpand,
 	showSuggestions,
 	onSelectPrompt,
+	onProcessInbox,
 	onToggleTodo,
 	onTranscript,
 }: ChatInputSectionProps) {
@@ -86,7 +88,7 @@ export function ChatInputSection({
 			{/* 输入框上方的 PromptSuggestions 弹窗 */}
 			{showSuggestions && (
 				<div className="pb-3">
-					<PromptSuggestions onSelect={onSelectPrompt} />
+					<PromptSuggestions onSelect={onSelectPrompt} onProcessInbox={onProcessInbox} />
 				</div>
 			)}
 

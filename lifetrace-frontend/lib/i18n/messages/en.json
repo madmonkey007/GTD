@@ -508,6 +508,7 @@
     "generateSummaryFailed": "Failed to generate summary, please try again",
     "loading": "Loading",
     "suggestions": {
+      "processInbox": "Organize Inbox",
       "breakdown": "Break Down Task",
       "breakdownPrompt": "Help me break down this task",
       "plan": "Create Plan",
@@ -1013,6 +1014,7 @@
     "dueTimeThisWeek": "This Week",
     "dueTimeThisMonth": "This Month",
     "dueTimeFuture": "Future",
+    "hideCompleted": "Hide Completed",
     "clearFilters": "Clear Filters",
     "quickFilters": "Quick Filters",
     "moreOptions": "More Options"

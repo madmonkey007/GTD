@@ -9,6 +9,8 @@ import { ZeroThinkPanel } from "@/apps/zero-think";
 import { PomodoroView } from "@/apps/pomodoro/PomodoroView";
 import { QuadrantsView } from "@/apps/quadrants/QuadrantsView";
 import { QuickCommandPanel } from "@/apps/quick-command/QuickCommandPanel";
+import { ChatPanel } from "@/apps/chat/ChatPanel";
+import { useProcessInboxStore } from "@/lib/store/process-inbox-store";
 import { ProfilePanel } from "./ProfilePanel";
 import { useQuickCapture, matchShortcut } from "@/lib/store/quick-capture-store";
 import { QuickCaptureModal } from "@/components/common/QuickCaptureModal";
@@ -259,6 +261,8 @@ export function PanelRegion({
 
 	const { activeView, sidebarWidth, setActiveView, viewExpanded } = useUiStore();
 	const isMobile = useIsMobile();
+	// GTD 整理收集箱会话：收集箱 tab 显示完整 chat 面板（含提问对话），而非快捷指令面板
+	const processInboxActive = useProcessInboxStore((s) => s.active);
 
 	// 计算容器高度
 	const panelsContainerHeight = useMemo(() => {
@@ -360,7 +364,8 @@ export function PanelRegion({
 							{activeView === "diary" && <DiaryPanel />}
 							{activeView === "achievements" && <AchievementsPanel />}
 							{activeView === "zeroThink" && <ZeroThinkPanel setActiveView={(view: string) => setActiveView(view as SidebarView)} />}
-							{activeView === "quickCommand" && <QuickCommandPanel />}
+							{activeView === "quickCommand" &&
+							(processInboxActive ? <ChatPanel /> : <QuickCommandPanel />)}
 							{activeView === "profile" && <ProfilePanel />}
 						</div>
 					)}
