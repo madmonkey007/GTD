@@ -7,7 +7,7 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session, SQLModel
 
@@ -39,13 +39,12 @@ class DatabaseBase:
             database_url = get_database_url()
             is_sqlite = database_url.startswith("sqlite:///")
             db_path = str(get_database_path()) if is_sqlite else database_url
-            db_exists = os.path.exists(db_path) if is_sqlite else True
-
             if is_sqlite:
                 ensure_dir(os.path.dirname(db_path))
 
             # 创建引擎
             self.engine = create_engine(database_url, echo=False, pool_pre_ping=True)
+            fresh_database = not inspect(self.engine).get_table_names()
 
             # 创建会话工厂（兼容旧代码）
             self.SessionLocal = sessionmaker(bind=self.engine)
@@ -53,7 +52,7 @@ class DatabaseBase:
             # 创建表
             # 对于新数据库：创建所有表
             # 对于现有数据库：只创建缺失的表（SQLModel.metadata.create_all 会自动跳过已存在的表）
-            if not db_exists:
+            if fresh_database:
                 SQLModel.metadata.create_all(bind=self.engine)
                 logger.info(f"数据库初始化完成: {db_path}")
             else:
@@ -62,7 +61,7 @@ class DatabaseBase:
                 SQLModel.metadata.create_all(bind=self.engine)
 
             # 运行 Alembic 迁移，补齐已有数据库的新增列/索引
-            self._run_migrations()
+            self._run_migrations(fresh_database=fresh_database)
 
             # 性能优化：添加关键索引
             self._create_performance_indexes()
@@ -71,7 +70,7 @@ class DatabaseBase:
             logger.error(f"数据库初始化失败: {e}")
             raise
 
-    def _run_migrations(self) -> None:
+    def _run_migrations(self, *, fresh_database: bool = False) -> None:
         """运行 Alembic 迁移（如可用）"""
         if os.environ.get("LIFETRACE_SKIP_MIGRATIONS", "").lower() in {"1", "true", "yes"}:
             logger.info("LIFETRACE_SKIP_MIGRATIONS 已启用，跳过运行时迁移")
@@ -92,7 +91,10 @@ class DatabaseBase:
         config.set_main_option("sqlalchemy.url", get_database_url())
 
         try:
-            command.upgrade(config, "head")
+            if fresh_database:
+                command.stamp(config, "head")
+            else:
+                command.upgrade(config, "head")
             logger.info("数据库迁移检查完成")
         except Exception as exc:
             logger.error(f"数据库迁移失败: {exc}")

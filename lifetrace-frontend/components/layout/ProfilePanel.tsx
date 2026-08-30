@@ -1,23 +1,25 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import {
 	Award,
 	BrainCircuit,
 	Camera,
 	Check,
+	ChevronRight,
 	FlaskConical,
 	KeyRound,
-	ChevronRight,
 	LogOut,
 	Pencil,
 	Settings,
 	Timer,
 	X,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { PasswordInput } from "@/components/common/ui/PasswordInput";
+import { customFetcher } from "@/lib/api/fetcher";
 import {
 	AVATAR_MAX_BYTES,
 	changePassword,
@@ -27,12 +29,10 @@ import {
 	uploadAvatar,
 } from "@/lib/auth/api";
 import { useAuthStore } from "@/lib/auth/session";
-import { customFetcher } from "@/lib/api/fetcher";
-import { PasswordInput } from "@/components/common/ui/PasswordInput";
 import { useOpenSettings } from "@/lib/hooks/useOpenSettings";
-import { toast } from "@/lib/toast";
 import { useUiStore } from "@/lib/store/ui-store";
 import type { SidebarView } from "@/lib/store/ui-store/types";
+import { toast } from "@/lib/toast";
 
 interface ProfilePanelProps {
 	setActiveView?: (view: string) => void;
@@ -117,13 +117,19 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 
 	return (
 		<div
+			role="dialog"
+			aria-modal="true"
+			aria-label="修改密码"
+			tabIndex={-1}
 			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
-			onClick={onClose}
+			onClick={(event) => {
+				if (event.target === event.currentTarget) onClose();
+			}}
+			onKeyDown={(event) => {
+				if (event.key === "Escape") onClose();
+			}}
 		>
-			<div
-				className="w-full max-w-sm rounded-xl border border-border/50 bg-popover p-5 shadow-xl"
-				onClick={(e) => e.stopPropagation()}
-			>
+			<div className="w-full max-w-sm rounded-xl border border-border/50 bg-popover p-5 shadow-xl">
 				<div className="mb-4 flex items-center justify-between">
 					<h3 className="text-sm font-semibold text-foreground">修改密码</h3>
 					<button

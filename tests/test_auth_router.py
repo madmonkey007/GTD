@@ -75,6 +75,7 @@ def test_register_returns_token_and_user(client: TestClient) -> None:
         "id": 1,
         "email": "user@example.com",
         "display_name": "User",
+        "has_avatar": False,
     }
 
 
@@ -141,4 +142,5 @@ def test_me_returns_current_user(client: TestClient) -> None:
         "id": 1,
         "email": "user@example.com",
         "display_name": "User",
+        "has_avatar": False,
     }

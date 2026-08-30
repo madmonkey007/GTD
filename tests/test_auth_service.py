@@ -85,4 +85,5 @@ def test_user_model_and_response_shape() -> None:
         "id": 1,
         "email": "user@example.com",
         "display_name": "User",
+        "has_avatar": False,
     }

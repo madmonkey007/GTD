@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import re
 import threading
-import time
+import time as time_module
 from contextvars import ContextVar
 from pathlib import Path
 from datetime import datetime, time, timedelta
-from inspect import signature
+from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
@@ -222,7 +222,7 @@ class JournalService:
                             f"标题生成通道失败 ({c.get('model')}, 第{attempt + 1}次): {exc}"
                         )
                         if attempt == 0:
-                            time.sleep(2)  # 重试前短暂等待，避免瞬时抖动连败
+                            time_module.sleep(2)  # 重试前短暂等待，避免瞬时抖动连败
                 if raw.strip():
                     break
             title = (raw or "").strip().splitlines()[0].strip().strip('"“”').strip() if raw and raw.strip() else ""
@@ -273,6 +273,17 @@ class JournalService:
         base = (content or "").strip()
         return base + "\n\n" + tag_line if base else tag_line
 
+    @staticmethod
+    def _accepts_user_scope(method: object, desktop_arg_count: int) -> bool:
+        """Return whether a bound vector method has the extra cloud user argument."""
+        positional = [
+            parameter
+            for parameter in signature(method).parameters.values()
+            if parameter.kind
+            in (Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD)
+        ]
+        return len(positional) > desktop_arg_count
+
     def _index_journal(
         self,
         journal_id: int,
@@ -288,11 +299,9 @@ class JournalService:
         if self._vector_db is None:
             return
         try:
-            # 两个后端签名不同：PostgresCloudVectorDB 带 user_id，本地 Chroma 不带
-            import inspect
-
-            params = inspect.signature(self._vector_db.upsert_journal).parameters
-            if "user_id" in params:
+            # 两个后端签名不同：PostgresCloudVectorDB 多一个 user_id，本地 Chroma 不带。
+            # 按参数数量判断，避免装饰器或测试替身的参数名变化破坏分派。
+            if self._accepts_user_scope(self._vector_db.upsert_journal, 4):
                 self._vector_db.upsert_journal(self.user_id, journal_id, name or "", user_notes or "", tags)
             else:
                 self._vector_db.upsert_journal(journal_id, name or "", user_notes or "", tags)
@@ -306,10 +315,7 @@ class JournalService:
         if self._vector_db is None:
             return
         try:
-            import inspect
-
-            dparams = inspect.signature(self._vector_db.delete_journal).parameters
-            if "user_id" in dparams:
+            if self._accepts_user_scope(self._vector_db.delete_journal, 1):
                 self._vector_db.delete_journal(self.user_id, journal_id)
             else:
                 self._vector_db.delete_journal(journal_id)
