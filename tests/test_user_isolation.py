@@ -138,8 +138,20 @@ def test_projects_are_isolated_between_users(client: TestClient) -> None:
     assert created.status_code == HTTP_CREATED
     project_id = created.json()["id"]
 
-    assert len(client.get("/api/projects", headers=user_a).json()) == 1
-    assert client.get("/api/projects", headers=user_b).json() == []
+    user_a_projects = client.get("/api/projects", headers=user_a).json()
+    user_b_projects = client.get("/api/projects", headers=user_b).json()
+
+    assert {project["name"] for project in user_a_projects} == {
+        "A project",
+        "执行清单",
+        "等待清单",
+        "可能清单",
+    }
+    assert {project["name"] for project in user_b_projects} == {
+        "执行清单",
+        "等待清单",
+        "可能清单",
+    }
     assert client.get(f"/api/projects/{project_id}", headers=user_b).status_code == HTTP_NOT_FOUND
 
     blocked = client.put(
