@@ -5,7 +5,6 @@ import { useCallback, useRef, useState } from "react";
 import { InputBox } from "@/apps/chat/components/input/InputBox";
 import { LinkedTodos } from "@/apps/chat/components/input/LinkedTodos";
 import { MentionPopover } from "@/apps/chat/components/input/MentionPopover";
-import { PromptSuggestions } from "@/apps/chat/components/input/PromptSuggestions";
 import { ToolSelector } from "@/apps/chat/components/input/ToolSelector";
 import type { Todo } from "@/lib/types";
 
@@ -16,9 +15,6 @@ type ChatInputSectionProps = {
 	error: string | null;
 	effectiveTodos: Todo[];
 	showTodosExpanded: boolean;
-	showSuggestions: boolean;
-	onSelectPrompt: (prompt: string) => void;
-	onProcessInbox?: () => void;
 	onInputChange: (value: string) => void;
 	onSend: () => void;
 	onStop?: () => void;
@@ -44,9 +40,6 @@ export function ChatInputSection({
 	onCompositionStart,
 	onCompositionEnd,
 	onToggleExpand,
-	showSuggestions,
-	onSelectPrompt,
-	onProcessInbox,
 	onToggleTodo,
 	onTranscript,
 }: ChatInputSectionProps) {
@@ -85,13 +78,6 @@ export function ChatInputSection({
 
 	return (
 		<div className="bg-background p-4">
-			{/* 输入框上方的 PromptSuggestions 弹窗 */}
-			{showSuggestions && (
-				<div className="pb-3">
-					<PromptSuggestions onSelect={onSelectPrompt} onProcessInbox={onProcessInbox} />
-				</div>
-			)}
-
 			{/* 斜杠触发的工具菜单 */}
 			{showSlashMenu && (
 				<div ref={slashMenuRef} className="mb-2">

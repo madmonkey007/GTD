@@ -119,6 +119,8 @@ export function ChatPanel() {
 						isStreaming={chatController.isStreaming}
 						typingText={typingText}
 						effectiveTodos={chatController.effectiveTodos}
+						onSelectPrompt={handleSelectPrompt}
+						onProcessInbox={handleProcessInbox}
 					/>
 				)}
 
@@ -184,10 +186,6 @@ export function ChatPanel() {
 				onToggleExpand={() => setShowTodosExpanded((prev) => !prev)}
 				onToggleTodo={toggleTodoSelection}
 
-				// 拆解弹窗 / GTD 整理会话激活时隐藏建议按钮组，让弹窗紧贴输入框顶部
-				showSuggestions={!processInboxActive && breakdownQuestionnaire.stage === "idle" && (chatController.messages.length === 0 || (chatController.messages.length === 1 && chatController.messages[0].role === "assistant") || chatController.messages.every((msg) => msg.role === "assistant"))}
-onSelectPrompt={handleSelectPrompt}
-				onProcessInbox={handleProcessInbox}
 onTranscript={(text) => chatController.setInputValue((prev) => (prev ? prev + " " + text : text))}
 />
 		</div>

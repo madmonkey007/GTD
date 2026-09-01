@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { WelcomeGreetings } from "@/apps/chat/components/layout/WelcomeGreetings";
+import { PromptSuggestions } from "@/apps/chat/components/input/PromptSuggestions";
 import { useMessageExtraction } from "@/apps/chat/hooks/useMessageExtraction";
 import { useMessageScroll } from "@/apps/chat/hooks/useMessageScroll";
 import type { ChatMessage } from "@/apps/chat/types";
@@ -14,6 +15,8 @@ type MessageListProps = {
 	isStreaming: boolean;
 	typingText: string;
 	effectiveTodos?: Todo[];
+	onSelectPrompt: (prompt: string) => void;
+	onProcessInbox?: () => void;
 };
 
 export function MessageList({
@@ -21,6 +24,8 @@ export function MessageList({
 	isStreaming,
 	typingText,
 	effectiveTodos = [],
+	onSelectPrompt,
+	onProcessInbox,
 }: MessageListProps) {
 	const { data: allTodos = [] } = useTodos();
 
@@ -101,11 +106,12 @@ export function MessageList({
 	if (shouldShowSuggestions) {
 		return (
 			<div className="flex flex-1 overflow-y-auto" ref={messageListRef}>
-				<WelcomeGreetings />
+				<WelcomeGreetings>
+					<PromptSuggestions onSelect={onSelectPrompt} onProcessInbox={onProcessInbox} />
+				</WelcomeGreetings>
 			</div>
 		);
 	}
-
 	return (
 		<div
 			className="flex-1 space-y-4 overflow-y-auto px-4 py-4"
