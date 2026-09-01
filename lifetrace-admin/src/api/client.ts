@@ -37,21 +37,31 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers.Authorization = `Bearer ${token}`;
   }
   const response = await fetch(path, { ...init, headers });
-  let body: ApiResult<T> | null = null;
-  try {
-    body = (await response.json()) as ApiResult<T>;
-  } catch {
-    body = null;
+  const contentType = response.headers.get('content-type') ?? '';
+  let body: ApiResult<T> | string | null = null;
+  if (contentType.includes('application/json')) {
+    try {
+      body = (await response.json()) as ApiResult<T>;
+    } catch {
+      body = null;
+    }
+  } else {
+    body = await response.text();
   }
   if (!response.ok) {
+    const apiBody = typeof body === 'object' && body !== null ? body : null;
     const detail =
-      body?.error ?? (typeof body === 'object' && body !== null && 'detail' in body
+      apiBody?.error ??
+      (typeof body === 'object' && body !== null && 'detail' in body
         ? String((body as { detail: unknown }).detail)
         : `请求失败（${response.status}）`);
     throw new ApiError(response.status, detail);
   }
   if (body === null) {
     throw new ApiError(response.status, `请求失败（${response.status}）`);
+  }
+  if (typeof body === 'string') {
+    return body as unknown as T;
   }
   // 兼容两种返回：{success,data,error} 封装 或 原始 JSON
   return (body.success ? body.data : body) as T;

@@ -2,6 +2,7 @@ import {
   DashboardOutlined,
   DatabaseOutlined,
   LogoutOutlined,
+  SettingOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, message } from 'antd';
@@ -18,7 +19,9 @@ export function AdminLayout() {
     ? 'users'
     : location.pathname.startsWith('/data')
       ? 'data'
-      : 'dashboard';
+      : location.pathname.startsWith('/ops')
+        ? 'ops'
+        : 'dashboard';
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -41,6 +44,7 @@ export function AdminLayout() {
             { key: 'dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
             { key: 'data', icon: <DatabaseOutlined />, label: '数据管理' },
             { key: 'users', icon: <TeamOutlined />, label: '用户管理' },
+            { key: 'ops', icon: <SettingOutlined />, label: '系统运维' },
           ]}
           onClick={({ key }) => navigate(key === 'dashboard' ? '/' : `/${key}`)}
         />
