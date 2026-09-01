@@ -3,6 +3,7 @@ import {
   DatabaseOutlined,
   LogoutOutlined,
   SettingOutlined,
+  SafetyOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, message } from 'antd';
@@ -21,6 +22,8 @@ export function AdminLayout() {
       ? 'data'
       : location.pathname.startsWith('/ops')
         ? 'ops'
+      : location.pathname.startsWith('/safety')
+        ? 'safety'
         : 'dashboard';
 
   return (
@@ -45,6 +48,7 @@ export function AdminLayout() {
             { key: 'data', icon: <DatabaseOutlined />, label: '数据管理' },
             { key: 'users', icon: <TeamOutlined />, label: '用户管理' },
             { key: 'ops', icon: <SettingOutlined />, label: '系统运维' },
+            { key: 'safety', icon: <SafetyOutlined />, label: '内容安全' },
           ]}
           onClick={({ key }) => navigate(key === 'dashboard' ? '/' : `/${key}`)}
         />

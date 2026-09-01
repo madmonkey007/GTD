@@ -733,3 +733,40 @@ class ZeroThinkCard(TimestampMixin, table=True):
 # 为兼容旧代码，保留 Base 引用（指向 SQLModel.metadata）
 # 这样现有的 Base.metadata.create_all() 调用仍然有效
 Base = SQLModel
+
+
+# ========== 内容安全 ==========
+
+
+class KeywordRule(SQLModel, table=True):
+    """屏蔽关键字规则"""
+
+    __tablename__: ClassVar[str] = "keyword_rules"
+
+    id: int | None = Field(default=None, primary_key=True)
+    pattern: str = Field(max_length=500, index=True)  # 关键字或正则
+    is_regex: bool = Field(default=False)  # 是否为正则表达式
+    category: str = Field(default="custom", max_length=32, index=True)  # 涉政/色情/广告/自定义
+    action: str = Field(default="flag", max_length=16)  # flag=标记 block=阻止 delete=自动删除
+    enabled: bool = Field(default=True, index=True)
+    remark: str = Field(default="", max_length=200)
+    created_at: datetime = Field(default_factory=get_utc_time)
+    updated_at: datetime = Field(default_factory=get_utc_time)
+
+
+class ContentViolation(SQLModel, table=True):
+    """内容违规命中记录"""
+
+    __tablename__: ClassVar[str] = "content_violations"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    resource_type: str = Field(max_length=32, index=True)  # todo/journal/project/collection
+    resource_id: int = Field(index=True)
+    rule_id: int = Field(index=True)
+    rule_pattern: str = Field(max_length=500)  # 冗余存储，规则删除后仍可追溯
+    matched_excerpt: str = Field(max_length=120)  # 命中片段脱敏摘要（不含全文）
+    action_taken: str = Field(max_length=16)  # flag/block/delete
+    status: str = Field(default="pending", max_length=16, index=True)  # pending/resolved/ignored
+    created_at: datetime = Field(default_factory=get_utc_time, index=True)
+    resolved_at: datetime | None = None

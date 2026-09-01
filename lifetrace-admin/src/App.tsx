@@ -4,6 +4,7 @@ import { Dashboard } from './pages/Dashboard';
 import { DataManage } from './pages/DataManage';
 import { Login } from './pages/Login';
 import { Ops } from './pages/Ops';
+import { Safety } from './pages/Safety';
 import { Users } from './pages/Users';
 import { getToken } from './api/client';
 
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="data" element={<DataManage />} />
           <Route path="data/:resource" element={<DataManage />} />
           <Route path="ops" element={<Ops />} />
+          <Route path="safety" element={<Safety />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

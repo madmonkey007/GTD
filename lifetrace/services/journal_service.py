@@ -682,6 +682,20 @@ class JournalService:
         if not journal_id:
             raise HTTPException(status_code=500, detail="创建日记失败")
 
+        # 内容安全检测：block 抛 422，delete 自动软删+墓碑
+        if payload.name or payload.user_notes:
+            from lifetrace.services.content_safety import guard_create
+
+            guard_create(
+                self.db_base,
+                user_id=int(getattr(self.repository, "user_id", 1)),
+                resource_type="journal",
+                resource_id=journal_id,
+                content="\n".join(
+                    part for part in (payload.name, payload.user_notes) if part
+                ),
+            )
+
         # 用户未填标题（时间伪标题兜底）→ 用免费小模型生成；用户填过则不动
         if self._is_auto_title(payload.name):
             self._maybe_generate_ai_title(journal_id, payload.user_notes)
