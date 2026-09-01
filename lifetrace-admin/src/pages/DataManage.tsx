@@ -5,11 +5,13 @@ import {
   Drawer,
   Form,
   Input,
+  Modal,
   Popconfirm,
   Select,
   Space,
   Switch,
   Table,
+  Typography,
   message,
 } from 'antd';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
@@ -26,6 +28,8 @@ interface DataItem {
   priority?: string | null;
   color?: string | null;
   is_archived?: boolean;
+  content_objective?: string | null;
+  content_ai?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 }
@@ -56,6 +60,27 @@ const FIELD_LABELS: Record<string, string> = {
   is_archived: '已归档',
 };
 
+const DETAIL_FIELDS: Record<ResourceValue, { key: keyof DataItem; label: string }[]> = {
+  todo: [
+    { key: 'description', label: '描述' },
+    { key: 'user_notes', label: '用户笔记' },
+  ],
+  journal: [
+    { key: 'user_notes', label: '笔记内容' },
+    { key: 'content_objective', label: '客观记录' },
+    { key: 'content_ai', label: 'AI 视角' },
+  ],
+  project: [{ key: 'description', label: '描述' }],
+  collection: [{ key: 'description', label: '描述' }],
+};
+
+const TRUNCATE_LEN = 120;
+
+function truncate(v: string | null | undefined): string {
+  if (!v) return '';
+  return v.length > TRUNCATE_LEN ? `${v.slice(0, TRUNCATE_LEN)}…` : v;
+}
+
 function fmt(v: string | null | undefined): string {
   return v ? v.slice(0, 19).replace('T', ' ') : '-';
 }
@@ -72,6 +97,7 @@ export function DataManage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<DataItem | null>(null);
+  const [viewing, setViewing] = useState<DataItem | null>(null);
   const [form] = Form.useForm<Record<string, string | number | boolean | undefined>>();
 
   const load = useCallback(async () => {
@@ -151,7 +177,27 @@ export function DataManage() {
         return u ? `${u.display_name ?? u.email} (#${v})` : `#${v}`;
       },
     },
-    { title: '名称', dataIndex: 'name', ellipsis: true },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      ellipsis: true,
+    },
+    {
+      title: '详情',
+      width: 240,
+      ellipsis: true,
+      render: (_: unknown, record: DataItem) => {
+        const fields = DETAIL_FIELDS[resource];
+        const text = fields
+          .map((f) => record[f.key])
+          .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+          .join('\n');
+        if (!text) return <Typography.Text type="secondary">-</Typography.Text>;
+        return (
+          <a onClick={() => setViewing(record)}>{truncate(text.replace(/[#*_>`~\[\]]/g, ''))}</a>
+        );
+      },
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -257,6 +303,34 @@ export function DataManage() {
           },
         }}
       />
+
+      <Modal
+        title={`详情 · ${viewing?.name ?? ''}`}
+        open={viewing !== null}
+        onCancel={() => setViewing(null)}
+        footer={null}
+        width={640}
+      >
+        {viewing !== null && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {DETAIL_FIELDS[resource].map((f) => {
+              const value = viewing[f.key];
+              return (
+                <div key={String(f.key)}>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    {f.label}
+                  </Typography.Text>
+                  <Typography.Paragraph
+                    style={{ whiteSpace: 'pre-wrap', marginBottom: 0, wordBreak: 'break-word' }}
+                  >
+                    {typeof value === 'string' && value.trim() !== '' ? value : '（空）'}
+                  </Typography.Paragraph>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Modal>
 
       <Drawer
         title={`编辑${RESOURCES.find((r) => r.value === resource)?.label ?? ''} #${editing?.id ?? ''}`}
