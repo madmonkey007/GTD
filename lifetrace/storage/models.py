@@ -45,6 +45,8 @@ class User(TimestampMixin, table=True):
     display_name: str | None = Field(default=None, max_length=120)
     avatar_data: bytes | None = Field(default=None, sa_column=Column(LargeBinary))
     avatar_mime: str | None = Field(default=None, max_length=64)
+    # 角色：admin / user（管理后台用）
+    role: str = Field(default="user", max_length=20)
 
     @property
     def has_avatar(self) -> bool:
