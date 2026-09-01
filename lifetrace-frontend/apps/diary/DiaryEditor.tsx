@@ -1299,11 +1299,11 @@ export function DiaryEditor({
 						// 扇形视觉：灰底容器内，以卡片左下角为圆点向右展开（最多 3 张），角标显示整组张数，点击展开
 						return (
 							<div key={note.id} data-relation-node={note.id}>
-								<div className="relative rounded-xl bg-primary/[0.045] border border-primary/10 shadow-[inset_0_2px_6px_rgba(0,0,0,0.07),0_4px_12px_-4px_rgba(0,0,0,0.10)] overflow-hidden px-1 pt-3 pb-0 min-h-[176px]">
+								<div className="relative cursor-pointer rounded-xl bg-primary/[0.045] border border-primary/10 shadow-[inset_0_2px_6px_rgba(0,0,0,0.07),0_4px_12px_-4px_rgba(0,0,0,0.10)] overflow-hidden px-1 pt-1.5 pb-0 min-h-[176px] active:scale-[0.99] transition-transform duration-200" onClick={() => toggleStack(note.id)}>
 									<div className="group relative h-full min-h-[164px] overflow-visible mx-auto max-w-full px-0.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5">
-										<div className="absolute left-0.5 right-1.5 bottom-0 top-5 origin-bottom-left rotate-0 rounded-lg border border-border/30 bg-card shadow-[0_2px_5px_-3px_rgba(0,0,0,0.06)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[1deg]" />
-										<div className="absolute left-0.5 right-1.5 bottom-0 top-2.5 origin-bottom-left rotate-[2deg] rounded-lg border border-border/40 bg-card shadow-[0_4px_8px_-4px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[3deg]" />
-										<div className="absolute left-0.5 right-1.5 bottom-0 top-0 origin-bottom-left rotate-[4deg] rounded-lg border border-border/40 bg-card shadow-[0_6px_14px_-6px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[5.5deg]">
+										<div className="absolute left-0.5 right-0.5 bottom-0 top-5 origin-bottom-left rotate-0 rounded-lg border border-border/30 bg-card shadow-[0_2px_5px_-3px_rgba(0,0,0,0.06)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[1deg]" />
+										<div className="absolute left-0.5 right-0.5 bottom-0 top-2.5 origin-bottom-left rotate-0 rounded-lg border border-border/40 bg-card shadow-[0_4px_8px_-4px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[3deg]" />
+										<div className="absolute left-0.5 right-0.5 bottom-0 top-0 origin-bottom-left rotate-0 rounded-lg border border-border/40 bg-card shadow-[0_6px_14px_-6px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[5.5deg]">
 											<div className="px-3 pt-2">
 												<div className="text-xs font-normal leading-none text-muted-foreground/55 tabular-nums">{formatTime(note.date)}</div>
 												<div className="mt-1 text-[15px] font-medium text-foreground/90 truncate leading-snug">{note.name}</div>
@@ -1311,15 +1311,12 @@ export function DiaryEditor({
 											</div>
 										</div>
 									</div>
-									<button
-										type="button"
-										onClick={() => toggleStack(note.id)}
-										title={locale === "zh" ? `展开 ${stack.size} 张关联笔记` : `Expand ${stack.size} linked notes`}
-										className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full border border-border bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+									<span
+										className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full border border-border bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground pointer-events-none"
 									>
 										<Layers className="h-3 w-3" />
 										{stack.size}
-									</button>
+									</span>
 								</div>
 							</div>
 						);
