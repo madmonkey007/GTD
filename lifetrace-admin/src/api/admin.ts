@@ -32,9 +32,22 @@ export async function login(email: string, password: string): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
-  const body = await res.json();
-  if (!res.ok || !body?.success) {
-    throw new Error(body?.error ?? '登录失败');
+  const body: unknown = await res.json().catch(() => null);
+  if (!res.ok) {
+    const detail =
+      typeof body === 'object' && body !== null && 'detail' in body
+        ? String((body as { detail: unknown }).detail)
+        : '登录失败';
+    throw new Error(detail);
   }
-  return body.data.access_token as string;
+  // 兼容两种返回：{success,data} 封装 或 裸 JSON（/api/auth/login 返回裸 JSON）
+  const payload =
+    typeof body === 'object' && body !== null && 'success' in body
+      ? ((body as unknown as { data: { access_token?: string } | null } | null)?.data ?? null)
+      : (body as { access_token?: string });
+  const token = payload?.access_token;
+  if (!token) {
+    throw new Error('登录响应缺少 token');
+  }
+  return token;
 }
