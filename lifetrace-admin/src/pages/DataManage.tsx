@@ -180,11 +180,12 @@ export function DataManage() {
     {
       title: '名称',
       dataIndex: 'name',
+      width: 220,
       ellipsis: true,
     },
     {
       title: '详情',
-      width: 240,
+      width: 380,
       ellipsis: true,
       render: (_: unknown, record: DataItem) => {
         const fields = DETAIL_FIELDS[resource];
@@ -291,6 +292,7 @@ export function DataManage() {
         loading={loading}
         dataSource={items}
         columns={columns}
+        scroll={{ x: 1440 }}
         pagination={{
           current: page,
           pageSize,
