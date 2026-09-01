@@ -3,9 +3,10 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 
 from lifetrace.core.dependencies import get_auth_service, get_current_user
+from lifetrace.util.login_rate_limit import check_locked, record_failure, reset_failures
 from lifetrace.schemas.auth import (
     AuthTokenResponse,
     PasswordChangeRequest,
@@ -33,8 +34,10 @@ ALLOWED_AVATAR_MIME = {"image/png", "image/jpeg", "image/webp", "image/gif"}
 @router.post("/register", response_model=AuthTokenResponse, status_code=201)
 async def register(
     payload: UserRegisterRequest,
+    request: Request,
     service: AuthService = Depends(get_auth_service),
 ) -> AuthTokenResponse:
+    check_locked(request, payload.email)
     try:
         user = service.register_user(
             email=payload.email,
@@ -49,12 +52,16 @@ async def register(
 @router.post("/login", response_model=AuthTokenResponse)
 async def login(
     payload: UserLoginRequest,
+    request: Request,
     service: AuthService = Depends(get_auth_service),
 ) -> AuthTokenResponse:
+    check_locked(request, payload.email)
     try:
         user = service.authenticate_user(email=payload.email, password=payload.password)
     except InvalidCredentialsError as exc:
+        record_failure(request, payload.email)
         raise HTTPException(status_code=401, detail="邮箱或密码不正确") from exc
+    reset_failures(request, payload.email)
     return _token_response(user)
 
 
