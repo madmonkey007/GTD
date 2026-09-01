@@ -14,6 +14,7 @@ import {
 } from 'antd';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { request } from '../api/client';
+import type { AdminUser } from '../api/admin';
 
 interface DataItem {
   id: number;
@@ -67,6 +68,8 @@ export function DataManage() {
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [filterUserId, setFilterUserId] = useState<number | null>(null);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<DataItem | null>(null);
   const [form] = Form.useForm<Record<string, string | number | boolean | undefined>>();
@@ -79,6 +82,7 @@ export function DataManage() {
         page_size: String(pageSize),
       });
       if (search) params.set('search', search);
+      if (filterUserId !== null) params.set('user_id', String(filterUserId));
       const data = await request<{ total: number; items: DataItem[] }>(
         `/api/admin/data/${resource}?${params.toString()}`,
       );
@@ -89,7 +93,13 @@ export function DataManage() {
     } finally {
       setLoading(false);
     }
-  }, [resource, page, pageSize, search]);
+  }, [resource, page, pageSize, search, filterUserId]);
+
+  useEffect(() => {
+    request<AdminUser[]>('/api/admin/users')
+      .then(setUsers)
+      .catch(() => setUsers([]));
+  }, []);
 
   useEffect(() => {
     void load();
@@ -132,7 +142,15 @@ export function DataManage() {
 
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 60 },
-    { title: '用户', dataIndex: 'user_id', width: 60 },
+    {
+      title: '用户',
+      dataIndex: 'user_id',
+      width: 140,
+      render: (v: number) => {
+        const u = users.find((x) => x.id === v);
+        return u ? `${u.display_name ?? u.email} (#${v})` : `#${v}`;
+      },
+    },
     { title: '名称', dataIndex: 'name', ellipsis: true },
     {
       title: '状态',
@@ -178,8 +196,25 @@ export function DataManage() {
               setPage(1);
               setSearch('');
               setSearchInput('');
+              setFilterUserId(null);
             }}
             options={RESOURCES.map((r) => ({ value: r.value, label: r.label }))}
+          />
+          <Select<number | null>
+            value={filterUserId}
+            style={{ width: 180 }}
+            placeholder="按用户筛选"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            onChange={(v) => {
+              setFilterUserId(v ?? null);
+              setPage(1);
+            }}
+            options={users.map((u) => ({
+              value: u.id,
+              label: `${u.display_name ?? u.email} (#${u.id})`,
+            }))}
           />
           <Input
             placeholder="搜索名称/内容"
