@@ -10,11 +10,14 @@ import { cn } from "@/lib/utils";
 interface DetailHeaderProps {
 	activeView: "detail" | "artifacts";
 	onViewChange: (view: "detail" | "artifacts") => void;
+	/** 面板标题显示的待办名称（无待办时回退为「待办详情」） */
+	todoName?: string;
 }
 
 export function DetailHeader({
 	activeView,
 	onViewChange,
+	todoName,
 }: DetailHeaderProps) {
 	const t = useTranslations("page");
 	const tTodoDetail = useTranslations("todoDetail");
@@ -23,7 +26,7 @@ export function DetailHeader({
 	return (
 		<PanelHeader
 			icon={FileText}
-			title={t("todoDetailLabel")}
+			title={todoName ?? t("todoDetailLabel")}
 			hideMenu
 			leading={
 				mobile && (

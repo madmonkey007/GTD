@@ -19,7 +19,6 @@ import { ArtifactsView } from "./components/ArtifactsView";
 import { AttachmentPreviewPanel } from "./components/AttachmentPreviewPanel";
 import { ChildTodoSection } from "./components/ChildTodoSection";
 import { DetailHeader } from "./components/DetailHeader";
-import { DetailTitle } from "./components/DetailTitle";
 import { MetaSection } from "./components/MetaSection";
 import { NotesEditor } from "./components/NotesEditor";
 
@@ -51,7 +50,6 @@ export function TodoDetail() {
 	const isMobile = useIsMobile();
 
 	// 子待办折叠状态
-	const [showChildTodos, setShowChildTodos] = useState(false);
 	const [activeView, setActiveView] = useState<"detail" | "artifacts">(
 		"detail",
 	);
@@ -206,14 +204,6 @@ export function TodoDetail() {
 		}
 	};
 
-	const handleNameChange = async (name: string) => {
-		try {
-			await updateTodo(todo.id, { name });
-		} catch (err) {
-			console.error("Failed to update name:", err);
-		}
-	};
-
 	const handleDelete = async () => {
 		try {
 			const allIdsToDelete = [todo.id, ...childIds];
@@ -320,6 +310,7 @@ export function TodoDetail() {
 			<DetailHeader
 				activeView={activeView}
 				onViewChange={setActiveView}
+				todoName={todo.name}
 			/>
 
 			{showDeleteConfirm && (
@@ -360,8 +351,6 @@ export function TodoDetail() {
 			<div className="flex-1 overflow-y-auto px-4 py-6">
 				{activeView === "detail" ? (
 					<>
-						<DetailTitle name={todo.name} onNameChange={handleNameChange} autoEdit={titleAutoEdit} />
-
 						<MetaSection
 							todo={todo}
 							allTags={allTags}
@@ -380,8 +369,6 @@ export function TodoDetail() {
 						<ChildTodoSection
 							childTodos={childTodos}
 							allTodos={todos}
-							show={showChildTodos}
-							onToggle={() => setShowChildTodos((prev) => !prev)}
 							onSelectTodo={setSelectedTodoId}
 							onCreateChild={handleCreateChild}
 							onToggleStatus={toggleTodoStatus}

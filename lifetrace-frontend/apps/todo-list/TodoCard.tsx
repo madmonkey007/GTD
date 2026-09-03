@@ -1,7 +1,8 @@
 "use client";
 
 import { CSS } from "@dnd-kit/utilities";
-import { Hammer, Paperclip, Sparkles } from "lucide-react";
+import { Paperclip, Sparkles } from "lucide-react";
+import { SubTaskIcon } from "@/components/common/icons/SubTaskIcon";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useMemo, useEffect, useRef } from "react";
@@ -217,7 +218,7 @@ export function TodoCard({
 									aria-label={tTodoDetail("useAiPlan")}
 									title={tTodoDetail("useAiPlanTitle")}
 								>
-									<Hammer className="h-3.5 w-3.5 text-primary/60" />
+									<SubTaskIcon className="h-3.5 w-3.5 text-primary/60" />
 								</button>
 								<button
 									type="button"
