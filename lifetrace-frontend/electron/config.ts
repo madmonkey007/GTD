@@ -192,12 +192,12 @@ export function getWindowMode(): WindowMode {
  * 获取后端运行时类型
  *
  * 优先级：
- * 1. 运行时环境变量 FREETODO_BACKEND_RUNTIME
+ * 1. 运行时环境变量 LIFETRACE_BACKEND_RUNTIME
  * 2. 编译时注入的默认值 __DEFAULT_BACKEND_RUNTIME__
  * 3. 硬编码默认值 "script"
  */
 export function getBackendRuntime(): BackendRuntime {
-	const envRuntime = process.env.FREETODO_BACKEND_RUNTIME?.toLowerCase();
+	const envRuntime = process.env.LIFETRACE_BACKEND_RUNTIME?.toLowerCase();
 	if (envRuntime === "script" || envRuntime === "pyinstaller") {
 		return envRuntime;
 	}

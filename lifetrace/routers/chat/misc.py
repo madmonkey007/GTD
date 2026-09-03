@@ -132,13 +132,13 @@ async def get_available_agno_tools():
     """获取可用的 Agno Agent 工具列表
 
     返回两种类型的工具：
-    1. FreeTodo 工具：待办管理相关（create_todo, list_todos 等）
+    1. LifeTrace 工具：待办管理相关（create_todo, list_todos 等）
     2. 外部工具：联网搜索等（duckduckgo 等）
     """
     try:
-        # FreeTodo 工具列表（与 toolkit.py 中的 all_tools 保持同步）
+        # LifeTrace 工具列表（与 toolkit.py 中的 all_tools 保持同步）
         agno_module = importlib.import_module("lifetrace.llm.agno_agent")
-        freetodo_tools = [
+        lifetrace_tools = [
             {
                 "name": "create_todo",
                 "category": "todo",
@@ -344,7 +344,7 @@ async def get_available_agno_tools():
             )
 
         return {
-            "freetodo_tools": freetodo_tools,
+            "lifetrace_tools": lifetrace_tools,
             "external_tools": external_tools,
         }
     except Exception as e:

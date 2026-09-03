@@ -12,7 +12,7 @@ const html = `<!doctype html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>FreeTodo</title>
+    <title>LifeTrace</title>
     <style>
       body {
         margin: 0;
@@ -60,7 +60,7 @@ const html = `<!doctype html>
   </head>
   <body>
     <div class="card">
-      <h1>Starting FreeTodo...</h1>
+      <h1>Starting LifeTrace...</h1>
       <p>Waiting for the local web server.</p>
       <div class="spinner"></div>
     </div>

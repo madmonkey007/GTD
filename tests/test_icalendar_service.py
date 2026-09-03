@@ -35,7 +35,7 @@ def test_import_vtodo_duration_keeps_due_none() -> None:
         [
             "BEGIN:VCALENDAR",
             "VERSION:2.0",
-            "PRODID:-//LifeTrace//FreeTodo//EN",
+            "PRODID:-//LifeTrace//LifeTrace//EN",
             "BEGIN:VTODO",
             "UID:todo-2",
             "SUMMARY:Duration Task",

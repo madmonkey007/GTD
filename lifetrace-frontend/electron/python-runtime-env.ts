@@ -13,7 +13,7 @@ let pipMirrorLogged = false;
 let condaMirrorConfigured = false;
 
 function isMainlandChina(): boolean {
-	const override = process.env.FREETODO_REGION?.toLowerCase();
+	const override = process.env.LIFETRACE_REGION?.toLowerCase();
 	if (override === "cn") {
 		return true;
 	}

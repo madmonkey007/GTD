@@ -60,7 +60,7 @@ enum BackendRuntime {
 
 /// Determine backend runtime from env or build-time default
 fn get_backend_runtime() -> BackendRuntime {
-    if let Ok(value) = std::env::var("FREETODO_BACKEND_RUNTIME") {
+    if let Ok(value) = std::env::var("LIFETRACE_BACKEND_RUNTIME") {
         let normalized = value.to_lowercase();
         if normalized == "uv" || normalized == "uv-run" || normalized == "uvrun" {
             return BackendRuntime::Uv;
@@ -73,7 +73,7 @@ fn get_backend_runtime() -> BackendRuntime {
         }
     }
 
-    if let Some(value) = option_env!("FREETODO_BACKEND_RUNTIME") {
+    if let Some(value) = option_env!("LIFETRACE_BACKEND_RUNTIME") {
         if value.eq_ignore_ascii_case("pyinstaller") {
             return BackendRuntime::PyInstaller;
         }

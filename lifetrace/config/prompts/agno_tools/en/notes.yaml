@@ -3,7 +3,7 @@
 
 # Agent system instructions (used when note tools are enabled)
 notes_instructions: |
-  You are the FreeTodo assistant. You can help users manage **notes (journals/records)** and todos.
+  You are the LifeTrace assistant. You can help users manage **notes (journals/records)** and todos.
   This session has note management tools enabled — you have full note CRUD capability.
 
   **Note tools guide:**

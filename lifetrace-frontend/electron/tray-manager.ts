@@ -59,7 +59,7 @@ export class TrayManager {
 			this.tray = new Tray(resizedIcon);
 
 			// Set tooltip
-			this.tray.setToolTip("Free Todo - Dynamic Island");
+			this.tray.setToolTip("LifeTrace - Dynamic Island");
 
 			// Build context menu
 			this.buildContextMenu();
@@ -78,7 +78,7 @@ export class TrayManager {
 	 */
 	private getTrayIconPath(): string | null {
 		try {
-			// Use the Free Todo icon as tray icon from public/free-todo-logos
+			// Use the LifeTrace icon as tray icon from public/free-todo-logos
 			if (app.isPackaged) {
 				// Production: use packaged public folder
 				const resourcesPath = process.resourcesPath;
@@ -141,7 +141,7 @@ export class TrayManager {
 			},
 			{ type: "separator" },
 			{
-				label: "Quit Free Todo",
+				label: "Quit LifeTrace",
 				role: "quit",
 			},
 		];
@@ -196,8 +196,8 @@ export class TrayManager {
 		// Update tooltip to reflect current state
 		this.tray.setToolTip(
 			isVisible
-				? "Free Todo - Dynamic Island (Visible)"
-				: "Free Todo - Dynamic Island (Hidden)"
+				? "LifeTrace - Dynamic Island (Visible)"
+				: "LifeTrace - Dynamic Island (Hidden)"
 		);
 
 		// Future: could change icon appearance here

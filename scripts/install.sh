@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${LIFETRACE_REPO:-https://github.com/FreeU-group/FreeTodo.git}"
+REPO_URL="${LIFETRACE_REPO:-https://github.com/madmonkey007/GTD.git}"
 REF="${LIFETRACE_REF:-main}"
 REPO_NAME="${REPO_URL##*/}"
 REPO_NAME="${REPO_NAME%.git}"

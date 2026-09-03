@@ -21,7 +21,7 @@ $modeSet = $PSBoundParameters.ContainsKey("Mode") -or [bool]$env:LIFETRACE_MODE
 $backendSet = $PSBoundParameters.ContainsKey("Backend") -or [bool]$env:LIFETRACE_BACKEND
 
 if (-not $Repo) {
-    $Repo = "https://github.com/FreeU-group/FreeTodo.git"
+    $Repo = "https://github.com/madmonkey007/GTD.git"
 }
 if (-not $Ref) {
     $Ref = "main"

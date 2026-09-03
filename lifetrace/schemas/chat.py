@@ -19,7 +19,7 @@ class ChatMessage(BaseModel):
     chat_type: str | None = None  # 会话类型（如 notes/diary），用于区分历史记录归属；默认 event
 
     # Agno Agent 工具配置
-    selected_tools: list[str] | None = None  # FreeTodo 工具列表（如 ['create_todo', 'list_todos']）
+    selected_tools: list[str] | None = None  # LifeTrace 工具列表（如 ['create_todo', 'list_todos']）
     external_tools: list[str] | None = None  # 外部工具列表（如 ['duckduckgo']）
 
     # Cowork 配置（本地文件操作）

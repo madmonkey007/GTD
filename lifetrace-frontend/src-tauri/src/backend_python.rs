@@ -36,7 +36,7 @@ fn get_venv_uv_path(venv_dir: &Path) -> PathBuf {
 }
 
 fn is_mainland_china() -> bool {
-    if let Ok(value) = std::env::var("FREETODO_REGION") {
+    if let Ok(value) = std::env::var("LIFETRACE_REGION") {
         let normalized = value.to_lowercase();
         if normalized == "cn" {
             return true;

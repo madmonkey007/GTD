@@ -16,7 +16,7 @@ By recording personal databases (**LifeLog**, personal life logging), we are com
 
 **Core Mission**: Build personal databases (LifeLog)
 
-**Current Version**: v0.2 (one version ahead of Free Todo v0.1)
+**Current Version**: v0.2 (one version ahead of LifeTrace v0.1)
 
 #### ✅ Completed Features
 
@@ -50,13 +50,13 @@ By recording personal databases (**LifeLog**, personal life logging), we are com
 
 ---
 
-### 2. Free Todo Phase (v0.1 Currently In Progress)
+### 2. LifeTrace Phase (v0.1 Currently In Progress)
 
 **Core Mission**:
 1. Fix user intentions and form the context of intentions to lay the foundation for future proactive services
 2. Form personal context organization
 
-**Core Philosophy**: Free Todo has only one core function—**Cognitive Offloading** (essentially/cognitively)
+**Core Philosophy**: LifeTrace has only one core function—**Cognitive Offloading** (essentially/cognitively)
 
 **Current Status**: Focusing on building the ultimate To-Do List, and on this basis, integrating the personal database built by LifeTrace to provide better services for individuals.
 
@@ -174,26 +174,26 @@ By recording personal databases (**LifeLog**, personal life logging), we are com
 
 **Design Philosophy**:
 - Treat To-Do List as a fixed context center
-- Directly call Agents within Free Todo to generate content (such as PPTs or articles)
+- Directly call Agents within LifeTrace to generate content (such as PPTs or articles)
 - Similar to Cursor's Plan Mode: asks users questions it feels are unclear, allowing users to supplement context for better results
 - Generate plans and submit them to users for review
 
 **Core Value**:
-- Another meaning of "Free Todo": "Just Do It, Let Go and Do It"
+- Another meaning of "LifeTrace": "Just Do It, Let Go and Do It"
 - Get things done directly within the To-Do List
 - Provide psychological security, allowing users to focus on important decisions
 
 **Feature Planning**:
 
 - ☐ Fixed context center based on To-Do List
-- ☐ Directly call Agents within Free Todo to generate content
+- ☐ Directly call Agents within LifeTrace to generate content
 - ☐ Interactive experience similar to Cursor Plan Mode
 - ☐ Generate plans and submit them to users for review
 - ☐ Support generating various types of content (PPT, articles, code, etc.)
 
 #### 🔬 Features in Development (Panels in the Panel Switch Bar)
 
-**Description**: Free Todo's panel switch bar contains some panels that are currently under development. These panels showcase our future feature directions for community reference and understanding.
+**Description**: LifeTrace's panel switch bar contains some panels that are currently under development. These panels showcase our future feature directions for community reference and understanding.
 
 **Community Participation**: We warmly welcome community members to participate!
 
@@ -211,7 +211,7 @@ By recording personal databases (**LifeLog**, personal life logging), we are com
 
 **Core Mission**: TODO proactive services, intent detection
 
-Based on LifeTrace data and Free Todo intentions, proactively provide services to users:
+Based on LifeTrace data and LifeTrace intentions, proactively provide services to users:
 
 - Intent detection and proactive services
 - Intelligent recommendations based on personal databases
@@ -243,7 +243,7 @@ Based on LifeTrace data and Free Todo intentions, proactively provide services t
 ```
 LifeTrace (Personal Database)
     ↓
-Free Todo (Intent Fixation + Context Organization)
+LifeTrace (Intent Fixation + Context Organization)
     ↓
 Proactive Services (Based on Data + Intent)
     ↓
@@ -276,7 +276,7 @@ See our [Contributing Guidelines](../.github/CONTRIBUTING.md) for more details.
 ## Version History
 
 - **LifeTrace v0.2** (Completed): Computer activity flow construction
-- **Free Todo v0.1** (In Progress): To-Do List core feature development
+- **LifeTrace v0.1** (In Progress): To-Do List core feature development
 
 ---
 

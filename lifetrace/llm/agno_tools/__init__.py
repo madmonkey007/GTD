@@ -1,9 +1,9 @@
-"""Agno Tools - FreeTodo Toolkit for Agno Agent
+"""Agno Tools - LifeTrace Toolkit for Agno Agent
 
 This module provides tools for managing todos through the Agno Agent framework.
 
 Structure:
-- toolkit.py: Main FreeTodoToolkit class
+- toolkit.py: Main LifeTraceToolkit class
 - base.py: Message loader and utilities
 - tools/: Individual tool implementations
   - todo_tools.py: CRUD operations
@@ -14,6 +14,6 @@ Structure:
   - tag_tools.py: Tag management
 """
 
-from lifetrace.llm.agno_tools.toolkit import FreeTodoToolkit
+from lifetrace.llm.agno_tools.toolkit import LifeTraceToolkit
 
-__all__ = ["FreeTodoToolkit"]
+__all__ = ["LifeTraceToolkit"]
