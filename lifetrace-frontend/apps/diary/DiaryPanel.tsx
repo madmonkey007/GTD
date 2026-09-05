@@ -1,11 +1,19 @@
 "use client";
+import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DiaryEditor } from "@/apps/diary/DiaryEditor";
+import { AnnotationModal } from "@/apps/diary/components/AnnotationModal";
+import { CollectionDetail } from "@/apps/diary/components/CollectionDetail";
+import { CollectionGallery } from "@/apps/diary/components/CollectionGallery";
+import { CompareNotesModal } from "@/apps/diary/components/CompareNotesModal";
+import { DiaryChatPanel } from "@/apps/diary/components/DiaryChatPanel";
 import { DiarySidebar } from "@/apps/diary/components/DiarySidebar";
+import { DiaryTrashView } from "@/apps/diary/components/DiaryTrashView";
+import { DiaryEditor } from "@/apps/diary/DiaryEditor";
 import { useDiaryStats } from "@/apps/diary/hooks/useDiaryStats";
+import type { TrashEntry } from "@/apps/diary/hooks/useJournalTrash";
+import { useJournalTrash } from "@/apps/diary/hooks/useJournalTrash";
 import {
 	formatDateInput,
 	getDayRange,
@@ -13,45 +21,39 @@ import {
 	parseJournalDate,
 	resolveBucketRange,
 } from "@/apps/diary/journal-utils";
+import type { JournalDraft } from "@/apps/diary/types";
+import { ProjectArchiveView } from "@/apps/project/ProjectArchiveView";
+import { ProjectHeader } from "@/apps/project/ProjectHeader";
+import { ProjectNoteManager } from "@/apps/project/ProjectNoteManager";
+import { ResizeHandle } from "@/components/layout/ResizeHandle";
+import { unwrapApiData } from "@/lib/api/fetcher";
+import { listLinksApiNotesNoteIdLinksGet } from "@/lib/generated/note-links/note-links";
 import type {
 	JournalAutoLinkRequest,
 	JournalCreate,
 	JournalGenerateRequest,
 } from "@/lib/generated/schemas";
+import { useDiaryPanelResize } from "@/lib/hooks/useDiaryPanelResize";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import {
 	type JournalView,
+	useArchivedProjects,
 	useJournalLites,
 	useJournalMutations,
 	useJournals,
+	useProject,
 	useProjectMutations,
 } from "@/lib/query";
-import { useNoteLinkMutations } from "@/lib/query/note-links";
 import { applyGeneratedTitleToDraft } from "@/lib/query/journal-title";
-import { listLinksApiNotesNoteIdLinksGet } from "@/lib/generated/note-links/note-links";
-import { unwrapApiData } from "@/lib/api/fetcher";
-import { useJournalStore } from "@/lib/store/journal-store";
+import { useNoteLinkMutations } from "@/lib/query/note-links";
 import { useFocusTarget } from "@/lib/store/focus-target-store";
-import { usePinStore } from "@/lib/store/pin-store";
+import { useJournalStore } from "@/lib/store/journal-store";
 import { useLocaleStore } from "@/lib/store/locale";
-import { cn } from "@/lib/utils";
-import type { JournalDraft } from "@/apps/diary/types";
-import type { TrashEntry } from "@/apps/diary/hooks/useJournalTrash";
-import { useJournalTrash } from "@/apps/diary/hooks/useJournalTrash";
-import { DiaryTrashView } from "@/apps/diary/components/DiaryTrashView";
-import { DiaryChatPanel } from "@/apps/diary/components/DiaryChatPanel";
-import { AnnotationModal } from "@/apps/diary/components/AnnotationModal";
-import { CompareNotesModal } from "@/apps/diary/components/CompareNotesModal";
-import { CollectionDetail } from "@/apps/diary/components/CollectionDetail";
-import { CollectionGallery } from "@/apps/diary/components/CollectionGallery";
-import { ProjectHeader } from "@/apps/project/ProjectHeader";
-import { ProjectNoteManager } from "@/apps/project/ProjectNoteManager";
-import { ProjectArchiveView } from "@/apps/project/ProjectArchiveView";
-import { useArchivedProjects, useProject } from "@/lib/query";
-import { useUiStore } from "@/lib/store/ui-store";
 import { useMobileToolbarStore } from "@/lib/store/mobile-toolbar-store";
-import { useIsMobile } from "@/lib/hooks/useIsMobile";
-import { useDiaryPanelResize } from "@/lib/hooks/useDiaryPanelResize";
-import { ResizeHandle } from "@/components/layout/ResizeHandle";
+import { usePinStore } from "@/lib/store/pin-store";
+import { useUiStore } from "@/lib/store/ui-store";
+import { cn } from "@/lib/utils";
+
 const emptyDraft = (date: Date): JournalDraft => ({
 	id: null,
 	name: "",
@@ -210,7 +212,7 @@ export function DiaryPanel() {
 		clearProjectView();
 		setSelectedCollectionId(id);
 		setCollectionView("detail");
-	}, []);
+	}, [clearProjectView]);
 
 	const { stats, filterMode, setFilterMode } = useDiaryStats();
 		const { addToTrash, trashEntries, clearTrash, restoreFromTrash } = useJournalTrash();
@@ -889,6 +891,7 @@ const handleSaveCardEdit = async (
 							)}
 						</div>
 						<button
+							type="button"
 							onClick={() => refetch()}
 							className="rounded-lg bg-primary/10 px-4 py-2 text-xs font-medium text-primary hover:bg-primary/20 transition-colors active:scale-[0.97]"
 						>
@@ -994,7 +997,6 @@ const handleSaveCardEdit = async (
 							onClearTrash={clearTrash}
 						/>
 					) : (
-						<>
 						<DiaryEditor
 							draft={draft}
 								filterMode={filterMode}
@@ -1042,7 +1044,6 @@ const handleSaveCardEdit = async (
 							onToggleLeft={() => setLeftDrawerOpen(!leftDrawerOpen)}
 							onToggleRight={() => setRightDrawerOpen(!rightDrawerOpen)}
 						/>
-						</>
 					)}
 				</div>
 		{/* Right-side chat panel for AI analysis — inline when wide, otherwise hidden (drawer overlay) */}

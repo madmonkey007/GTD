@@ -5,8 +5,8 @@
 
 from __future__ import annotations
 
-import re
 import os
+import re
 from contextvars import ContextVar
 from datetime import datetime, time, timedelta
 from inspect import Parameter, signature

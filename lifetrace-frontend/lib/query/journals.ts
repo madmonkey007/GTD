@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetcher, isOfflineError, unwrapApiData } from "@/lib/api/fetcher";
 import {
 	autoLinkJournalApiJournalsAutoLinkPost,
@@ -33,11 +33,11 @@ import {
 	offlineUpdateJournal,
 	saveJournalToMirror,
 } from "@/lib/offline/writes";
-import { queryKeys } from "./keys";
 import {
 	createJournalTitleRequestGate,
 	shouldGenerateJournalTitle,
 } from "./journal-title";
+import { queryKeys } from "./keys";
 
 interface UseJournalsParams {
 	limit?: number;
