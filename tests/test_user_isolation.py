@@ -18,6 +18,7 @@ from lifetrace.routers.habit import router as habit_router
 from lifetrace.routers.journal import router as journal_router
 from lifetrace.routers.project import router as project_router
 from lifetrace.routers.todo import router as todo_router
+from lifetrace.services.journal_service import JournalService
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -128,6 +129,44 @@ def test_journals_are_isolated_between_users(client: TestClient) -> None:
         headers=user_b,
     )
     assert blocked.status_code == HTTP_NOT_FOUND
+
+
+def test_journal_title_generation_is_isolated_between_users(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user_a = _register(client, "title-a@example.com")
+    user_b = _register(client, "title-b@example.com")
+    created = client.post(
+        "/api/journals",
+        json={
+            "name": "Manual first",
+            "user_notes": "private title source",
+            "date": "2026-09-05T10:30:00Z",
+        },
+        headers=user_a,
+    )
+    assert created.status_code == HTTP_CREATED
+    journal_id = created.json()["id"]
+    changed = client.put(
+        f"/api/journals/{journal_id}",
+        json={"name": "2026-09-05 10:30"},
+        headers=user_a,
+    )
+    assert changed.status_code == HTTP_OK
+    monkeypatch.setattr(
+        JournalService, "_request_ai_title", lambda self, content: "Private AI title", raising=False
+    )
+
+    blocked = client.post(
+        f"/api/journals/{journal_id}/generate-title", headers=user_b
+    )
+    generated = client.post(
+        f"/api/journals/{journal_id}/generate-title", headers=user_a
+    )
+
+    assert blocked.status_code == HTTP_NOT_FOUND
+    assert generated.status_code == HTTP_OK
+    assert generated.json()["name"] == "Private AI title"
 
 
 def test_projects_are_isolated_between_users(client: TestClient) -> None:

@@ -547,6 +547,32 @@ class JournalManager:
             logger.error(f"更新日记失败: {e}")
             return False
 
+    def update_title_if_unchanged(
+        self, journal_id: int, expected_name: str, generated_name: str
+    ) -> bool:
+        """原子写入 AI 标题；生成期间的用户编辑优先。"""
+        try:
+            with self.db_base.get_session() as session:
+                changed = (
+                    session.query(Journal)
+                    .filter(col(Journal.id) == journal_id)
+                    .filter(col(Journal.user_id) == self.user_id)
+                    .filter(col(Journal.deleted_at).is_(None))
+                    .filter(col(Journal.name) == expected_name)
+                    .update(
+                        {
+                            Journal.name: generated_name,
+                            Journal.updated_at: get_utc_now(),
+                        },
+                        synchronize_session=False,
+                    )
+                )
+                session.flush()
+                return changed == 1
+        except SQLAlchemyError as e:
+            logger.error(f"条件更新 AI 标题失败: {e}")
+            return False
+
     def delete_journal(self, journal_id: int) -> bool:
         """删除日记（物理删除）"""
         try:

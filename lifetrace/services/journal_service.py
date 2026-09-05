@@ -5,13 +5,12 @@
 
 from __future__ import annotations
 
+import os
 import re
-import threading
-import time as time_module
 from contextvars import ContextVar
-from pathlib import Path
 from datetime import datetime, time, timedelta
 from inspect import Parameter, signature
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
@@ -48,14 +47,9 @@ from lifetrace.storage.journal_manager import (
 from lifetrace.storage.models import Activity, Todo
 from lifetrace.storage.sql_utils import col
 from lifetrace.util.logging_config import get_logger
+from lifetrace.util.settings import settings
 
 logger = get_logger()
-
-def _is_serverless() -> bool:
-    """是否运行在 Vercel 等 serverless 环境（响应后线程会被冻结）。"""
-    import os
-
-    return bool(os.environ.get("VERCEL"))
 
 
 # 同步推送/脚本批量写入时跳过 AI 标题生成（免费小模型限流，批量会拖慢 push）
@@ -123,38 +117,55 @@ class JournalService:
         cleaned = (name or "").strip()
         return not cleaned or cleaned == "Untitled" or bool(self._AUTO_TITLE_RE.match(cleaned))
 
-    def _maybe_generate_ai_title(self, journal_id: int, content: str | None) -> None:
-        """用免费小模型为伪标题笔记生成标题（后台线程，不阻塞保存请求）。
+    def _get_title_channels(self) -> list[dict[str, str]]:
+        """读取标题专用通道；云端默认复用已配置的 DashScope 密钥。"""
+        channels: list[dict[str, str]] = []
+        try:
+            import yaml
 
-        仅当当前标题仍是伪标题时写入，用户编辑过的真实标题永远不会被覆盖；
-        失败/超时静默，保留伪标题兜底。前端在提交后延迟刷新拿生成结果。
-        云端 serverless（Vercel）响应后线程会被冻结，此时退化为同步执行。
-        """
-        if _skip_ai_title.get():
-            return
-        if _is_serverless():
-            self._generate_ai_title_sync(journal_id, content)
-            return
-        threading.Thread(
-            target=self._generate_ai_title_sync,
-            args=(journal_id, content),
-            daemon=True,
-            name=f"ai-title-{journal_id}",
-        ).start()
+            cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
+            if cfg_path.exists():
+                with cfg_path.open(encoding="utf-8") as config_file:
+                    cfg_all = yaml.safe_load(config_file) or {}
+                for section in ("title_llm", "title_llm_fallback"):
+                    channel = cfg_all.get(section)
+                    if channel and channel.get("api_key"):
+                        channels.append(channel)
+        except Exception as exc:
+            logger.warning(f"读取标题模型配置失败: {exc}")
 
-    def _generate_ai_title_sync(self, journal_id: int, content: str | None) -> None:
-        """实际生成逻辑（可在线程或请求内执行）。"""
+        dashscope_key = os.environ.get("DASHSCOPE_API_KEY", "").strip()
+        if dashscope_key:
+            channels.append(
+                {
+                    "api_key": dashscope_key,
+                    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                    "model": "qwen-turbo",
+                }
+            )
+        llm_key = str(getattr(settings.llm, "api_key", "") or "").strip()
+        if llm_key and llm_key not in {
+            "xxx",
+            "YOUR_API_KEY_HERE",
+            "YOUR_LLM_KEY_HERE",
+        }:
+            generic_channel = {
+                "api_key": llm_key,
+                "base_url": str(settings.llm.base_url),
+                "model": str(settings.llm.model),
+            }
+            if generic_channel not in channels:
+                channels.append(generic_channel)
+        return channels
+
+    def _request_ai_title(self, content: str | None) -> str:
+        """调用标题专用模型并返回清洗后的完整标题。"""
         if _skip_ai_title.get():
-            return
+            return ""
         text = (content or "").strip()
         if not text:
-            return
+            return ""
         try:
-            from lifetrace.llm.llm_client import LLMClient
-
-            client = LLMClient()
-            if not client.is_available():
-                return
             messages = [
                 {
                     "role": "system",
@@ -176,84 +187,68 @@ class JournalService:
                 },
                 {"role": "user", "content": text[:1500]},
             ]
-            # 主通道：config.yaml 的 title_llm 段（agnes-2.0-flash，~2s 直出）；
-            # 依次尝试 title_llm / title_llm_fallback 段，agnes 为思考型模型需 reasoning_effort=none
             raw = ""
-            channels = []
-            try:
-                import yaml
-
-                cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
-                cfg_all = yaml.safe_load(open(cfg_path, encoding="utf-8")) or {}
-                for section in ("title_llm", "title_llm_fallback"):
-                    c = cfg_all.get(section)
-                    if c and c.get("api_key"):
-                        channels.append(c)
-            except Exception:
-                pass
             from openai import OpenAI as _OpenAI
 
-            for c in channels:
-                # 单通道最多 2 次（首试 + 一次重试），累计尝试数受通道数×2 封顶
-                for attempt in range(2):
-                    try:
-                        fb = _OpenAI(
-                            base_url=c["base_url"], api_key=c["api_key"], timeout=8
-                        )
-                        extra = (
-                            {"reasoning_effort": "none"}
-                            if "agnes" in c.get("model", "")
-                            else None
-                        )
-                        kwargs = {
-                            "model": c["model"],
-                            "messages": messages,
-                            "temperature": 0.3,
-                            "max_tokens": 200,
-                        }
-                        if extra:
-                            kwargs["extra_body"] = extra  # type: ignore[assignment]
-                        resp = fb.chat.completions.create(**kwargs)  # type: ignore[arg-type]
-                        raw = resp.choices[0].message.content or ""
-                        if raw.strip():
-                            break
-                    except Exception as exc:
-                        logger.warning(
-                            f"标题生成通道失败 ({c.get('model')}, 第{attempt + 1}次): {exc}"
-                        )
-                        if attempt == 0:
-                            time_module.sleep(2)  # 重试前短暂等待，避免瞬时抖动连败
+            for channel in self._get_title_channels():
+                try:
+                    title_client = _OpenAI(
+                        base_url=channel["base_url"],
+                        api_key=channel["api_key"],
+                        timeout=6,
+                    )
+                    extra = (
+                        {"reasoning_effort": "none"}
+                        if "agnes" in channel.get("model", "")
+                        else None
+                    )
+                    kwargs = {
+                        "model": channel["model"],
+                        "messages": messages,
+                        "temperature": 0.3,
+                        "max_tokens": 50,
+                    }
+                    if extra:
+                        kwargs["extra_body"] = extra  # type: ignore[assignment]
+                    response = title_client.chat.completions.create(**kwargs)  # type: ignore[arg-type]
+                    raw = response.choices[0].message.content or ""
+                except Exception as exc:
+                    logger.warning(
+                        f"标题生成通道失败 ({channel.get('model')}): {exc}"
+                    )
                 if raw.strip():
                     break
-            if not raw.strip():
-                # 兜底：主 LLM 客户端（云端部署没有 config.yaml 的 title_llm 段，
-                # 依赖环境变量配置的通用模型生成标题）。
-                # glm 等思考型模型默认把输出放进思考链，content 为空，需显式关闭思考。
-                model_name = (getattr(client, "model", "") or "").lower()
-                extra = (
-                    {"thinking": {"type": "disabled"}}
-                    if "glm" in model_name or "agnes" in model_name
-                    else None
-                )
-                try:
-                    raw = client.chat(
-                        messages, temperature=0.3, max_tokens=200, extra_body=extra
-                    ) or ""
-                except Exception as exc:
-                    logger.warning(f"标题生成主模型兜底失败: {exc}")
             title = (raw or "").strip().splitlines()[0].strip().strip('"“”').strip() if raw and raw.strip() else ""
             # 模型不总是遵守「不加冒号」：程序级兜底，禁用符号替换为空格
             title = re.sub(r"[：:，,；;·|｜]", " ", title)
             title = re.sub(r"\s+", " ", title).strip()
             if not title or len(title) > 20 or self._is_auto_title(title):
-                return
-            current = self.repository.get_by_id(journal_id)
-            if not current or not self._is_auto_title(current.get("name")):
-                return
-            self.repository.update(journal_id, JournalUpdatePayload(name=title))
-            logger.info(f"AI 生成笔记标题: {journal_id} -> {title}")
+                return ""
+            return title
         except Exception as exc:  # 生成失败不影响笔记保存
             logger.warning(f"AI 标题生成失败（保留原伪标题）: {exc}")
+            return ""
+
+    def generate_ai_title(self, journal_id: int) -> JournalResponse:
+        """为伪标题笔记生成标题；正文保存路径不等待本方法。"""
+        existing = self.repository.get_by_id(journal_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="日记不存在")
+        expected_name = (existing.get("name") or "").strip()
+        if not self._is_auto_title(expected_name) or not (
+            existing.get("user_notes") or ""
+        ).strip():
+            return JournalResponse(**existing)
+
+        title = self._request_ai_title(existing.get("user_notes"))
+        if title and self.repository.update_title_if_unchanged(
+            journal_id, expected_name, title
+        ):
+            logger.info(f"AI 生成笔记标题: {journal_id} -> {title}")
+        latest = self.repository.get_by_id(journal_id)
+        if not latest:
+            raise HTTPException(status_code=404, detail="日记不存在")
+        return JournalResponse(**latest)
 
     @staticmethod
     def _auto_extract_tags(content: str | None) -> list[str]:
@@ -712,10 +707,6 @@ class JournalService:
                 ),
             )
 
-        # 用户未填标题（时间伪标题兜底）→ 用免费小模型生成；用户填过则不动
-        if self._is_auto_title(payload.name):
-            self._maybe_generate_ai_title(journal_id, payload.user_notes)
-
         # 写入向量库（后台异步，不阻塞主请求）
         self._index_journal_async(journal_id, payload.name, payload.user_notes, data.tags)
 
@@ -795,16 +786,6 @@ class JournalService:
                 updated.get("user_notes", ""),
                 updated.get("tags", []),
             )
-
-        # 用户改了正文但没动标题、且当前仍是伪标题 → 补一次 AI 标题生成
-        # （真实标题 / 已生成过的标题不再触发，编辑优先）。
-        # 前端可能把伪标题原样回传（payload.name 不是 _UNSET），
-        # 只要落库后的标题仍是伪标题就同样触发，避免生成失败/超时后永无重试。
-        if payload.user_notes is not _UNSET:
-            current_name = (updated or {}).get("name") if updated else None
-            if self._is_auto_title(current_name):
-                self._maybe_generate_ai_title(journal_id, str(payload.user_notes))
-                updated = self.repository.get_by_id(journal_id) or updated
 
         logger.info(f"成功更新日记: {journal_id}")
 

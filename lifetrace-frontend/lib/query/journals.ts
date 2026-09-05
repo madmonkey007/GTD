@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetcher, isOfflineError, unwrapApiData } from "@/lib/api/fetcher";
 import {
 	autoLinkJournalApiJournalsAutoLinkPost,
@@ -8,7 +8,6 @@ import {
 	deleteJournalApiJournalsJournalIdDelete,
 	generateAiJournalApiJournalsGenerateAiPost,
 	generateObjectiveJournalApiJournalsGenerateObjectivePost,
-	getJournalApiJournalsJournalIdGet,
 	listJournalsApiJournalsGet,
 	updateJournalApiJournalsJournalIdPut,
 	useListJournalsApiJournalsGet,
@@ -34,6 +33,10 @@ import {
 	offlineUpdateJournal,
 	saveJournalToMirror,
 } from "@/lib/offline/writes";
+import {
+	createJournalTitleRequestGate,
+	shouldGenerateJournalTitle,
+} from "./journal-title";
 import { queryKeys } from "./keys";
 
 interface UseJournalsParams {
@@ -274,6 +277,17 @@ const updateJournal = async (id: number, input: JournalUpdate): Promise<JournalV
 		}
 		throw err;
 	}
+};
+
+const generateJournalTitle = async (journalId: number): Promise<JournalView | null> => {
+	const response = await customFetcher<JournalResponse>(
+		`/api/journals/${journalId}/generate-title`,
+		{ method: "POST" },
+	);
+	const data = unwrapApiData<JournalResponse>(response);
+	return data
+		? normalizeJournal(data as unknown as Record<string, unknown>)
+		: null;
 };
 
 const autoLinkJournal = async (input: JournalAutoLinkRequest) => {
@@ -523,32 +537,31 @@ function removeJournalFromCaches(queryClient: QueryClient, id: number) {
 	});
 }
 
-export function useJournalMutations() {
+const titleRequestGate = createJournalTitleRequestGate();
+
+interface UseJournalMutationOptions {
+	onTitleGenerated?: (journal: JournalView) => void;
+}
+
+export function useJournalMutations(options: UseJournalMutationOptions = {}) {
 	const queryClient = useQueryClient();
 
-	// 后台 AI 标题生成完成后延迟刷新列表，让伪标题自动替换为生成标题。
-	// 标题生成耗时跨度大（本地数秒、云端数十秒），单次延时刷新会错过，
-	// 改为每 8s 轮询该笔记详情，拿到"新生成的真实标题"即停止，最长 90s。
-	const scheduleTitleRefresh = (journalId?: number) => {
-		if (!journalId) return;
-		const isAutoTitle = (name: string) =>
-			!name.trim() || name === "Untitled" || /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(name.trim());
-		const startedAt = Date.now();
-		const timer = setInterval(async () => {
+	const requestGeneratedTitle = (saved: JournalView) => {
+		if (!shouldGenerateJournalTitle(saved)) return;
+		void titleRequestGate.run(saved.id, async () => {
 			try {
-				const response = await getJournalApiJournalsJournalIdGet(journalId);
-				const data = unwrapApiData<Record<string, unknown>>(response);
-				const name = String(data?.name ?? "");
-				if (data && !isAutoTitle(name)) {
-					clearInterval(timer);
-					replaceJournalInCaches(queryClient, normalizeJournal(data));
-					return;
-				}
+				const generated = await generateJournalTitle(saved.id);
+				if (!generated || shouldGenerateJournalTitle(generated)) return;
+				replaceJournalInCaches(
+					queryClient,
+					generated as unknown as Record<string, unknown>,
+				);
+				void saveJournalToMirror(generated);
+				options.onTitleGenerated?.(generated);
 			} catch {
-				// 拉取失败静默，下一轮重试
+				// 正文已经保存；标题失败保持伪标题，下次编辑时自然重试。
 			}
-			if (Date.now() - startedAt > 90_000) clearInterval(timer);
-		}, 8000);
+		});
 	};
 
 	const createMutation = useMutation({
@@ -573,7 +586,7 @@ export function useJournalMutations() {
 			if (saved) {
 				if (ctx?.tempId != null) removeJournalFromCaches(queryClient, ctx.tempId);
 				prependJournalToCaches(queryClient, saved as unknown as Record<string, unknown>);
-				scheduleTitleRefresh(saved.id);
+				requestGeneratedTitle(saved);
 			}
 		},
 		onError: (_err, _input, ctx) => {
@@ -587,7 +600,7 @@ export function useJournalMutations() {
 		onSuccess: (saved) => {
 			if (saved) {
 				replaceJournalInCaches(queryClient, saved as unknown as Record<string, unknown>);
-				scheduleTitleRefresh(saved.id);
+				requestGeneratedTitle(saved);
 			}
 			// 镜像笔记回写只影响待办详情，只失效 detail，
 			// 不再全量失效 todos（否则左侧栏 limit 2000 的大列表每次保存都轮询浪费
