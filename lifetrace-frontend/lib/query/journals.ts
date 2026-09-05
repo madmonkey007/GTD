@@ -34,6 +34,10 @@ import {
 	saveJournalToMirror,
 } from "@/lib/offline/writes";
 import { queryKeys } from "./keys";
+import {
+	createJournalTitleRequestGate,
+	shouldGenerateJournalTitle,
+} from "./journal-title";
 
 interface UseJournalsParams {
 	limit?: number;
@@ -273,6 +277,17 @@ const updateJournal = async (id: number, input: JournalUpdate): Promise<JournalV
 		}
 		throw err;
 	}
+};
+
+const generateJournalTitle = async (journalId: number): Promise<JournalView | null> => {
+	const response = await customFetcher<JournalResponse>(
+		`/api/journals/${journalId}/generate-title`,
+		{ method: "POST" },
+	);
+	const data = unwrapApiData<JournalResponse>(response);
+	return data
+		? normalizeJournal(data as unknown as Record<string, unknown>)
+		: null;
 };
 
 const autoLinkJournal = async (input: JournalAutoLinkRequest) => {
@@ -522,14 +537,31 @@ function removeJournalFromCaches(queryClient: QueryClient, id: number) {
 	});
 }
 
-export function useJournalMutations() {
+const titleRequestGate = createJournalTitleRequestGate();
+
+interface UseJournalMutationOptions {
+	onTitleGenerated?: (journal: JournalView) => void;
+}
+
+export function useJournalMutations(options: UseJournalMutationOptions = {}) {
 	const queryClient = useQueryClient();
 
-	// 后台 AI 标题生成完成后延迟刷新列表，让伪标题自动替换为生成标题
-	const scheduleTitleRefresh = () => {
-		setTimeout(() => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
-		}, 4000);
+	const requestGeneratedTitle = (saved: JournalView) => {
+		if (!shouldGenerateJournalTitle(saved)) return;
+		void titleRequestGate.run(saved.id, async () => {
+			try {
+				const generated = await generateJournalTitle(saved.id);
+				if (!generated || shouldGenerateJournalTitle(generated)) return;
+				replaceJournalInCaches(
+					queryClient,
+					generated as unknown as Record<string, unknown>,
+				);
+				void saveJournalToMirror(generated);
+				options.onTitleGenerated?.(generated);
+			} catch {
+				// 正文已经保存；标题失败保持伪标题，下次编辑时自然重试。
+			}
+		});
 	};
 
 	const createMutation = useMutation({
@@ -537,8 +569,8 @@ export function useJournalMutations() {
 		onSuccess: (saved) => {
 			if (saved) {
 				prependJournalToCaches(queryClient, saved as unknown as Record<string, unknown>);
+				requestGeneratedTitle(saved);
 			}
-			scheduleTitleRefresh();
 		},
 	});
 
@@ -548,11 +580,11 @@ export function useJournalMutations() {
 		onSuccess: (saved) => {
 			if (saved) {
 				replaceJournalInCaches(queryClient, saved as unknown as Record<string, unknown>);
+				requestGeneratedTitle(saved);
 			}
 			// 镜像笔记回写只影响待办详情的背景/备注，只失效 detail，
 			// 不再全量失效 todos（否则左侧栏 limit 2000 的大列表每次保存都重拉）
 			queryClient.invalidateQueries({ queryKey: ["todos", "detail"] });
-			scheduleTitleRefresh();
 		},
 	});
 

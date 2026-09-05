@@ -26,6 +26,7 @@ import {
 	useProjectMutations,
 } from "@/lib/query";
 import { useNoteLinkMutations } from "@/lib/query/note-links";
+import { applyGeneratedTitleToDraft } from "@/lib/query/journal-title";
 import { listLinksApiNotesNoteIdLinksGet } from "@/lib/generated/note-links/note-links";
 import { unwrapApiData } from "@/lib/api/fetcher";
 import { useJournalStore } from "@/lib/store/journal-store";
@@ -338,6 +339,14 @@ export function DiaryPanel() {
 			.filter(Boolean)
 			.join("\n\n---\n\n");
 	}, [liteNotesData]);
+	const handleTitleGenerated = useCallback((journal: JournalView) => {
+		setDraft((current) =>
+			applyGeneratedTitleToDraft(current, {
+				id: journal.id,
+				name: journal.name,
+			}),
+		);
+	}, []);
 	const {
 		createJournal,
 		updateJournal,
@@ -347,7 +356,7 @@ export function DiaryPanel() {
 		deleteJournal,
 		isCreating,
 		isUpdating,
-		} = useJournalMutations();
+		} = useJournalMutations({ onTitleGenerated: handleTitleGenerated });
 	const { createNoteLinkAsync, deleteNoteLinkAsync } = useNoteLinkMutations();
 	const { addNotesAsync } = useProjectMutations();
 	const noteLinkList = useMemo(() => {
