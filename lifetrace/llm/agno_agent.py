@@ -1,6 +1,6 @@
 """Agno Agent 服务，基于 Agno 框架的通用 Agent 实现
 
-支持 FreeTodoToolkit 工具集和国际化消息。
+支持 LifeTraceToolkit 工具集和国际化消息。
 支持工具调用事件流，可在前端实时展示 Agent 执行步骤。
 支持 Phoenix + OpenInference 观测（通过配置启用）。
 支持 session_id 传递，实现按会话聚合 trace 文件。
@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from agno.agent import Agent, Message, RunEvent
 from agno.models.openai.like import OpenAILike
 
-from lifetrace.llm.agno_tools import FreeTodoToolkit
+from lifetrace.llm.agno_tools import LifeTraceToolkit
 from lifetrace.llm.agno_tools.base import get_message
 from lifetrace.observability import setup_observability
 from lifetrace.util.logging_config import get_logger
@@ -227,7 +227,7 @@ TODO_TOOL_NAMES = {
 def _build_instructions(
 	lang: str,
 	has_tools: bool,
-	use_all_freetodo_tools: bool,
+	use_all_lifetrace_tools: bool,
 	has_external_tools: bool,
 	selected_tools: list[str] | None = None,
 ) -> list[str] | None:
@@ -236,7 +236,7 @@ def _build_instructions(
 	Args:
 		lang: 语言代码
 		has_tools: 是否有任何工具启用
-		use_all_freetodo_tools: 是否使用全部 FreeTodo 工具
+		use_all_lifetrace_tools: 是否使用全部 LifeTrace 工具
 		has_external_tools: 是否有外部工具
 		selected_tools: 实际选中的工具名列表（用于按需切换 instructions）
 
@@ -270,11 +270,11 @@ def _build_instructions(
 
 	# 简化的 instructions（无工具时）
 	if lang == "zh":
-		return ["你是 FreeTodo 智能助手。当前没有启用任何工具，请直接回答用户的问题。"]
+		return ["你是 LifeTrace 智能助手。当前没有启用任何工具，请直接回答用户的问题。"]
 
 	# English
 	return [
-		"You are the FreeTodo assistant. No tools are currently enabled. "
+		"You are the LifeTrace assistant. No tools are currently enabled. "
 		"Please answer the user's questions directly."
 	]
 
@@ -283,7 +283,7 @@ class AgnoAgentService:
     """Agno Agent 服务，提供基于 Agno 框架的智能对话能力
 
     Supports:
-    - FreeTodoToolkit for todo management
+    - LifeTraceToolkit for todo management
     - External tools (DuckDuckGo search, etc.)
     - Internationalization (i18n) through lang parameter
     - Streaming responses
@@ -301,8 +301,8 @@ class AgnoAgentService:
         Args:
             lang: Language code for messages ('zh' or 'en').
                   If None, uses DEFAULT_LANG or settings default.
-            selected_tools: List of FreeTodo tool names to enable.
-                           If None or empty, no FreeTodo tools are enabled.
+            selected_tools: List of LifeTrace tool names to enable.
+                           If None or empty, no LifeTrace tools are enabled.
             external_tools: List of external tool names to enable (e.g., ['duckduckgo', 'file']).
                            If None or empty, no external tools are enabled.
             external_tools_config: Configuration dict for external tools.
@@ -312,23 +312,23 @@ class AgnoAgentService:
             self.lang = lang or DEFAULT_LANG
             # 思考过程合并状态：跨 chunk 跟踪，避免每个 reasoning token 都包一层 [THINK]
             self._in_thinking = False
-            # FreeTodoToolkit 实例（若有），用于在 run 结束时读取 recent_write_results 生成回执
+            # LifeTraceToolkit 实例（若有），用于在 run 结束时读取 recent_write_results 生成回执
             self.toolkit = None
             tools_to_use = self._initialize_tools(
                 selected_tools, external_tools, external_tools_config
             )
 
             # 判断工具配置
-            total_freetodo_tools_count = 21
-            use_all_freetodo_tools = bool(
-                selected_tools and len(selected_tools) == total_freetodo_tools_count
+            total_lifetrace_tools_count = len(self.toolkit.all_tool_names) if self.toolkit else 0
+            use_all_lifetrace_tools = bool(
+                selected_tools and len(selected_tools) == total_lifetrace_tools_count
             )
             has_external_tools = bool(external_tools and len(external_tools) > 0)
 
             instructions_list = _build_instructions(
                 self.lang,
 				bool(tools_to_use),
-				use_all_freetodo_tools,
+				use_all_lifetrace_tools,
 				has_external_tools,
 				selected_tools,
             )
@@ -361,19 +361,19 @@ class AgnoAgentService:
         """初始化工具列表
 
         Args:
-            selected_tools: FreeTodo 工具名称列表
+            selected_tools: LifeTrace 工具名称列表
             external_tools: 外部工具名称列表
             external_tools_config: 外部工具配置字典，如 {"file": {"base_dir": "/path"}}
         """
         tools_to_use: list[Toolkit] = []
         external_tools_config = external_tools_config or {}
 
-        # Initialize FreeTodoToolkit if any tools are selected
+        # Initialize LifeTraceToolkit if any tools are selected
         if selected_tools and len(selected_tools) > 0:
-            toolkit = FreeTodoToolkit(lang=self.lang, selected_tools=selected_tools)
+            toolkit = LifeTraceToolkit(lang=self.lang, selected_tools=selected_tools)
             self.toolkit = toolkit
             tools_to_use.append(toolkit)
-            logger.info(f"已启用 FreeTodo 工具: {selected_tools}")
+            logger.info(f"已启用 LifeTrace 工具: {selected_tools}")
 
         # Initialize external tools with config
         if external_tools and len(external_tools) > 0:

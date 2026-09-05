@@ -4,7 +4,7 @@
  *
  * 功能：
  * 1. 自动探测可用的前端端口（默认从 3001 开始，避免与 Build 版冲突）
- * 2. 自动探测 FreeTodo 后端端口（通过 /health 端点验证是否是 FreeTodo 后端）
+ * 2. 自动探测 LifeTrace 后端端口（通过 /health 端点验证是否是 LifeTrace 后端）
  * 3. 设置正确的环境变量并启动 Next.js 开发服务器
  *
  * 使用方法：
@@ -50,7 +50,7 @@ function isSymlinkedNodeModules() {
  * @returns {string|null} - 完整 Commit Hash，获取失败则返回 null
  */
 function getGitCommit() {
-	const envCommit = process.env.FREETODO_GIT_COMMIT || process.env.GIT_COMMIT;
+	const envCommit = process.env.LIFETRACE_GIT_COMMIT || process.env.GIT_COMMIT;
 	if (envCommit) {
 		return envCommit;
 	}
@@ -108,12 +108,12 @@ async function findAvailablePort(startPort, maxAttempts = MAX_PORT_ATTEMPTS) {
 }
 
 /**
- * 检查指定端口是否运行着 FreeTodo 后端
- * 通过调用 /health 端点并验证 app 标识来确认是 FreeTodo 后端
+ * 检查指定端口是否运行着 LifeTrace 后端
+ * 通过调用 /health 端点并验证 app 标识来确认是 LifeTrace 后端
  * @param {number} port - 后端端口
- * @returns {Promise<boolean>} - 是否是 FreeTodo 后端
+ * @returns {Promise<boolean>} - 是否是 LifeTrace 后端
  */
-async function isFreeTodoBackend(port) {
+async function isLifeTraceBackend(port) {
 	return new Promise((resolve) => {
 		const req = http.get(
 			{
@@ -130,7 +130,7 @@ async function isFreeTodoBackend(port) {
 				res.on("end", () => {
 					try {
 						const json = JSON.parse(data);
-						// 验证是否是 FreeTodo/LifeTrace 后端
+						// 验证是否是 LifeTrace 后端
 						// 只检查固定的应用标识字段
 						if (json.app !== "lifetrace") {
 							resolve(false);
@@ -170,20 +170,20 @@ async function isFreeTodoBackend(port) {
 }
 
 /**
- * 查找运行中的 FreeTodo 后端端口
- * @returns {Promise<number|null>} - 运行中的 FreeTodo 后端端口，或 null
+ * 查找运行中的 LifeTrace 后端端口
+ * @returns {Promise<number|null>} - 运行中的 LifeTrace 后端端口，或 null
  */
 async function findRunningBackendPort() {
 	// 先检查开发版默认端口，然后是 Build 版默认端口
 	const priorityPorts = [8001, 8000];
 	for (const port of priorityPorts) {
-		if (await isFreeTodoBackend(port)) {
+		if (await isLifeTraceBackend(port)) {
 			return port;
 		}
 	}
 	// 再检查其他可能的端口（跳过已检查的）
 	for (let port = 8002; port < 8100; port++) {
-		if (await isFreeTodoBackend(port)) {
+		if (await isLifeTraceBackend(port)) {
 			return port;
 		}
 	}
@@ -205,21 +205,21 @@ async function main() {
 			console.log(`Frontend port: ${frontendPort}`);
 		}
 
-		// 2. Find running FreeTodo backend port (verify via /health endpoint)
-		console.log(`Searching for FreeTodo backend...`);
+		// 2. Find running LifeTrace backend port (verify via /health endpoint)
+		console.log(`Searching for LifeTrace backend...`);
 		if (FRONTEND_GIT_COMMIT) {
 			console.log(`Frontend git commit: ${FRONTEND_GIT_COMMIT}`);
 		}
 		const backendPort = await findRunningBackendPort();
 		if (backendPort) {
-			console.log(`Detected FreeTodo backend running on port: ${backendPort}`);
+			console.log(`Detected LifeTrace backend running on port: ${backendPort}`);
 		} else {
 			const hint = "Start backend first - python -m lifetrace.server";
 			const suffix = FRONTEND_GIT_COMMIT
 				? ` (git commit: ${FRONTEND_GIT_COMMIT})`
 				: "";
 			throw new Error(
-				`FreeTodo backend not detected via /health endpoint${suffix}. ${hint}`,
+				`LifeTrace backend not detected via /health endpoint${suffix}. ${hint}`,
 			);
 		}
 

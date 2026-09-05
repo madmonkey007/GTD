@@ -7,10 +7,12 @@ import { cn } from "@/lib/utils";
 
 type WelcomeGreetingsProps = {
 	className?: string;
+	children?: React.ReactNode;
 };
 
 export function WelcomeGreetings({
 	className,
+	children,
 }: WelcomeGreetingsProps) {
 	const tChat = useTranslations("chat");
 
@@ -40,6 +42,10 @@ export function WelcomeGreetings({
 						{subtitle}
 					</p>
 				</div>
+
+				{children && (
+					<div className="w-full max-w-md pt-4">{children}</div>
+				)}
 			</div>
 		</motion.div>
 	);

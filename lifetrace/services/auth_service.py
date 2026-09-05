@@ -38,6 +38,10 @@ class InvalidCredentialsError(Exception):
     """Raised when login credentials do not match any account."""
 
 
+class LastAdminError(Exception):
+    """Raised when attempting to demote or disable the last admin."""
+
+
 class AuthService:
     """Database-backed user registration and login service."""
 
@@ -59,6 +63,8 @@ class AuthService:
             email=normalized,
             password_hash=hash_password(password),
             display_name=display_name.strip() if display_name else None,
+            # 首个注册用户自动提权为 admin（bootstrap，幂等）
+            role=self._next_role_for_new_user(),
         )
         self.session.add(user)
         try:
@@ -67,6 +73,64 @@ class AuthService:
             raise DuplicateUserEmailError(normalized) from exc
         self.session.refresh(user)
         self._seed_default_lists(user)
+        return user
+
+    def _next_role_for_new_user(self) -> str:
+        has_any_user = (
+            self.session.query(User.id).filter(User.deleted_at.is_(None)).first() is not None
+        )
+        return "user" if has_any_user else "admin"
+
+    def list_users(self) -> list[User]:
+        """管理后台：列出全部未删除用户"""
+        return (
+            self.session.query(User)
+            .filter(User.deleted_at.is_(None))
+            .order_by(User.id)
+            .all()
+        )
+
+    def count_admins(self) -> int:
+        return (
+            self.session.query(User.id)
+            .filter(User.role == "admin", User.deleted_at.is_(None))
+            .count()
+        )
+
+    def update_user_role(self, user: User, *, role: str) -> User:
+        if role not in ("admin", "user"):
+            raise ValueError("invalid role")
+        if user.role == "admin" and role != "admin" and self.count_admins() <= 1:
+            raise LastAdminError("cannot demote the last admin")
+        user.role = role
+        self.session.add(user)
+        self.session.flush()
+        self.session.refresh(user)
+        return user
+
+    def admin_reset_password(self, user: User, *, new_password: str) -> User:
+        user.password_hash = hash_password(new_password)
+        self.session.add(user)
+        self.session.flush()
+        self.session.refresh(user)
+        return user
+
+    def admin_set_disabled(self, user: User, *, disabled: bool) -> User:
+        """软删除即禁用：disabled 用户无法登录，但保留数据"""
+        from lifetrace.util.time_utils import get_utc_now
+
+        user.deleted_at = get_utc_now() if disabled else None
+        self.session.add(user)
+        self.session.flush()
+        self.session.refresh(user)
+        return user
+
+    def create_user_by_admin(
+        self, *, email: str, password: str, display_name: str | None = None, role: str = "user"
+    ) -> User:
+        user = self.register_user(email=email, password=password, display_name=display_name)
+        if role != user.role:
+            user = self.update_user_role(user, role=role)
         return user
 
     def _seed_default_lists(self, user: User) -> None:
@@ -81,6 +145,7 @@ class AuthService:
 
     def authenticate_user(self, *, email: str, password: str) -> User:
         user = self.get_user_by_email(normalize_email(email))
+        # get_user_by_email 已过滤 deleted_at，禁用（软删）用户同样拒绝
         if not user or not verify_password(password, user.password_hash):
             raise InvalidCredentialsError("invalid email or password")
         return user

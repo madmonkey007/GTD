@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, ChevronDown, ChevronRight, Plus, Tag as TagIcon, X } from "lucide-react";
+import { Calendar, Plus, Tag as TagIcon, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TodoContextMenu } from "@/components/common/context-menu/TodoContextMenu";
@@ -15,8 +15,6 @@ import {
 interface ChildTodoSectionProps {
 	childTodos: Todo[];
 	allTodos: Todo[];
-	show: boolean;
-	onToggle: () => void;
 	onSelectTodo: (id: number) => void;
 	onCreateChild: (name: string) => void;
 	onToggleStatus: (id: number) => Promise<Todo>;
@@ -26,8 +24,6 @@ interface ChildTodoSectionProps {
 export function ChildTodoSection({
 	childTodos,
 	allTodos,
-	show,
-	onToggle,
 	onSelectTodo,
 	onCreateChild,
 	onToggleStatus,
@@ -86,33 +82,7 @@ export function ChildTodoSection({
 			role="group"
 			className="mb-4"
 		>
-			<button
-				type="button"
-				onClick={onToggle}
-				aria-expanded={show}
-				className="group flex w-full items-center justify-between gap-2 rounded-md border border-transparent px-1 py-2 text-left transition-colors hover:border-border/50 hover:bg-muted/30"
-			>
-				<div className="flex items-center gap-2">
-					<span className="text-sm font-medium text-foreground">
-						{tTodoDetail("childTodos")}
-					</span>
-					{sortedChildTodos.length > 0 && (
-						<span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-							{sortedChildTodos.filter((c) => c.status === "completed").length}/
-							{sortedChildTodos.length}
-						</span>
-					)}
-				</div>
-				{show ? (
-					<ChevronDown className="h-4 w-4 text-muted-foreground transition-transform" />
-				) : (
-					<ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-				)}
-			</button>
-
-			{show && (
-				<>
-					<div className="space-y-1">
+			<div className="space-y-1">
 						{sortedChildTodos.map((child) => {
 							const { completed, total } = getChildProgress(allTodos, child.id);
 							return (
@@ -266,8 +236,6 @@ export function ChildTodoSection({
 							<span>{tTodoDetail("addChild")}</span>
 						</button>
 					)}
-				</>
-			)}
-		</div>
-	);
-}
+				</div>
+			);
+		}

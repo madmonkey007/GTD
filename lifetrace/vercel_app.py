@@ -7,8 +7,6 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-os.environ.setdefault("LIFETRACE_SKIP_MIGRATIONS", "1")
-
 from lifetrace.core.module_registry import get_module_states, register_modules
 from lifetrace.routers.cloud_audio import router as cloud_audio_router
 from lifetrace.routers.cloud_compat import router as cloud_compat_router

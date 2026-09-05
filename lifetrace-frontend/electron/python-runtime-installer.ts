@@ -165,7 +165,7 @@ async function installPythonWindows(version: string): Promise<void> {
 	const arch = process.arch === "arm64" ? "arm64" : "amd64";
 	const fileName = `python-${version}-${arch}.exe`;
 	const url = `${PYTHON_DOWNLOAD_BASE}/${version}/${fileName}`;
-	const tempDir = path.join(app.getPath("temp"), "freetodo-python");
+	const tempDir = path.join(app.getPath("temp"), "lifetrace-python");
 	fs.mkdirSync(tempDir, { recursive: true });
 	const installerPath = path.join(tempDir, fileName);
 
@@ -191,7 +191,7 @@ async function installPythonMac(version: string): Promise<void> {
 	emitStatus({ message: "安装 Python 3.12", progress: 20 });
 	const fileName = `python-${version}-macos11.pkg`;
 	const url = `${PYTHON_DOWNLOAD_BASE}/${version}/${fileName}`;
-	const tempDir = path.join(app.getPath("temp"), "freetodo-python");
+	const tempDir = path.join(app.getPath("temp"), "lifetrace-python");
 	fs.mkdirSync(tempDir, { recursive: true });
 	const pkgPath = path.join(tempDir, fileName);
 

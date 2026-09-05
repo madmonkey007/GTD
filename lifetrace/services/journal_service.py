@@ -225,6 +225,22 @@ class JournalService:
                             time_module.sleep(2)  # 重试前短暂等待，避免瞬时抖动连败
                 if raw.strip():
                     break
+            if not raw.strip():
+                # 兜底：主 LLM 客户端（云端部署没有 config.yaml 的 title_llm 段，
+                # 依赖环境变量配置的通用模型生成标题）。
+                # glm 等思考型模型默认把输出放进思考链，content 为空，需显式关闭思考。
+                model_name = (getattr(client, "model", "") or "").lower()
+                extra = (
+                    {"thinking": {"type": "disabled"}}
+                    if "glm" in model_name or "agnes" in model_name
+                    else None
+                )
+                try:
+                    raw = client.chat(
+                        messages, temperature=0.3, max_tokens=200, extra_body=extra
+                    ) or ""
+                except Exception as exc:
+                    logger.warning(f"标题生成主模型兜底失败: {exc}")
             title = (raw or "").strip().splitlines()[0].strip().strip('"“”').strip() if raw and raw.strip() else ""
             # 模型不总是遵守「不加冒号」：程序级兜底，禁用符号替换为空格
             title = re.sub(r"[：:，,；;·|｜]", " ", title)
@@ -681,6 +697,20 @@ class JournalService:
         journal_id = self.repository.create(payload)
         if not journal_id:
             raise HTTPException(status_code=500, detail="创建日记失败")
+
+        # 内容安全检测：block 抛 422，delete 自动软删+墓碑
+        if payload.name or payload.user_notes:
+            from lifetrace.services.content_safety import guard_create
+
+            guard_create(
+                self.db_base,
+                user_id=int(getattr(self.repository, "user_id", 1)),
+                resource_type="journal",
+                resource_id=journal_id,
+                content="\n".join(
+                    part for part in (payload.name, payload.user_notes) if part
+                ),
+            )
 
         # 用户未填标题（时间伪标题兜底）→ 用免费小模型生成；用户填过则不动
         if self._is_auto_title(payload.name):

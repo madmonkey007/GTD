@@ -21,7 +21,7 @@ export function getInstallRoot(): string {
 function canWrite(dir: string): boolean {
 	try {
 		fs.mkdirSync(dir, { recursive: true });
-		const testFile = path.join(dir, ".freetodo-write-test");
+		const testFile = path.join(dir, ".lifetrace-write-test");
 		fs.writeFileSync(testFile, "ok");
 		fs.unlinkSync(testFile);
 		return true;
@@ -31,7 +31,7 @@ function canWrite(dir: string): boolean {
 }
 
 export function resolveRuntimeRoot(): string {
-	const envOverride = process.env.FREETODO_RUNTIME_DIR;
+	const envOverride = process.env.LIFETRACE_RUNTIME_DIR;
 	if (envOverride) {
 		fs.mkdirSync(envOverride, { recursive: true });
 		return envOverride;

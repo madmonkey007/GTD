@@ -168,7 +168,7 @@ observability:
     pretty_print: true # JSON 是否格式化输出（便于人类阅读）
   phoenix:
     endpoint: http://localhost:6006 # Phoenix 服务端点（需先启动 phoenix serve）
-    project_name: freetodo-agent # 项目名称（用于 Phoenix UI 中分组）
+    project_name: lifetrace-agent # 项目名称（用于 Phoenix UI 中分组）
     export_timeout_sec: 2.0 # 导出超时（秒），避免 Phoenix 不可用时阻塞
     disable_after_failures: 1 # 连续失败达到阈值后自动禁用 Phoenix 导出
     retry_cooldown_sec: 60 # 触发禁用后多久尝试恢复（秒，0 表示不自动重试）

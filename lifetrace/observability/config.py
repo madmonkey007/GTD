@@ -25,7 +25,7 @@ class PhoenixConfig:
     """Phoenix 配置"""
 
     endpoint: str = "http://localhost:6006"
-    project_name: str = "freetodo-agent"
+    project_name: str = "lifetrace-agent"
     export_timeout_sec: float = 2.0
     disable_after_failures: int = 1
     retry_cooldown_sec: float = 60.0
@@ -73,7 +73,7 @@ def get_observability_config() -> ObservabilityConfig:
     phoenix_settings = obs_settings.get("phoenix", {})
     phoenix_config = PhoenixConfig(
         endpoint=phoenix_settings.get("endpoint", "http://localhost:6006"),
-        project_name=phoenix_settings.get("project_name", "freetodo-agent"),
+        project_name=phoenix_settings.get("project_name", "lifetrace-agent"),
         export_timeout_sec=phoenix_settings.get("export_timeout_sec", 2.0),
         disable_after_failures=phoenix_settings.get("disable_after_failures", 1),
         retry_cooldown_sec=phoenix_settings.get("retry_cooldown_sec", 60.0),

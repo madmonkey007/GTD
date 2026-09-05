@@ -178,6 +178,20 @@ class TodoService:
         if not todo_id:
             raise HTTPException(status_code=500, detail="创建 todo 失败")
 
+        # 内容安全检测：block 在创建前拦截，delete 落库后自动软删
+        if self.db_base is not None and (data.name or data.description or data.user_notes):
+            from lifetrace.services.content_safety import guard_create
+
+            guard_create(
+                self.db_base,
+                user_id=int(getattr(self.repository, "user_id", 1)),
+                resource_type="todo",
+                resource_id=todo_id,
+                content="\n".join(
+                    part for part in (data.name, data.description, data.user_notes) if part
+                ),
+            )
+
         todo = self.get_todo(todo_id)
         try:
             refresh_todo_reminders(todo)

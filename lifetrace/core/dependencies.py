@@ -105,6 +105,25 @@ def get_current_user(
     return user
 
 
+# ========== Admin module dependencies ==========
+
+
+def get_current_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Resolve an admin user; reject non-admin with 403."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    return current_user
+
+
+def get_admin_auth_service(
+    session: Session = Depends(get_db_session),
+) -> AuthService:
+    """Admin-scoped auth service (no user_id filter)."""
+    return AuthService(session)
+
+
 # ========== Todo 模块依赖注入 ==========
 
 

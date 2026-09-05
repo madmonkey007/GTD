@@ -1,13 +1,13 @@
 "use client";
 
 import {
-	Hammer,
 	ListChecks,
 	Sparkles,
-	TrendingUp,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback } from "react";
+import { PriorityIcon } from "@/components/common/icons/PriorityIcon";
+import { SubTaskIcon } from "@/components/common/icons/SubTaskIcon";
 import { cn } from "@/lib/utils";
 
 type PromptSuggestion = {
@@ -41,13 +41,13 @@ export function PromptSuggestions({
 		},
 		{
 			id: "breakdown",
-			icon: Hammer,
+			icon: SubTaskIcon,
 			label: t("suggestions.breakdown"),
 			prompt: t("suggestions.breakdownPrompt"),
 		},
 		{
 			id: "priority",
-			icon: TrendingUp,
+			icon: PriorityIcon,
 			label: t("suggestions.priority"),
 			prompt: t("suggestions.priorityPrompt"),
 		},

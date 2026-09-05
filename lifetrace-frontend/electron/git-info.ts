@@ -4,7 +4,7 @@ import path from "node:path";
 let cachedCommit: string | null = null;
 
 export function getGitCommit(): string | null {
-	const envCommit = process.env.FREETODO_GIT_COMMIT || process.env.GIT_COMMIT;
+	const envCommit = process.env.LIFETRACE_GIT_COMMIT || process.env.GIT_COMMIT;
 	if (envCommit) {
 		return envCommit;
 	}

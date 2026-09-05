@@ -1,4 +1,4 @@
-"""FreeTodo Toolkit for Agno Agent
+"""LifeTrace Toolkit for Agno Agent
 
 Main toolkit class that combines all tool mixins.
 """
@@ -25,7 +25,7 @@ from lifetrace.util.logging_config import get_logger
 logger = get_logger()
 
 
-class FreeTodoToolkit(
+class LifeTraceToolkit(
     TodoTools,
     BreakdownTools,
     TimeTools,
@@ -36,7 +36,7 @@ class FreeTodoToolkit(
     HabitTools,
     Toolkit,
 ):
-    """FreeTodo Toolkit - Todo management tools for Agno Agent
+    """LifeTrace Toolkit - Todo management tools for Agno Agent
 
     Combines all tool mixins into a single Toolkit.
     Supports internationalization through lang parameter.
@@ -51,7 +51,7 @@ class FreeTodoToolkit(
     """
 
     def __init__(self, lang: str = "en", selected_tools: list[str] | None = None, **kwargs):
-        """Initialize FreeTodoToolkit
+        """Initialize LifeTraceToolkit
 
         Args:
             lang: Language code for messages ('zh' or 'en'), defaults to 'en'
@@ -135,20 +135,22 @@ class FreeTodoToolkit(
             "toggle_habit_record": self.toggle_habit_record,
             "list_habit_records": self.list_habit_records,
         }
+        # 暴露全部工具名，供 agno_agent 动态判断“是否启用全部工具”（避免硬编码魔数 drift）
+        self.all_tool_names: list[str] = list(all_tools.keys())
 
         # Filter tools based on selected_tools
         # Default: no tools enabled (user must explicitly select tools)
         if selected_tools and len(selected_tools) > 0:
             tools = [all_tools[tool_name] for tool_name in selected_tools if tool_name in all_tools]
             logger.info(
-                f"FreeTodoToolkit initialized with lang={lang}, "
+                f"LifeTraceToolkit initialized with lang={lang}, "
                 f"selected {len(tools)} tools: {selected_tools}"
             )
         else:
             tools = []
-            logger.info(f"FreeTodoToolkit initialized with lang={lang}, no tools enabled (default)")
+            logger.info(f"LifeTraceToolkit initialized with lang={lang}, no tools enabled (default)")
 
-        super().__init__(name="freetodo_toolkit", tools=tools, **kwargs)
+        super().__init__(name="lifetrace_toolkit", tools=tools, **kwargs)
 
     def _record_write(
         self,

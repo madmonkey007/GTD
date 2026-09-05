@@ -3,7 +3,7 @@ name = "free-todo"
 version = "0.1.2"
 description = "LifeTrace - Your Intelligent Life Tracking Platform"
 license-file = "../../LICENSE"
-repository = "https://github.com/FreeU-group/FreeTodo"
+repository = "https://github.com/madmonkey007/GTD"
 edition = "2021"
 
 [build-dependencies]
