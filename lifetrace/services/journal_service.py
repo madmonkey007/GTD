@@ -225,6 +225,13 @@ class JournalService:
                             time_module.sleep(2)  # 重试前短暂等待，避免瞬时抖动连败
                 if raw.strip():
                     break
+            if not raw.strip():
+                # 兜底：主 LLM 客户端（云端部署没有 config.yaml 的 title_llm 段，
+                # 依赖环境变量配置的通用模型生成标题）
+                try:
+                    raw = client.chat(messages, temperature=0.3, max_tokens=200) or ""
+                except Exception as exc:
+                    logger.warning(f"标题生成主模型兜底失败: {exc}")
             title = (raw or "").strip().splitlines()[0].strip().strip('"“”').strip() if raw and raw.strip() else ""
             # 模型不总是遵守「不加冒号」：程序级兜底，禁用符号替换为空格
             title = re.sub(r"[：:，,；;·|｜]", " ", title)
