@@ -553,11 +553,31 @@ export function useJournalMutations() {
 
 	const createMutation = useMutation({
 		mutationFn: createJournal,
-		onSuccess: (saved) => {
+		// 秒提交：请求发出前就插入乐观笔记（负数临时 id），服务端返回后替换为真实记录
+		onMutate: (input) => {
+			const now = new Date();
+			const tempId = -Math.floor(now.getTime());
+			prependJournalToCaches(queryClient, {
+				id: tempId,
+				name: input.name ?? "",
+				date: input.date ?? now.toISOString(),
+				user_notes: input.user_notes ?? "",
+				userNotes: input.user_notes ?? "",
+				origin: "manual",
+				created_at: now.toISOString(),
+				createdAt: now.toISOString(),
+			});
+			return { tempId };
+		},
+		onSuccess: (saved, _input, ctx) => {
 			if (saved) {
+				if (ctx?.tempId != null) removeJournalFromCaches(queryClient, ctx.tempId);
 				prependJournalToCaches(queryClient, saved as unknown as Record<string, unknown>);
 				scheduleTitleRefresh(saved.id);
 			}
+		},
+		onError: (_err, _input, ctx) => {
+			if (ctx?.tempId != null) removeJournalFromCaches(queryClient, ctx.tempId);
 		},
 	});
 

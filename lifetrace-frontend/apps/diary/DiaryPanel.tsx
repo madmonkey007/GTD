@@ -642,13 +642,17 @@ const handleSaveCardEdit = async (
 	const handleSave = async (options?: {
 		tagsOverride?: string[];
 		draftOverride?: Partial<JournalDraft>;
+		/** 秒提交模式：编辑器已即时清空，保存过程不要把内容回填进编辑器 */
+		skipDraftRestore?: boolean;
 	}) => {
 		// 先合并 draft 与 override，确保从最终内容中提取标签
 		const updatedDraft = { ...draft, ...options?.draftOverride };
 		const tags = options?.tagsOverride ?? extractTagsFromUserNotes(updatedDraft.userNotes);
 		updatedDraft.tags = tags;
-		setDraft(updatedDraft);
-		setTagInput(tags.join(", "));
+		if (!options?.skipDraftRestore) {
+			setDraft(updatedDraft);
+			setTagInput(tags.join(", "));
+		}
 		const payload = buildSavePayload(updatedDraft, tags);
 		let saved = null;
 		try {
@@ -692,21 +696,27 @@ const handleSaveCardEdit = async (
 			setPendingLinks([]);
 		}
 		const savedDate = parseJournalDate(saved.date);
-		setDraft({
-			id: saved.id,
-			name: saved.name ?? "",
-			userNotes: saved.userNotes ?? "",
-			contentObjective: saved.contentObjective ?? "",
-			contentAi: saved.contentAi ?? "",
-			mood: saved.mood ?? "",
-			energy: saved.energy ?? null,
-			tags: (saved.tags ?? []).map((tag) => tag.tagName),
-			relatedTodoIds: saved.relatedTodoIds ?? [],
-			relatedActivityIds: saved.relatedActivityIds ?? [],
-			date: savedDate,
-		});
+		if (options?.skipDraftRestore) {
+			// 秒提交模式：编辑器保持清空，仅把草稿挂到已保存笔记上，便于后续自动保存落到该笔记
+			setDraft((prev) => ({ ...prev, id: saved.id, date: savedDate }));
+			setTagInput("");
+		} else {
+			setDraft({
+				id: saved.id,
+				name: saved.name ?? "",
+				userNotes: saved.userNotes ?? "",
+				contentObjective: saved.contentObjective ?? "",
+				contentAi: saved.contentAi ?? "",
+				mood: saved.mood ?? "",
+				energy: saved.energy ?? null,
+				tags: (saved.tags ?? []).map((tag) => tag.tagName),
+				relatedTodoIds: saved.relatedTodoIds ?? [],
+				relatedActivityIds: saved.relatedActivityIds ?? [],
+				date: savedDate,
+			});
+			setTagInput((saved.tags ?? []).map((tag) => tag.tagName).join(", "));
+		}
 		setSelectedDate(savedDate);
-		setTagInput((saved.tags ?? []).map((tag) => tag.tagName).join(", "));
 		const snapshot = {
 			title: saved.name ?? "",
 			content: saved.userNotes ?? "",
@@ -816,26 +826,45 @@ const handleSaveCardEdit = async (
 		}
 	};
 	const submitInFlightRef = useRef(false);
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [isSubmitting] = useState(false);
 	const handleSubmitNotes = async () => {
 		if (!draft.userNotes.trim()) return;
 		// 连点防护：上一次提交未返回前忽略后续点击（重试重复由服务端 uid 幂等兜底）
 		if (submitInFlightRef.current) return;
 		submitInFlightRef.current = true;
-		setIsSubmitting(true);
-		try {
-			const saved = await handleSave();
-			// 保存失败时保留草稿不清空，避免内容丢失
-			if (!saved) return;
-			// 新笔记已由 mutation onSuccess 直接写入列表/统计缓存，无需全量 refetch
-			emitLocalNote({ type: "create", note: saved });
-			setNotesResetSignal((v) => v + 1);
-			setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "" }));
-			clearAfterSubmit.current = true;
-		} finally {
-			submitInFlightRef.current = false;
-			setIsSubmitting(false);
-		}
+		// 秒提交：立即清空编辑器让用户可以继续输入，网络保存转入后台；
+		// 列表即时显示由 createMutation 的 onMutate 乐观插入完成
+		const snapshot = {
+			name: draft.name,
+			userNotes: draft.userNotes,
+			date: draft.date,
+		};
+		setDraft((prev) => ({ ...prev, id: null, userNotes: "", name: "" }));
+		setTagInput("");
+		clearAfterSubmit.current = true;
+		setNotesResetSignal((v) => v + 1);
+		const rollback = () => {
+			// 保存失败回滚草稿，避免内容丢失
+			setDraft((prev) => ({
+				...prev,
+				id: null,
+				name: snapshot.name,
+				userNotes: snapshot.userNotes,
+				date: snapshot.date,
+			}));
+		};
+		void handleSave({ skipDraftRestore: true })
+			.then((saved) => {
+				if (!saved) {
+					rollback();
+					return;
+				}
+				emitLocalNote({ type: "create", note: saved });
+			})
+			.catch(rollback)
+			.finally(() => {
+				submitInFlightRef.current = false;
+			});
 	};
 	// 聊天工具改动了笔记：若正是当前打开的笔记，重新拉取并只同步标签（不触碰正文/标题，避免覆盖编辑中内容）
 	// 注意必须放在 journalError 提前 return 之前，否则错误态渲染会少跑这个 hook 导致 React 崩溃
