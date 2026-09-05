@@ -1,11 +1,11 @@
 """日记相关路由"""
 
 import re
+from datetime import datetime
 from pathlib import Path as PathLibPath
 from uuid import uuid4
-from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, File, UploadFile, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, Response, UploadFile
 
 from lifetrace.core.dependencies import get_journal_service
 from lifetrace.schemas.journal import (
@@ -260,6 +260,21 @@ async def update_journal(
     except Exception as e:
         logger.error(f"更新日记失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"更新日记失败: {e!s}") from e
+
+
+@router.post("/api/journals/{journal_id}/generate-title", response_model=JournalResponse)
+async def generate_journal_title(
+    journal_id: int = Path(..., description="日记ID"),
+    service: JournalService = Depends(get_journal_service),
+):
+    """异步保存链路使用：为仍是伪标题的笔记生成完整标题。"""
+    try:
+        return service.generate_ai_title(journal_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"生成笔记标题失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"生成笔记标题失败: {e!s}") from e
 
 
 @router.delete("/api/journals/{journal_id}", status_code=204)

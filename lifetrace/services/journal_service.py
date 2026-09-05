@@ -6,12 +6,11 @@
 from __future__ import annotations
 
 import re
-import threading
 import time as time_module
 from contextvars import ContextVar
-from pathlib import Path
 from datetime import datetime, time, timedelta
 from inspect import Parameter, signature
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
@@ -50,12 +49,6 @@ from lifetrace.storage.sql_utils import col
 from lifetrace.util.logging_config import get_logger
 
 logger = get_logger()
-
-def _is_serverless() -> bool:
-    """是否运行在 Vercel 等 serverless 环境（响应后线程会被冻结）。"""
-    import os
-
-    return bool(os.environ.get("VERCEL"))
 
 
 # 同步推送/脚本批量写入时跳过 AI 标题生成（免费小模型限流，批量会拖慢 push）
@@ -123,38 +116,19 @@ class JournalService:
         cleaned = (name or "").strip()
         return not cleaned or cleaned == "Untitled" or bool(self._AUTO_TITLE_RE.match(cleaned))
 
-    def _maybe_generate_ai_title(self, journal_id: int, content: str | None) -> None:
-        """用免费小模型为伪标题笔记生成标题（后台线程，不阻塞保存请求）。
-
-        仅当当前标题仍是伪标题时写入，用户编辑过的真实标题永远不会被覆盖；
-        失败/超时静默，保留伪标题兜底。前端在提交后延迟刷新拿生成结果。
-        云端 serverless（Vercel）响应后线程会被冻结，此时退化为同步执行。
-        """
+    def _request_ai_title(self, content: str | None) -> str:
+        """调用标题专用模型并返回清洗后的完整标题。"""
         if _skip_ai_title.get():
-            return
-        if _is_serverless():
-            self._generate_ai_title_sync(journal_id, content)
-            return
-        threading.Thread(
-            target=self._generate_ai_title_sync,
-            args=(journal_id, content),
-            daemon=True,
-            name=f"ai-title-{journal_id}",
-        ).start()
-
-    def _generate_ai_title_sync(self, journal_id: int, content: str | None) -> None:
-        """实际生成逻辑（可在线程或请求内执行）。"""
-        if _skip_ai_title.get():
-            return
+            return ""
         text = (content or "").strip()
         if not text:
-            return
+            return ""
         try:
             from lifetrace.llm.llm_client import LLMClient
 
             client = LLMClient()
             if not client.is_available():
-                return
+                return ""
             messages = [
                 {
                     "role": "system",
@@ -230,14 +204,32 @@ class JournalService:
             title = re.sub(r"[：:，,；;·|｜]", " ", title)
             title = re.sub(r"\s+", " ", title).strip()
             if not title or len(title) > 20 or self._is_auto_title(title):
-                return
-            current = self.repository.get_by_id(journal_id)
-            if not current or not self._is_auto_title(current.get("name")):
-                return
-            self.repository.update(journal_id, JournalUpdatePayload(name=title))
-            logger.info(f"AI 生成笔记标题: {journal_id} -> {title}")
+                return ""
+            return title
         except Exception as exc:  # 生成失败不影响笔记保存
             logger.warning(f"AI 标题生成失败（保留原伪标题）: {exc}")
+            return ""
+
+    def generate_ai_title(self, journal_id: int) -> JournalResponse:
+        """为伪标题笔记生成标题；正文保存路径不等待本方法。"""
+        existing = self.repository.get_by_id(journal_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="日记不存在")
+        expected_name = (existing.get("name") or "").strip()
+        if not self._is_auto_title(expected_name) or not (
+            existing.get("user_notes") or ""
+        ).strip():
+            return JournalResponse(**existing)
+
+        title = self._request_ai_title(existing.get("user_notes"))
+        if title and self.repository.update_title_if_unchanged(
+            journal_id, expected_name, title
+        ):
+            logger.info(f"AI 生成笔记标题: {journal_id} -> {title}")
+        latest = self.repository.get_by_id(journal_id)
+        if not latest:
+            raise HTTPException(status_code=404, detail="日记不存在")
+        return JournalResponse(**latest)
 
     @staticmethod
     def _auto_extract_tags(content: str | None) -> list[str]:
@@ -682,10 +674,6 @@ class JournalService:
         if not journal_id:
             raise HTTPException(status_code=500, detail="创建日记失败")
 
-        # 用户未填标题（时间伪标题兜底）→ 用免费小模型生成；用户填过则不动
-        if self._is_auto_title(payload.name):
-            self._maybe_generate_ai_title(journal_id, payload.user_notes)
-
         # 写入向量库（后台异步，不阻塞主请求）
         self._index_journal_async(journal_id, payload.name, payload.user_notes, data.tags)
 
@@ -765,16 +753,6 @@ class JournalService:
                 updated.get("user_notes", ""),
                 updated.get("tags", []),
             )
-
-        # 用户改了正文但没动标题、且当前仍是伪标题 → 补一次 AI 标题生成
-        # （真实标题 / 已生成过的标题不再触发，编辑优先）。
-        # 前端可能把伪标题原样回传（payload.name 不是 _UNSET），
-        # 只要落库后的标题仍是伪标题就同样触发，避免生成失败/超时后永无重试。
-        if payload.user_notes is not _UNSET:
-            current_name = (updated or {}).get("name") if updated else None
-            if self._is_auto_title(current_name):
-                self._maybe_generate_ai_title(journal_id, str(payload.user_notes))
-                updated = self.repository.get_by_id(journal_id) or updated
 
         logger.info(f"成功更新日记: {journal_id}")
 

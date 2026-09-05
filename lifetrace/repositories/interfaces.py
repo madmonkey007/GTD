@@ -249,6 +249,13 @@ class IJournalRepository(ABC):
         pass
 
     @abstractmethod
+    def update_title_if_unchanged(
+        self, journal_id: int, expected_name: str, generated_name: str
+    ) -> bool:
+        """仅当标题仍等于 expected_name 时写入生成标题。"""
+        pass
+
+    @abstractmethod
     def delete(self, journal_id: int) -> bool:
         """删除日记"""
         pass

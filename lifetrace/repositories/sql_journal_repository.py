@@ -60,5 +60,12 @@ class SqlJournalRepository(IJournalRepository):
     def update(self, journal_id: int, payload: Any) -> bool:
         return self._manager.update_journal(journal_id, payload)
 
+    def update_title_if_unchanged(
+        self, journal_id: int, expected_name: str, generated_name: str
+    ) -> bool:
+        return self._manager.update_title_if_unchanged(
+            journal_id, expected_name, generated_name
+        )
+
     def delete(self, journal_id: int) -> bool:
         return self._manager.delete_journal(journal_id)
