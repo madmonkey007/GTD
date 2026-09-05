@@ -8,6 +8,7 @@ import {
 	deleteJournalApiJournalsJournalIdDelete,
 	generateAiJournalApiJournalsGenerateAiPost,
 	generateObjectiveJournalApiJournalsGenerateObjectivePost,
+	getJournalApiJournalsJournalIdGet,
 	listJournalsApiJournalsGet,
 	updateJournalApiJournalsJournalIdPut,
 	useListJournalsApiJournalsGet,
@@ -525,11 +526,29 @@ function removeJournalFromCaches(queryClient: QueryClient, id: number) {
 export function useJournalMutations() {
 	const queryClient = useQueryClient();
 
-	// 后台 AI 标题生成完成后延迟刷新列表，让伪标题自动替换为生成标题
-	const scheduleTitleRefresh = () => {
-		setTimeout(() => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
-		}, 4000);
+	// 后台 AI 标题生成完成后延迟刷新列表，让伪标题自动替换为生成标题。
+	// 标题生成耗时跨度大（本地数秒、云端数十秒），单次延时刷新会错过，
+	// 改为每 8s 轮询该笔记详情，拿到"新生成的真实标题"即停止，最长 90s。
+	const scheduleTitleRefresh = (journalId?: number) => {
+		if (!journalId) return;
+		const isAutoTitle = (name: string) =>
+			!name.trim() || name === "Untitled" || /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(name.trim());
+		const startedAt = Date.now();
+		const timer = setInterval(async () => {
+			try {
+				const response = await getJournalApiJournalsJournalIdGet(journalId);
+				const data = unwrapApiData<Record<string, unknown>>(response);
+				const name = String(data?.name ?? "");
+				if (data && !isAutoTitle(name)) {
+					clearInterval(timer);
+					replaceJournalInCaches(queryClient, normalizeJournal(data));
+					return;
+				}
+			} catch {
+				// 拉取失败静默，下一轮重试
+			}
+			if (Date.now() - startedAt > 90_000) clearInterval(timer);
+		}, 8000);
 	};
 
 	const createMutation = useMutation({
@@ -537,8 +556,8 @@ export function useJournalMutations() {
 		onSuccess: (saved) => {
 			if (saved) {
 				prependJournalToCaches(queryClient, saved as unknown as Record<string, unknown>);
+				scheduleTitleRefresh(saved.id);
 			}
-			scheduleTitleRefresh();
 		},
 	});
 
@@ -548,11 +567,11 @@ export function useJournalMutations() {
 		onSuccess: (saved) => {
 			if (saved) {
 				replaceJournalInCaches(queryClient, saved as unknown as Record<string, unknown>);
+				scheduleTitleRefresh(saved.id);
 			}
-			// 镜像笔记回写只影响待办详情的背景/备注，只失效 detail，
-			// 不再全量失效 todos（否则左侧栏 limit 2000 的大列表每次保存都重拉）
+			// 镜像笔记回写只影响待办详情，只失效 detail，
+			// 不再全量失效 todos（否则左侧栏 limit 2000 的大列表每次保存都轮询浪费
 			queryClient.invalidateQueries({ queryKey: ["todos", "detail"] });
-			scheduleTitleRefresh();
 		},
 	});
 
