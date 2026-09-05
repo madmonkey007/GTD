@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import re
-import time as time_module
+import os
 from contextvars import ContextVar
 from datetime import datetime, time, timedelta
 from inspect import Parameter, signature
@@ -116,6 +116,34 @@ class JournalService:
         cleaned = (name or "").strip()
         return not cleaned or cleaned == "Untitled" or bool(self._AUTO_TITLE_RE.match(cleaned))
 
+    def _get_title_channels(self) -> list[dict[str, str]]:
+        """读取标题专用通道；云端默认复用已配置的 DashScope 密钥。"""
+        channels: list[dict[str, str]] = []
+        try:
+            import yaml
+
+            cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
+            if cfg_path.exists():
+                with cfg_path.open(encoding="utf-8") as config_file:
+                    cfg_all = yaml.safe_load(config_file) or {}
+                for section in ("title_llm", "title_llm_fallback"):
+                    channel = cfg_all.get(section)
+                    if channel and channel.get("api_key"):
+                        channels.append(channel)
+        except Exception as exc:
+            logger.warning(f"读取标题模型配置失败: {exc}")
+
+        dashscope_key = os.environ.get("DASHSCOPE_API_KEY", "").strip()
+        if dashscope_key:
+            channels.append(
+                {
+                    "api_key": dashscope_key,
+                    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                    "model": "qwen-turbo",
+                }
+            )
+        return channels
+
     def _request_ai_title(self, content: str | None) -> str:
         """调用标题专用模型并返回清洗后的完整标题。"""
         if _skip_ai_title.get():
@@ -124,11 +152,6 @@ class JournalService:
         if not text:
             return ""
         try:
-            from lifetrace.llm.llm_client import LLMClient
-
-            client = LLMClient()
-            if not client.is_available():
-                return ""
             messages = [
                 {
                     "role": "system",
@@ -150,53 +173,35 @@ class JournalService:
                 },
                 {"role": "user", "content": text[:1500]},
             ]
-            # 主通道：config.yaml 的 title_llm 段（agnes-2.0-flash，~2s 直出）；
-            # 依次尝试 title_llm / title_llm_fallback 段，agnes 为思考型模型需 reasoning_effort=none
             raw = ""
-            channels = []
-            try:
-                import yaml
-
-                cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
-                cfg_all = yaml.safe_load(open(cfg_path, encoding="utf-8")) or {}
-                for section in ("title_llm", "title_llm_fallback"):
-                    c = cfg_all.get(section)
-                    if c and c.get("api_key"):
-                        channels.append(c)
-            except Exception:
-                pass
             from openai import OpenAI as _OpenAI
 
-            for c in channels:
-                # 单通道最多 2 次（首试 + 一次重试），累计尝试数受通道数×2 封顶
-                for attempt in range(2):
-                    try:
-                        fb = _OpenAI(
-                            base_url=c["base_url"], api_key=c["api_key"], timeout=8
-                        )
-                        extra = (
-                            {"reasoning_effort": "none"}
-                            if "agnes" in c.get("model", "")
-                            else None
-                        )
-                        kwargs = {
-                            "model": c["model"],
-                            "messages": messages,
-                            "temperature": 0.3,
-                            "max_tokens": 200,
-                        }
-                        if extra:
-                            kwargs["extra_body"] = extra  # type: ignore[assignment]
-                        resp = fb.chat.completions.create(**kwargs)  # type: ignore[arg-type]
-                        raw = resp.choices[0].message.content or ""
-                        if raw.strip():
-                            break
-                    except Exception as exc:
-                        logger.warning(
-                            f"标题生成通道失败 ({c.get('model')}, 第{attempt + 1}次): {exc}"
-                        )
-                        if attempt == 0:
-                            time_module.sleep(2)  # 重试前短暂等待，避免瞬时抖动连败
+            for channel in self._get_title_channels():
+                try:
+                    title_client = _OpenAI(
+                        base_url=channel["base_url"],
+                        api_key=channel["api_key"],
+                        timeout=6,
+                    )
+                    extra = (
+                        {"reasoning_effort": "none"}
+                        if "agnes" in channel.get("model", "")
+                        else None
+                    )
+                    kwargs = {
+                        "model": channel["model"],
+                        "messages": messages,
+                        "temperature": 0.3,
+                        "max_tokens": 50,
+                    }
+                    if extra:
+                        kwargs["extra_body"] = extra  # type: ignore[assignment]
+                    response = title_client.chat.completions.create(**kwargs)  # type: ignore[arg-type]
+                    raw = response.choices[0].message.content or ""
+                except Exception as exc:
+                    logger.warning(
+                        f"标题生成通道失败 ({channel.get('model')}): {exc}"
+                    )
                 if raw.strip():
                     break
             title = (raw or "").strip().splitlines()[0].strip().strip('"“”').strip() if raw and raw.strip() else ""

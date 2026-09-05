@@ -144,3 +144,17 @@ def test_generate_title_does_not_overwrite_manual_title_added_during_request(
     result = service.generate_ai_title(1)
 
     assert result.name == "用户刚写的标题"
+
+
+def test_cloud_title_channel_reuses_dashscope_key(monkeypatch: pytest.MonkeyPatch):
+    repository = FakeJournalRepository()
+    service = make_service(repository)
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "dashscope-secret")
+
+    channels = service._get_title_channels()
+
+    assert channels[0] == {
+        "api_key": "dashscope-secret",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "model": "qwen-turbo",
+    }
