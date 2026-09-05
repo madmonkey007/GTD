@@ -227,9 +227,18 @@ class JournalService:
                     break
             if not raw.strip():
                 # 兜底：主 LLM 客户端（云端部署没有 config.yaml 的 title_llm 段，
-                # 依赖环境变量配置的通用模型生成标题）
+                # 依赖环境变量配置的通用模型生成标题）。
+                # glm 等思考型模型默认把输出放进思考链，content 为空，需显式关闭思考。
+                model_name = (getattr(client, "model", "") or "").lower()
+                extra = (
+                    {"thinking": {"type": "disabled"}}
+                    if "glm" in model_name or "agnes" in model_name
+                    else None
+                )
                 try:
-                    raw = client.chat(messages, temperature=0.3, max_tokens=200) or ""
+                    raw = client.chat(
+                        messages, temperature=0.3, max_tokens=200, extra_body=extra
+                    ) or ""
                 except Exception as exc:
                     logger.warning(f"标题生成主模型兜底失败: {exc}")
             title = (raw or "").strip().splitlines()[0].strip().strip('"“”').strip() if raw and raw.strip() else ""

@@ -139,6 +139,7 @@ class LLMClient:
         temperature: float = 0.7,
         model: str | None = None,
         max_tokens: int | None = None,
+        extra_body: dict[str, Any] | None = None,
     ) -> str:
         """通用非流式聊天方法，返回完整文本结果。"""
         if not self.is_available():
@@ -146,12 +147,15 @@ class LLMClient:
 
         try:
             client = self._get_client()
-            response = client.chat.completions.create(
-                model=model or self.model,
-                messages=cast("list[ChatCompletionMessageParam]", messages),
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+            kwargs: dict[str, Any] = {
+                "model": model or self.model,
+                "messages": cast("list[ChatCompletionMessageParam]", messages),
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            if extra_body:
+                kwargs["extra_body"] = extra_body
+            response = client.chat.completions.create(**kwargs)
             content = response.choices[0].message.content or ""
             return content
         except Exception as e:
