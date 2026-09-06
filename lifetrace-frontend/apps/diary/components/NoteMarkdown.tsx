@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import { NoteImageFrame } from "./NoteImageFrame";
 
 /**
  * 笔记卡片 markdown 渲染：支持列表、粗体、标题等，#tag 经 rehypeRaw 渲染为标签 chip；
@@ -16,14 +17,16 @@ function NoteImage({ src, alt }: React.ImgHTMLAttributes<HTMLImageElement>) {
 	const [zoom, setZoom] = useState(false);
 	return (
 		<>
-			<img
-				src={src}
+			<NoteImageFrame
+				src={typeof src === "string" ? src : ""}
 				alt={alt ?? ""}
 				onClick={(e) => {
 					e.stopPropagation();
 					setZoom(true);
 				}}
-				className="block w-[160px] h-[160px] object-cover rounded my-1 cursor-zoom-in"
+				className="my-1 h-[160px] w-[160px] cursor-zoom-in rounded"
+				imgClassName="object-cover"
+				title="点击放大"
 			/>
 			{zoom &&
 				typeof document !== "undefined" &&
@@ -185,11 +188,12 @@ function NoteImageGrid({ images }: { images: { src: string; alt: string }[] }) {
 						}}
 						className="relative aspect-square w-full overflow-hidden rounded bg-muted/30"
 					>
-						{/* eslint-disable-next-line @next/next/no-img-element */}
-						<img
+						{/* 加载占位：NoteImageFrame 自带骨架与错误态 */}
+						<NoteImageFrame
 							src={im.src}
 							alt={im.alt}
-							className="h-full w-full object-cover"
+							className="h-full w-full"
+							imgClassName="object-cover"
 						/>
 						{isMoreCell && (
 							<div className="absolute inset-0 flex items-center justify-center bg-black/55 text-xs font-semibold text-white">

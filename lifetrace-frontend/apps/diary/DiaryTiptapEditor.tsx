@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import TurndownService from "turndown";
 import { uploadJournalImage } from "@/lib/api";
 import { compressImageIfNeeded } from "@/lib/imageCompress";
+import { NoteImageFrame } from "./components/NoteImageFrame";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
@@ -242,11 +243,11 @@ const ImageGroupNodeView = ({
 			<div className="flex flex-wrap gap-1.5">
 				{images.map((im, i) => (
 					<div key={`${im.src}-${i}`} className="relative" style={{ width: 80, height: 80 }}>
-						<img
+						<NoteImageFrame
 							src={im.src}
 							alt={im.alt || ""}
-							className="w-full h-full object-cover rounded border border-border/40 bg-muted/20"
-							draggable={false}
+							className="h-full w-full rounded border border-border/40"
+							imgClassName="object-cover"
 						/>
 						<button
 							type="button"
