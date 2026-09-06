@@ -9,13 +9,18 @@ import {
 	shouldGenerateJournalTitle,
 } from "./journal-title.ts";
 
-test("recognizes only empty, Untitled, and minute timestamp pseudo titles", () => {
+test("recognizes empty, Untitled, minute timestamp, and bare time pseudo titles", () => {
 	assert.equal(isPseudoJournalTitle(""), true);
 	assert.equal(isPseudoJournalTitle(" Untitled "), true);
 	assert.equal(isPseudoJournalTitle("2026-09-05 10:30"), true);
+	assert.equal(isPseudoJournalTitle("21:50"), true);
+	assert.equal(isPseudoJournalTitle("8:22"), true);
+	assert.equal(isPseudoJournalTitle("08:22:33"), true);
 	assert.equal(isPseudoJournalTitle("用户标题"), false);
 	assert.equal(isPseudoJournalTitle("2026-9-5 10:30"), false);
 	assert.equal(isPseudoJournalTitle("2026-09-05 10:30:00"), false);
+	assert.equal(isPseudoJournalTitle("21:50 备忘"), false);
+	assert.equal(isPseudoJournalTitle("21:50-22:30 读书"), false);
 });
 
 test("starts generation only for a persisted pseudo-title note with content", () => {

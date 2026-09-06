@@ -47,7 +47,7 @@ import {
 	useProject,
 	useProjectMutations,
 } from "@/lib/query";
-import { applyGeneratedTitleToDraft } from "@/lib/query/journal-title";
+import { applyGeneratedTitleToDraft, isPseudoJournalTitle } from "@/lib/query/journal-title";
 import { useNoteLinkMutations } from "@/lib/query/note-links";
 import { useFocusTarget } from "@/lib/store/focus-target-store";
 import { useJournalStore } from "@/lib/store/journal-store";
@@ -683,9 +683,13 @@ const handleSaveCardEdit = async (
 		try {
 			if (updatedDraft.id) {
 				const { uid: _uid, name: draftName, ...updatePayload } = payload;
-				// 标题仍是伪标题（空/时间戳兜底）时不回传 name，
+				// 标题仍是伪标题（空/时间戳兜底/纯时刻）时不回传 name，
 				// 让后端识别为"未动标题"并在正文更新后触发 AI 标题生成
-				if (draftName && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(draftName.trim())) {
+				if (
+					draftName &&
+					!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(draftName.trim()) &&
+					!isPseudoJournalTitle(draftName)
+				) {
 					(updatePayload as JournalCreate).name = draftName;
 				}
 				saved = await updateJournal(updatedDraft.id, updatePayload);

@@ -111,8 +111,9 @@ class JournalService:
             return fallback_time.strftime("%Y-%m-%d %H:%M")
         return "Untitled"
 
-    # 时间型伪标题（后端 _normalize_name 的兜底值）——只有这种标题才允许 AI 生成覆盖
-    _AUTO_TITLE_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$")
+    # 时间型伪标题（后端 _normalize_name 的兜底值）——只有这种标题才允许 AI 生成覆盖。
+    # 兼容老数据：完整「YYYY-MM-DD HH:MM」与纯「HH:MM(:SS)」都视为伪标题
+    _AUTO_TITLE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}|\d{1,2}:\d{2}(:\d{2})?)$")
     def _is_auto_title(self, name: str | None) -> bool:
         """标题是否为伪标题（空 / Untitled / 时间兜底）。"""
         cleaned = (name or "").strip()

@@ -4,7 +4,8 @@ export interface JournalTitleCandidate {
 	userNotes: string;
 }
 
-const AUTO_TITLE_PATTERN = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
+// 时间型伪标题：完整「YYYY-MM-DD HH:MM」或纯「HH:MM(:SS)」（老数据兼容）
+const AUTO_TITLE_PATTERN = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}|\d{1,2}:\d{2}(:\d{2})?)$/;
 
 export function isPseudoJournalTitle(name: string | null | undefined): boolean {
 	const normalized = (name ?? "").trim();

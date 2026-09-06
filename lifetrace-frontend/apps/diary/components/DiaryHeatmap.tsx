@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
 	formatDateInput,
 	getMonthLabelColumns,
@@ -38,6 +38,8 @@ const GAP = 8;
 
 export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, selectedDate }: DiaryHeatmapProps) {
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const userScrolledRef = useRef(false);
+	const windowKeyRef = useRef<string | null>(null);
 	const now = new Date();
 	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 	const todayKey = formatDateInput(today);
@@ -46,17 +48,31 @@ export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, selectedDate }:
 	const weeks = useMemo(() => groupDatesByWeek(dates), [dates]);
 	const monthLabels = useMemo(() => getMonthLabelColumns(weeks), [weeks]);
 
-	// 默认视口停在最新一列（今天在最右），向左拖动才逐步露出更早的日期
+	// 仅在数据窗口真正变化（跨天/切换统计范围）时重新锚定到最右（今天）；
+	// 轮询刷新只会替换数组身份，不能抢走用户手动滚动的位置
 	useEffect(() => {
 		const el = scrollRef.current;
-		if (el) el.scrollLeft = el.scrollWidth;
-		// biome-ignore lint/correctness/useExhaustiveDependencies: 数据变化后需重新滚到最右
-	}, [weeks]);
+		if (!el) return;
+		const key = dates.length
+			? `${formatDateInput(dates[0])}~${formatDateInput(dates[dates.length - 1])}`
+			: "empty";
+		if (windowKeyRef.current === key) return;
+		windowKeyRef.current = key;
+		userScrolledRef.current = false;
+		el.scrollLeft = el.scrollWidth;
+	}, [dates]);
+
+	const markUserScrolled = useCallback(() => {
+		userScrolledRef.current = true;
+	}, []);
 
 	return (
 		<div
 			ref={scrollRef}
-			className="overflow-x-auto pb-1 [scrollbar-width:thin]"
+			onWheel={markUserScrolled}
+			onPointerDown={markUserScrolled}
+			onTouchStart={markUserScrolled}
+			className="overflow-x-auto pb-1 [scrollbar-width:thin] [overscroll-behavior-x:contain]"
 		>
 			{/* 格子与月份标签放在同一滚动内容里，宽度同源，保证任何滚动位置下都对齐 */}
 			<div className="space-y-1 w-max">
