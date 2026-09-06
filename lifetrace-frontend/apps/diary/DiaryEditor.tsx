@@ -48,6 +48,7 @@ import {
 	useJournalLites,
 } from "@/lib/query";
 import { queryKeys } from "@/lib/query/keys";
+import { applyJournalUpdateToList } from "@/lib/query/journal-title";
 import { unwrapApiData } from "@/lib/api/fetcher";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
@@ -147,8 +148,8 @@ interface DiaryEditorProps {
 	filterJournalIds?: number[] | null;
 	/** 渲染在笔记区顶部（输入区上方）的自定义头部，如项目标题栏 */
 	headerSlot?: ReactNode;
-	/** 离线优先的本地笔记变更事件：新建/删除后直接改本地列表，不等后端缓存刷新 */
-	localNoteEvent?: { seq: number; type: "create" | "delete"; note?: JournalView; id?: number } | null;
+	/** 后台笔记变更事件：直接同步当前渲染列表，不依赖查询刷新 */
+	localNoteEvent?: { seq: number; type: "create" | "update" | "delete"; note?: JournalView; id?: number } | null;
 }
 
 export function DiaryEditor({
@@ -389,7 +390,7 @@ export function DiaryEditor({
 		loadedPagesRef.current = 0;
 	}, [notesResetSignal]);
 
-	// 离线优先：新建/删除笔记事件直接改本地 allNotes（云端后端往返慢时也能即时显示/消失），
+	// 新建/更新/删除事件直接改本地 allNotes（云端后端往返慢时也能即时显示/消失），
 	// 后台缓存补丁与自然刷新稍后自动对齐
 	const prevLocalEventRef = useRef(0);
 	useEffect(() => {
@@ -402,6 +403,9 @@ export function DiaryEditor({
 			setAllNotes((prev) =>
 				prev.some((n) => n.id === note.id) ? prev : [note, ...prev],
 			);
+		} else if (localNoteEvent.type === "update" && localNoteEvent.note) {
+			const note = localNoteEvent.note;
+			setAllNotes((prev) => applyJournalUpdateToList(prev, note));
 		}
 	}, [localNoteEvent]);
 

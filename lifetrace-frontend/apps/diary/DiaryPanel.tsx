@@ -106,17 +106,17 @@ export function DiaryPanel() {
 	const [pendingLinks, setPendingLinks] = useState<{ id: number; name: string }[]>([]);
 	// 提交成功后自增，通知 DiaryEditor 重置分页到第一页（否则滚动加载后新建的笔记不显示）
 	const [notesResetSignal, setNotesResetSignal] = useState(0);
-	// 离线优先的本地笔记变更事件：新建/删除后由 DiaryEditor 直接改本地列表即时显示，
+	// 后台笔记变更事件：新建/更新/删除后由 DiaryEditor 直接改本地列表即时显示，
 	// 不依赖缓存补丁/后端往返（云端后端延迟高时也能"删除即消失、新增即出现"）
 	const [localNoteEvent, setLocalNoteEvent] = useState<{
 		seq: number;
-		type: "create" | "delete";
+		type: "create" | "update" | "delete";
 		note?: JournalView;
 		id?: number;
 	} | null>(null);
 	const localNoteSeqRef = useRef(0);
 	const emitLocalNote = useCallback(
-		(event: { type: "create" | "delete"; note?: JournalView; id?: number }) => {
+		(event: { type: "create" | "update" | "delete"; note?: JournalView; id?: number }) => {
 			localNoteSeqRef.current += 1;
 			setLocalNoteEvent({ seq: localNoteSeqRef.current, ...event });
 		},
@@ -348,7 +348,8 @@ export function DiaryPanel() {
 				name: journal.name,
 			}),
 		);
-	}, []);
+		emitLocalNote({ type: "update", note: journal });
+	}, [emitLocalNote]);
 	const {
 		createJournal,
 		updateJournal,

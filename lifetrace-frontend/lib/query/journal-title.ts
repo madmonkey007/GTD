@@ -26,6 +26,17 @@ export function applyGeneratedTitleToDraft<
 	return { ...draft, name: generated.name };
 }
 
+export function applyJournalUpdateToList<T extends { id: number }>(
+	journals: T[],
+	updated: T,
+): T[] {
+	const index = journals.findIndex((journal) => journal.id === updated.id);
+	if (index < 0) return journals;
+	const next = [...journals];
+	next[index] = updated;
+	return next;
+}
+
 export function createJournalTitleRequestGate() {
 	const inFlight = new Set<number>();
 	return {

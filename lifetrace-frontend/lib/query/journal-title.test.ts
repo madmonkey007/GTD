@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
 	applyGeneratedTitleToDraft,
+	applyJournalUpdateToList,
 	createJournalTitleRequestGate,
 	isPseudoJournalTitle,
 	shouldGenerateJournalTitle,
@@ -76,4 +77,28 @@ test("allows only one title request per note and releases the note after complet
 	release?.();
 	assert.equal(await pending, "done");
 	assert.equal(await gate.run(7, async () => "retry"), "retry");
+});
+
+test("replaces a generated title in the rendered local note list", () => {
+	const notes = [
+		{ id: 1, name: "2026-09-05 10:30", userNotes: "正文" },
+		{ id: 2, name: "其他笔记", userNotes: "其他正文" },
+	];
+
+	const updated = applyJournalUpdateToList(notes, {
+		id: 1,
+		name: "完整标题",
+		userNotes: "正文",
+	});
+
+	assert.equal(updated[0].name, "完整标题");
+	assert.equal(updated[1], notes[1]);
+	assert.equal(
+		applyJournalUpdateToList(notes, {
+			id: 3,
+			name: "未显示的笔记",
+			userNotes: "",
+		}),
+		notes,
+	);
 });
