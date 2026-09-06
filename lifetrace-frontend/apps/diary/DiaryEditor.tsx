@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import type { JournalDraft } from "@/apps/diary/types";
+import { getLocalDayApiRange } from "@/apps/diary/journal-utils";
 import type { JournalView } from "@/lib/query";
 import {
 	extractTagsFromContent,
@@ -292,12 +293,9 @@ export function DiaryEditor({
 			params.startDate = start.toISOString();
 			params.endDate = end.toISOString();
 		} else if (heatmapFilterDate) {
-			const start = new Date(heatmapFilterDate);
-			start.setHours(0, 0, 0, 0);
-			const end = new Date(heatmapFilterDate);
-			end.setHours(23, 59, 59, 999);
-			params.startDate = start.toISOString();
-			params.endDate = end.toISOString();
+			const range = getLocalDayApiRange(heatmapFilterDate);
+			params.startDate = range.startDate;
+			params.endDate = range.endDate;
 		}
 		if (debouncedSearch.trim()) {
 			params.search = debouncedSearch.trim();
