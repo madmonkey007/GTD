@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	formatDateInput,
 	getMonthLabelColumns,
@@ -9,7 +9,6 @@ import {
 import { cn } from "@/lib/utils";
 
 interface DiaryHeatmapProps {
-	dates: Date[];
 	dailyCounts: Map<string, number>;
 	onSelectDate?: (date: Date) => void;
 	selectedDate?: Date | null;
@@ -35,18 +34,41 @@ const DOT_COLORS = [
 
 const DOT = 17;
 const GAP = 8;
+// 日历窗口长度：26 周（182 天），与统计侧 HEATMAP_DAYS 一致
+const HEATMAP_DAYS = 182;
+// 每分钟自检一次跨天：窗口以真实当天为准重建，最右列永远是今天所在列
+const DAY_TICK_MS = 60 * 1000;
 
-export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, selectedDate }: DiaryHeatmapProps) {
+export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryHeatmapProps) {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const windowKeyRef = useRef<string | null>(null);
 	const snapTimerRef = useRef<number | null>(null);
 	const snappingRef = useRef(false);
 	const lastScrollLeftRef = useRef(0);
+	const [, setDayTick] = useState(0);
 	const now = new Date();
 	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 	const todayKey = formatDateInput(today);
 	const selectedKey = selectedDate ? formatDateInput(selectedDate) : null;
 
+	// 每分钟自检跨天，闲置页面过零点后窗口也能重建
+	useEffect(() => {
+		const timer = window.setInterval(() => setDayTick((v) => v + 1), DAY_TICK_MS);
+		return () => window.clearInterval(timer);
+	}, []);
+
+	// 日历窗口由组件自己生成（始终以真实当天收尾），不依赖统计数据的新旧
+	const windowStartKey = formatDateInput(
+		new Date(today.getFullYear(), today.getMonth(), today.getDate() - (HEATMAP_DAYS - 1)),
+	);
+	const dates = useMemo(() => {
+		const [y, m, d] = windowStartKey.split("-").map(Number);
+		const arr: Date[] = [];
+		for (let i = 0; i < HEATMAP_DAYS; i++) {
+			arr.push(new Date(y, m - 1, d + i));
+		}
+		return arr;
+	}, [windowStartKey]);
 	const weeks = useMemo(() => groupDatesByWeek(dates), [dates]);
 	const monthLabels = useMemo(() => getMonthLabelColumns(weeks), [weeks]);
 

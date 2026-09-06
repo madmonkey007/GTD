@@ -90,7 +90,6 @@ export function DiarySidebar({
 					)}
 				</div>
 				<DiaryHeatmap
-					dates={stats.dates}
 					dailyCounts={stats.dailyCounts}
 					onSelectDate={onSelectDate}
 					selectedDate={selectedDate}
