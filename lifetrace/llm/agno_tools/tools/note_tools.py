@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from lifetrace.llm.agno_tools.base import get_message
 from lifetrace.util.logging_config import get_logger
+from lifetrace.util.time_utils import now_local_naive, to_local_naive
 
 if TYPE_CHECKING:
 	from lifetrace.services.journal_service import JournalService
@@ -87,10 +88,11 @@ class NoteTools:
 			if tags:
 				tag_list = [t.strip() for t in tags.split(",") if t.strip()]
 
-			note_date = datetime.now()
+			# 配置时区的本地墙上时间（journals.date 全库语义；服务器时区不可靠）
+			note_date = now_local_naive()
 			if date:
 				try:
-					parsed = datetime.fromisoformat(date)
+					parsed = to_local_naive(datetime.fromisoformat(date))
 					# 如果只传了纯日期（如 "2026-07-23"），用当前时间填充时间部分
 					# 这样按 date DESC 排序时仍能保持正确顺序
 					if parsed.hour == 0 and parsed.minute == 0 and parsed.second == 0 and parsed.microsecond == 0:

@@ -1,7 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-import { formatDateInput } from "@/apps/diary/journal-utils";
+import { useEffect, useMemo, useRef } from "react";
+import {
+	formatDateInput,
+	getMonthLabelColumns,
+	groupDatesByWeek,
+} from "@/apps/diary/journal-utils";
 import { cn } from "@/lib/utils";
 
 interface DiaryHeatmapProps {
@@ -9,8 +13,6 @@ interface DiaryHeatmapProps {
 	dailyCounts: Map<string, number>;
 	onSelectDate?: (date: Date) => void;
 	selectedDate?: Date | null;
-	/** 容器宽度（内联模式 = 左栏拖拽宽度），用于自适应列数；抽屉模式不传则默认 11 列 */
-	containerWidth?: number;
 }
 
 function getHeatmapLevel(count: number): number {
@@ -33,124 +35,93 @@ const DOT_COLORS = [
 
 const DOT = 17;
 const GAP = 8;
-const DEFAULT_COLS = 11;
-const MAX_COLS = 26; // 最多覆盖 26 周（182 天），对应左栏最宽（480px）时的宽度
 
-export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, selectedDate, containerWidth }: DiaryHeatmapProps) {
-	const cols = useMemo(() => {
-		if (containerWidth !== undefined) {
-			// 按容器宽度估算可容纳的列数：每列 = DOT 宽 + GAP 间距
-			const fit = Math.floor((containerWidth - GAP - 4) / (DOT + GAP));
-			return Math.min(MAX_COLS, Math.max(DEFAULT_COLS, fit));
-		}
-		return DEFAULT_COLS;
-	}, [containerWidth]);
-
-	// dates 每天 1 条、按时间正序（index 0 = 最早）。固定只显示「最近 cols*rows 天」：
-	// 截取 dates 末尾的 visible 天，列优先铺开，第 0 列 = 最早、最后一列 = 最新（贴近当前月）。
-	const grid = useMemo(() => {
-		const rows = 7;
-		const visible = cols * rows;
-		const offset = Math.max(0, dates.length - visible);
-		const today = new Date();
-		const todayKey = formatDateInput(today);
-		const cells: { date: Date; level: number; tooltip: string; isToday: boolean }[][] = [];
-
-		for (let col = 0; col < cols; col++) {
-			const column: { date: Date; level: number; tooltip: string; isToday: boolean }[] = [];
-			for (let row = 0; row < rows; row++) {
-				const index = offset + col * rows + row;
-				if (index < dates.length) {
-					const date = dates[index];
-					const key = formatDateInput(date);
-					const count = dailyCounts.get(key) ?? 0;
-					const level = getHeatmapLevel(count);
-					const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
-					column.push({
-						date,
-						level,
-						tooltip: `${dateStr} - ${count} 篇`,
-						isToday: key === todayKey,
-					});
-				} else {
-					column.push({ date: new Date(), level: 0, tooltip: "", isToday: false });
-				}
-			}
-			cells.push(column);
-		}
-		return cells;
-	}, [dates, dailyCounts, cols]);
-
-	const monthLabels = useMemo(() => {
-		const labels: { label: string; col: number }[] = [];
-		let lastMonth = -1;
-		const offset = Math.max(0, dates.length - cols * 7);
-		for (let col = 0; col < cols; col++) {
-			const index = offset + col * 7;
-			if (index < dates.length) {
-				const month = dates[index].getMonth();
-				if (month !== lastMonth) {
-					labels.push({
-						label: `${dates[index].getMonth() + 1}月`,
-						col,
-					});
-					lastMonth = month;
-				}
-			}
-		}
-		if (labels.length > 3) {
-			return labels.slice(labels.length - 3);
-		}
-		return labels;
-	}, [dates, cols]);
+export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, selectedDate }: DiaryHeatmapProps) {
+	const scrollRef = useRef<HTMLDivElement>(null);
+	const now = new Date();
+	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	const todayKey = formatDateInput(today);
 	const selectedKey = selectedDate ? formatDateInput(selectedDate) : null;
 
-	return (
-		<div className="space-y-1">
-			{/* Grid: cols x 7 rows, spaced evenly */}
-			<div className="flex gap-[8px]">
-				{grid.map((col) => (
-					<div key={formatDateInput(col[0].date)} className="flex flex-col gap-[8px] items-center">
-						{col.map((cell) => {
-							const isSelected = formatDateInput(cell.date) === selectedKey;
-							return (
-								<button
-									key={formatDateInput(cell.date)}
-									type="button"
-									title={cell.tooltip}
-									aria-label={`${cell.tooltip}${isSelected ? "，已选中" : ""}`}
-									aria-pressed={isSelected}
-									onClick={onSelectDate ? () => onSelectDate(cell.date) : undefined}
-									className={cn(
-										"h-[17px] w-[17px] rounded-[3px] transition-[box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-										DOT_COLORS[cell.level],
-										onSelectDate ? "cursor-pointer" : "cursor-default",
-										isSelected
-											? "z-10 scale-110 ring-2 ring-primary ring-offset-2 ring-offset-background"
-											: "hover:ring-1 hover:ring-ring hover:ring-offset-1",
-										cell.isToday && !isSelected && "ring-1 ring-foreground/40",
-									)}
-								/>
-							);
-						})}
-					</div>
-				))}
-			</div>
+	const weeks = useMemo(() => groupDatesByWeek(dates), [dates]);
+	const monthLabels = useMemo(() => getMonthLabelColumns(weeks), [weeks]);
 
-			{/* Month labels at bottom, aligned to grid columns */}
-			<div className="flex gap-[8px]">
-				{Array.from({ length: cols }).map((_, col) => {
-					const label = monthLabels.find((m) => m.col === col);
-					return (
+	// 默认视口停在最新一列（今天在最右），向左拖动才逐步露出更早的日期
+	useEffect(() => {
+		const el = scrollRef.current;
+		if (el) el.scrollLeft = el.scrollWidth;
+		// biome-ignore lint/correctness/useExhaustiveDependencies: 数据变化后需重新滚到最右
+	}, [weeks]);
+
+	return (
+		<div
+			ref={scrollRef}
+			className="overflow-x-auto pb-1 [scrollbar-width:thin]"
+		>
+			{/* 格子与月份标签放在同一滚动内容里，宽度同源，保证任何滚动位置下都对齐 */}
+			<div className="space-y-1 w-max">
+				<div className="flex" style={{ gap: GAP }}>
+					{weeks.map((week) => (
 						<div
-							key={`${formatDateInput(grid[col][0].date)}-${col}`}
-							className="text-[9px] text-muted-foreground/50 leading-none text-center whitespace-nowrap"
-							style={{ width: DOT }}
+							key={formatDateInput(week.weekStart)}
+							className="flex flex-col items-center"
+							style={{ gap: GAP }}
 						>
-							{label ? label.label : ""}
+							{week.days.map((day, row) => {
+								if (!day) {
+									// 当前周里今天之后的日期：占位空格，保持 7 行高度
+									return (
+										<div
+											// biome-ignore lint/suspicious/noArrayIndexKey: 占位格无稳定 key
+											key={`placeholder-${row}`}
+											className="h-[17px] w-[17px]"
+										/>
+									);
+								}
+								const key = formatDateInput(day);
+								const count = dailyCounts.get(key) ?? 0;
+								const tooltip = `${day.getMonth() + 1}/${day.getDate()} - ${count} 篇`;
+								const isSelected = key === selectedKey;
+								const isToday = key === todayKey;
+								return (
+									<button
+										key={key}
+										type="button"
+										title={tooltip}
+										aria-label={`${tooltip}${isSelected ? "，已选中" : ""}`}
+										aria-pressed={isSelected}
+										onClick={onSelectDate ? () => onSelectDate(day) : undefined}
+										className={cn(
+											"h-[17px] w-[17px] shrink-0 rounded-[3px] transition-[box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+											DOT_COLORS[getHeatmapLevel(count)],
+											onSelectDate ? "cursor-pointer" : "cursor-default",
+											isSelected
+												? "z-10 scale-110 ring-2 ring-primary ring-offset-2 ring-offset-background"
+												: "hover:ring-1 hover:ring-ring hover:ring-offset-1",
+											isToday && !isSelected && "ring-1 ring-foreground/40",
+										)}
+									/>
+								);
+							})}
 						</div>
-					);
-				})}
+					))}
+				</div>
+
+				{/* 月份标签：与格子同宽同间距，随内容一起横向滚动，保证对齐 */}
+				<div className="flex" style={{ gap: GAP }}>
+					{weeks.map((week, index) => {
+						const label = monthLabels.find((m) => m.index === index);
+						return (
+							<div
+								key={formatDateInput(week.weekStart)}
+								className="text-[9px] text-muted-foreground/50 leading-none text-center whitespace-nowrap"
+								style={{ width: DOT }}
+							>
+								{label ? label.label : ""}
+							</div>
+						);
+					})}
+				</div>
 			</div>
 		</div>
 	);

@@ -16,7 +16,9 @@ import type { TrashEntry } from "@/apps/diary/hooks/useJournalTrash";
 import { useJournalTrash } from "@/apps/diary/hooks/useJournalTrash";
 import {
 	formatDateInput,
+	formatLocalDateTime,
 	getDayRange,
+	getLocalRangeApi,
 	normalizeDateOnly,
 	parseJournalDate,
 	resolveBucketRange,
@@ -219,6 +221,7 @@ export function DiaryPanel() {
 		const { addToTrash, trashEntries, clearTrash, restoreFromTrash } = useJournalTrash();
 	const { pinnedIds, toggle: togglePin } = usePinStore();
 	const dayRange = useMemo(() => getDayRange(selectedDate), [selectedDate]);
+	const dayApiRange = useMemo(() => getLocalRangeApi(dayRange.start, dayRange.end), [dayRange]);
 	const bucket = useMemo(
 		() =>
 			resolveBucketRange(
@@ -246,8 +249,8 @@ export function DiaryPanel() {
 	} = useJournals({
 		limit: 1,
 		offset: 0,
-		startDate: dayRange.start.toISOString(),
-		endDate: dayRange.end.toISOString(),
+		startDate: dayApiRange.startDate,
+		endDate: dayApiRange.endDate,
 	});
 	const activeJournal = useMemo(
 		() => journalResponse?.journals?.[0] ?? null,
@@ -599,7 +602,7 @@ const handleSaveCardEdit = async (
 	): JournalCreate => ({
 		name: updatedDraft.name || undefined,
 		user_notes: updatedDraft.userNotes,
-		date: updatedDraft.id ? formatDateInput(updatedDraft.date) : formatDateInput(new Date()),
+		date: updatedDraft.id ? formatDateInput(updatedDraft.date) : formatLocalDateTime(new Date()),
 		content_format: "markdown",
 		content_objective: updatedDraft.contentObjective || null,
 		content_ai: updatedDraft.contentAi || null,
@@ -719,8 +722,9 @@ const handleSaveCardEdit = async (
 		}
 		const savedDate = parseJournalDate(saved.date);
 		if (options?.skipDraftRestore) {
-			// 秒提交模式：编辑器保持清空，仅把草稿挂到已保存笔记上，便于后续自动保存落到该笔记
-			setDraft((prev) => ({ ...prev, id: saved.id, date: savedDate }));
+			// 秒提交模式：编辑器保持清空、草稿重置为全新状态（id 置空），
+			// 下一次提交创建新笔记而不是覆盖刚保存的这条，也不会出现新卡片被"选中"的高亮
+			setDraft((prev) => ({ ...prev, id: null, name: "", userNotes: "", date: new Date() }));
 			setTagInput("");
 		} else {
 			setDraft({

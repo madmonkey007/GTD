@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { formatDateInput, parseJournalDate } from "@/apps/diary/journal-utils";
+import { formatDateInput, getLocalRangeApi, parseJournalDate } from "@/apps/diary/journal-utils";
 import { extractTagsFromContent, useJournalLites } from "@/lib/query";
 
 export type DiaryFilterMode = "all" | "last7" | "random" | "todo";
@@ -36,21 +36,19 @@ export function useDiaryStats() {
 	const startDate = useMemo(() => getStartDate(filterMode), [filterMode]);
 	const endDate = useMemo(() => {
 		const now = new Date();
-		// 取「后天 00:00」而非「明天 00:00」：.toISOString() 会把本地时间转成 UTC，
-		// 仅 +1 天在东八区会落到「今天 16:00 UTC」，导致数据库按 UTC 比较时把当天
-		// 16:00 之后的笔记排除掉（统计总数偏小）。+2 天可兜底覆盖所有时区。
 		return new Date(
 			now.getFullYear(),
 			now.getMonth(),
 			now.getDate() + 2,
 		);
 	}, []);
+	const statsRange = useMemo(() => getLocalRangeApi(startDate, endDate), [startDate, endDate]);
 
 	// 轻量端点：只拉 id/date/userNotes（服务端无 N+1 序列化），标签从正文提取
 	const { data, isLoading, error, refetch } = useJournalLites({
 		limit: 1000,
-		startDate: startDate.toISOString(),
-		endDate: endDate.toISOString(),
+		startDate: statsRange.startDate,
+		endDate: statsRange.endDate,
 	});
 
 	const stats = useMemo<DiaryStatsData | undefined>(() => {

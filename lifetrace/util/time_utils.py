@@ -7,6 +7,47 @@ from __future__ import annotations
 
 import time
 from datetime import UTC, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+from lifetrace.util.logging_config import get_logger
+
+logger = get_logger()
+
+# 无 tz 信息的 datetime 在全库统一表示「配置时区的本地墙上时间」
+# （journals.date 即此语义）。服务器时区不可靠（如 Vercel 为 UTC），
+# 因此以 scheduler.timezone 配置为准。
+_FALLBACK_TZ = "Asia/Shanghai"
+
+
+def get_configured_tz() -> ZoneInfo:
+    """获取配置的本地时区（scheduler.timezone，默认 Asia/Shanghai）"""
+    try:
+        from lifetrace.util.settings import settings
+
+        name = settings.get("scheduler.timezone") or _FALLBACK_TZ
+    except Exception:
+        name = _FALLBACK_TZ
+    try:
+        return ZoneInfo(name)
+    except Exception:
+        logger.warning(f"无效时区配置 {name}，回退到 {_FALLBACK_TZ}")
+        return ZoneInfo(_FALLBACK_TZ)
+
+
+def now_local_naive() -> datetime:
+    """当前「配置时区」的本地墙上时间（naive），用于填充 journals.date 等字段"""
+    return datetime.now(get_configured_tz()).replace(tzinfo=None)
+
+
+def to_local_naive(dt: datetime) -> datetime:
+    """把任意 datetime 归一为「配置时区的本地墙上时间」（naive）
+
+    - aware 输入：转换到配置时区后去掉 tzinfo
+    - naive 输入：视为已是本地墙上时间，原样返回
+    """
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(get_configured_tz()).replace(tzinfo=None)
 
 
 def get_utc_now() -> datetime:

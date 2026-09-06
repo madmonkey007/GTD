@@ -48,6 +48,7 @@ from lifetrace.storage.models import Activity, Todo
 from lifetrace.storage.sql_utils import col
 from lifetrace.util.logging_config import get_logger
 from lifetrace.util.settings import settings
+from lifetrace.util.time_utils import now_local_naive, to_local_naive
 
 logger = get_logger()
 
@@ -659,17 +660,19 @@ class JournalService:
                 tags = auto_tags
         # 确保标签以 #标签 形式存在于正文中（编辑时才可见可改）
         user_notes = self._ensure_tags_in_content(data.user_notes, tags)
+        # 日期归一为「配置时区的本地墙上时间」：journals.date 全库此语义，
+        # aware 输入（如带 Z 的 ISO）转配置时区；服务器时区不可靠（Vercel 为 UTC）
+        note_date = to_local_naive(data.date)
         # 日期补全时间：前端 date-only 输入会被解析为午夜 00:00:00，
-        # 这里用当前时间填充（保留年月日），使新笔记按 date DESC 排序时
+        # 这里用配置时区当前时间填充（保留年月日），使新笔记按 date DESC 排序时
         # 能排在当天已有笔记之上（与 chat create_note 工具行为一致）。
-        note_date = data.date
         if (
             note_date.hour == 0
             and note_date.minute == 0
             and note_date.second == 0
             and note_date.microsecond == 0
         ):
-            now = datetime.now()
+            now = now_local_naive()
             note_date = now.replace(
                 year=note_date.year, month=note_date.month, day=note_date.day
             )
@@ -746,6 +749,10 @@ class JournalService:
         # 保留库里原有的 date 时间分量，避免失焦自动保存把 date 刷成当前时刻
         # 导致笔记在“全部笔记”里跳到最前。
         new_date = getattr(payload, "date", None)
+        if isinstance(new_date, datetime) and new_date.tzinfo is not None:
+            # aware 输入（如带 Z 的 ISO）归一为配置时区本地墙上时间（全库 date 语义）
+            new_date = to_local_naive(new_date)
+            object.__setattr__(payload, "date", new_date)
         if (
             isinstance(new_date, datetime)
             and new_date.hour == 0

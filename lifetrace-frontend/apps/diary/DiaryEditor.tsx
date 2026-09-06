@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import type { JournalDraft } from "@/apps/diary/types";
-import { getLocalDayApiRange } from "@/apps/diary/journal-utils";
+import { getLocalDayApiRange, getLocalRangeApi } from "@/apps/diary/journal-utils";
 import type { JournalView } from "@/lib/query";
 import {
 	extractTagsFromContent,
@@ -282,16 +282,18 @@ export function DiaryEditor({
 			const now = new Date();
 			const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
 			const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-			params.startDate = start.toISOString();
-			params.endDate = end.toISOString();
+			const range = getLocalRangeApi(start, end);
+			params.startDate = range.startDate;
+			params.endDate = range.endDate;
 		} else if (timeMachineDate) {
 			// 时光机：筛选穿越到的那一天
 			const start = new Date(timeMachineDate);
 			start.setHours(0, 0, 0, 0);
 			const end = new Date(timeMachineDate);
 			end.setHours(23, 59, 59, 999);
-			params.startDate = start.toISOString();
-			params.endDate = end.toISOString();
+			const range = getLocalRangeApi(start, end);
+			params.startDate = range.startDate;
+			params.endDate = range.endDate;
 		} else if (heatmapFilterDate) {
 			const range = getLocalDayApiRange(heatmapFilterDate);
 			params.startDate = range.startDate;

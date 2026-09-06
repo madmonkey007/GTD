@@ -94,7 +94,6 @@ export function DiarySidebar({
 					dailyCounts={stats.dailyCounts}
 					onSelectDate={onSelectDate}
 					selectedDate={selectedDate}
-					containerWidth={width}
 				/>
 			</div>
 
