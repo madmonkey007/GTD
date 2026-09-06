@@ -2,11 +2,13 @@
 
 import { useMemo } from "react";
 import { formatDateInput } from "@/apps/diary/journal-utils";
+import { cn } from "@/lib/utils";
 
 interface DiaryHeatmapProps {
 	dates: Date[];
 	dailyCounts: Map<string, number>;
 	onSelectDate?: (date: Date) => void;
+	selectedDate?: Date | null;
 	/** 容器宽度（内联模式 = 左栏拖拽宽度），用于自适应列数；抽屉模式不传则默认 11 列 */
 	containerWidth?: number;
 }
@@ -34,7 +36,7 @@ const GAP = 8;
 const DEFAULT_COLS = 11;
 const MAX_COLS = 26; // 最多覆盖 26 周（182 天），对应左栏最宽（480px）时的宽度
 
-export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, containerWidth }: DiaryHeatmapProps) {
+export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, selectedDate, containerWidth }: DiaryHeatmapProps) {
 	const cols = useMemo(() => {
 		if (containerWidth !== undefined) {
 			// 按容器宽度估算可容纳的列数：每列 = DOT 宽 + GAP 间距
@@ -101,22 +103,36 @@ export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, containerWidth 
 		}
 		return labels;
 	}, [dates, cols]);
+	const selectedKey = selectedDate ? formatDateInput(selectedDate) : null;
 
 	return (
 		<div className="space-y-1">
 			{/* Grid: cols x 7 rows, spaced evenly */}
 			<div className="flex gap-[8px]">
-				{grid.map((col, colIdx) => (
-					<div key={colIdx} className="flex flex-col gap-[8px] items-center">
-						{col.map((cell, rowIdx) => (
-							<button
-								key={rowIdx}
-								type="button"
-								title={cell.tooltip}
-								onClick={onSelectDate ? () => onSelectDate(cell.date) : undefined}
-								className={`w-[17px] h-[17px] rounded-[3px] ${DOT_COLORS[cell.level]} ${onSelectDate ? 'cursor-pointer' : 'cursor-default'} transition-colors duration-150 hover:ring-1 hover:ring-ring hover:ring-offset-[0.5px] ${cell.isToday ? 'ring-1 ring-foreground/40' : ''}`}
-							/>
-						))}
+				{grid.map((col) => (
+					<div key={formatDateInput(col[0].date)} className="flex flex-col gap-[8px] items-center">
+						{col.map((cell) => {
+							const isSelected = formatDateInput(cell.date) === selectedKey;
+							return (
+								<button
+									key={formatDateInput(cell.date)}
+									type="button"
+									title={cell.tooltip}
+									aria-label={`${cell.tooltip}${isSelected ? "，已选中" : ""}`}
+									aria-pressed={isSelected}
+									onClick={onSelectDate ? () => onSelectDate(cell.date) : undefined}
+									className={cn(
+										"h-[17px] w-[17px] rounded-[3px] transition-[box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+										DOT_COLORS[cell.level],
+										onSelectDate ? "cursor-pointer" : "cursor-default",
+										isSelected
+											? "z-10 scale-110 ring-2 ring-primary ring-offset-2 ring-offset-background"
+											: "hover:ring-1 hover:ring-ring hover:ring-offset-1",
+										cell.isToday && !isSelected && "ring-1 ring-foreground/40",
+									)}
+								/>
+							);
+						})}
 					</div>
 				))}
 			</div>
@@ -127,7 +143,7 @@ export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, containerWidth 
 					const label = monthLabels.find((m) => m.col === col);
 					return (
 						<div
-							key={col}
+							key={`${formatDateInput(grid[col][0].date)}-${col}`}
 							className="text-[9px] text-muted-foreground/50 leading-none text-center whitespace-nowrap"
 							style={{ width: DOT }}
 						>

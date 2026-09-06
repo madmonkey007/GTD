@@ -2,13 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import type { DiaryFilterMode, DiaryStatsData } from "@/apps/diary/hooks/useDiaryStats";
+import type { TrashEntry } from "@/apps/diary/hooks/useJournalTrash";
 import { ProjectList } from "@/apps/project";
 import { CollectionList } from "./CollectionList";
 import { DiaryFilterBar } from "./DiaryFilterBar";
 import { DiaryHeatmap } from "./DiaryHeatmap";
 import { DiaryStats } from "./DiaryStats";
 import { DiaryTagList } from "./DiaryTagList";
-import type { TrashEntry } from "@/apps/diary/hooks/useJournalTrash";
 import { DiaryTrashList } from "./DiaryTrashList";
 import { ProjectArchiveEntry } from "./ProjectArchiveEntry";
 
@@ -19,6 +19,7 @@ interface DiarySidebarProps {
 	/** 项目视图等场景下隐藏筛选高亮 */
 	hideFilterActive?: boolean;
 	onSelectDate?: (date: Date) => void;
+	selectedDate?: Date | null;
 	onRestore?: (entry: TrashEntry) => void;
 	onShowTrash?: () => void;
 	selectedTag?: string | null;
@@ -46,6 +47,7 @@ export function DiarySidebar({
 	onFilterModeChange,
 	hideFilterActive,
 	onSelectDate,
+	selectedDate,
 	onRestore,
 	onShowTrash,
 	selectedTag,
@@ -77,13 +79,21 @@ export function DiarySidebar({
 
 			{/* Heatmap section */}
 			<div>
-				<div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 mb-2">
-					{t("sidebarActivity")}
+				<div className="mb-2 flex items-center justify-between gap-2">
+					<div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+						{t("sidebarActivity")}
+					</div>
+					{selectedDate && (
+						<span className="text-[10px] font-medium tabular-nums text-primary">
+							{selectedDate.getMonth() + 1}月{selectedDate.getDate()}日
+						</span>
+					)}
 				</div>
 				<DiaryHeatmap
 					dates={stats.dates}
 					dailyCounts={stats.dailyCounts}
 					onSelectDate={onSelectDate}
+					selectedDate={selectedDate}
 					containerWidth={width}
 				/>
 			</div>

@@ -20,6 +20,11 @@ export const parseJournalDate = (value: string) => {
 export const normalizeDateOnly = (value: Date) =>
 	new Date(value.getFullYear(), value.getMonth(), value.getDate());
 
+export const toggleCalendarDate = (current: Date | null, clicked: Date) => {
+	if (current && formatDateInput(current) === formatDateInput(clicked)) return null;
+	return normalizeDateOnly(clicked);
+};
+
 export const getDayRange = (value: Date) => {
 	const start = new Date(
 		value.getFullYear(),
@@ -40,6 +45,14 @@ export const getDayRange = (value: Date) => {
 		999,
 	);
 	return { start, end };
+};
+
+export const getLocalDayApiRange = (value: Date) => {
+	const dateKey = formatDateInput(value);
+	return {
+		startDate: `${dateKey}T00:00:00.000`,
+		endDate: `${dateKey}T23:59:59.999`,
+	};
 };
 
 const parseTimeString = (value: string) => {
