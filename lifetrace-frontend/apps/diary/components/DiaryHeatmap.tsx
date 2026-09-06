@@ -38,8 +38,10 @@ const GAP = 8;
 
 export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, selectedDate }: DiaryHeatmapProps) {
 	const scrollRef = useRef<HTMLDivElement>(null);
-	const userScrolledRef = useRef(false);
 	const windowKeyRef = useRef<string | null>(null);
+	const snapTimerRef = useRef<number | null>(null);
+	const snappingRef = useRef(false);
+	const lastScrollLeftRef = useRef(0);
 	const now = new Date();
 	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 	const todayKey = formatDateInput(today);
@@ -58,18 +60,56 @@ export function DiaryHeatmap({ dates, dailyCounts, onSelectDate, selectedDate }:
 			: "empty";
 		if (windowKeyRef.current === key) return;
 		windowKeyRef.current = key;
-		userScrolledRef.current = false;
+		snappingRef.current = false;
 		el.scrollLeft = el.scrollWidth;
+		lastScrollLeftRef.current = el.scrollLeft;
 	}, [dates]);
 
+	// 展开自由停靠；任何向回收（朝今天方向）的滚动在手势停稳后
+	// 自动平滑收拢到最右，保证收起 = 展开的还原（右缘始终是今天所在列）
+	const handleScroll = useCallback(() => {
+		const el = scrollRef.current;
+		if (!el) return;
+		const delta = el.scrollLeft - lastScrollLeftRef.current;
+		lastScrollLeftRef.current = el.scrollLeft;
+		if (snapTimerRef.current !== null) {
+			window.clearTimeout(snapTimerRef.current);
+			snapTimerRef.current = null;
+		}
+		if (snappingRef.current) {
+			// 收拢动画期间用户向外拖回：立即交还控制权
+			if (delta < 0) snappingRef.current = false;
+			return;
+		}
+		if (delta > 0) {
+			snapTimerRef.current = window.setTimeout(() => {
+				snapTimerRef.current = null;
+				snappingRef.current = true;
+				el.scrollTo({ left: el.scrollWidth, behavior: "smooth" });
+			}, 140);
+		}
+	}, []);
+
+	useEffect(
+		() => () => {
+			if (snapTimerRef.current !== null) window.clearTimeout(snapTimerRef.current);
+		},
+		[],
+	);
+
 	const markUserScrolled = useCallback(() => {
-		userScrolledRef.current = true;
+		// 用户按下/触摸：取消进行中的收拢，交还滚动控制权
+		if (snapTimerRef.current !== null) {
+			window.clearTimeout(snapTimerRef.current);
+			snapTimerRef.current = null;
+		}
+		snappingRef.current = false;
 	}, []);
 
 	return (
 		<div
 			ref={scrollRef}
-			onWheel={markUserScrolled}
+			onScroll={handleScroll}
 			onPointerDown={markUserScrolled}
 			onTouchStart={markUserScrolled}
 			className="overflow-x-auto pb-1 [scrollbar-width:thin] [overscroll-behavior-x:contain]"
