@@ -134,7 +134,7 @@ export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryH
 			onScroll={handleScroll}
 			onPointerDown={markUserScrolled}
 			onTouchStart={markUserScrolled}
-			className="overflow-x-auto pb-1 [scrollbar-width:thin] [overscroll-behavior-x:contain]"
+			className="max-w-full overflow-x-auto pb-1 [scrollbar-width:thin] [overscroll-behavior-x:contain]"
 		>
 			{/* 格子与月份标签放在同一滚动内容里，宽度同源，保证任何滚动位置下都对齐 */}
 			<div className="space-y-1 w-max">
