@@ -35,8 +35,10 @@ export type PanelFeature =
 export const DEV_IN_PROGRESS_FEATURES: PanelFeature[] = [
 	"activity",
 	"debugShots",
-	"audio",
 ];
+
+/** 曾经位于开发中名单、现已转正的功能；旧浏览器存储里的禁用记录需清除 */
+export const GRADUATED_FEATURES: PanelFeature[] = ["audio"];
 
 /**
  * 所有可用的功能列表

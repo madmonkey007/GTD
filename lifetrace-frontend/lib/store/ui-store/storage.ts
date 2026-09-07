@@ -1,6 +1,6 @@
 import { createJSONStorage } from "zustand/middleware";
 import type { PanelFeature, PanelPosition } from "@/lib/config/panel-config";
-import { ALL_PANEL_FEATURES } from "@/lib/config/panel-config";
+import { ALL_PANEL_FEATURES, GRADUATED_FEATURES } from "@/lib/config/panel-config";
 import type { LayoutPreset, SidebarView, UiStoreState } from "./types";
 import { clampWidth, DEFAULT_PANEL_STATE, validatePanelFeatureMap } from "./utils";
 
@@ -99,7 +99,9 @@ export const createUiStoreStorage = () =>
 					if (Array.isArray(state.disabledFeatures)) {
 						state.disabledFeatures = state.disabledFeatures.filter(
 							(feature: PanelFeature): feature is PanelFeature =>
-								ALL_PANEL_FEATURES.includes(feature),
+								ALL_PANEL_FEATURES.includes(feature) &&
+								// 已转正功能：清除旧存储里的禁用记录（audio 原在开发中名单）
+								!GRADUATED_FEATURES.includes(feature),
 						);
 					} else {
 						state.disabledFeatures = DEFAULT_PANEL_STATE.disabledFeatures;
