@@ -369,6 +369,17 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 
 		const transport = await detectTransport();
 
+		// 乐观置位：点击即进入录音态（工具栏波纹条立即展开），
+		// 不等麦克风授权/WS 握手；失败在 catch 里复位
+		const now = Date.now();
+		set({
+			isRecording: true,
+			recordingStartedAt: now,
+			recordingStartedDate: new Date(),
+			lastFinalEndMs: null,
+			transcriptionStatus: "idle",
+		});
+
 		if (transport === "cloud") {
 			try {
 				// 获取麦克风权限
@@ -386,18 +397,14 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 				const recorder = options ? new MediaRecorder(stream, { mimeType: options }) : new MediaRecorder(stream);
 				mediaRecorderRef = recorder;
 				recorder.start();
-
-				const now = Date.now();
-				set({
-					isRecording: true,
-					recordingStartedAt: now,
-					recordingStartedDate: new Date(),
-					lastFinalEndMs: null,
-					transcriptionStatus: "idle",
-				});
 			} catch (error) {
 				console.error("Failed to start recording:", error);
 				cleanupRecordingResources();
+				set({
+					isRecording: false,
+					recordingStartedAt: null,
+					recordingStartedDate: null,
+				});
 				if (onError) {
 					onError(error as Error);
 				}
@@ -470,16 +477,6 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 
 				source.connect(processor);
 				processor.connect(audioContext.destination);
-
-				// 记录开始时间并更新状态
-				const now = Date.now();
-				set({
-					isRecording: true,
-					recordingStartedAt: now,
-					recordingStartedDate: new Date(),
-					lastFinalEndMs: null,
-					transcriptionStatus: "idle",
-				});
 			};
 
 			ws.onmessage = (event) => {

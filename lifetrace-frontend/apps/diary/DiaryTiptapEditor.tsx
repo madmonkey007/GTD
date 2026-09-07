@@ -768,7 +768,7 @@ export function DiaryTiptapEditor({
 						</div>
 						)}
 					</div>
-					<div className={cn("flex items-center gap-1 ml-auto", isVoiceRecording && "flex-1")}>
+					<div className="flex items-center gap-1 shrink-0 ml-auto">
 						{/* 录音时隐藏字数统计，让波纹条横贯 */}
 						{!isVoiceRecording && (
 						<span className="text-[10px] text-muted-foreground/55 select-none tabular-nums mr-1 hidden @min-[220px]:inline">{wordCount}</span>
