@@ -114,11 +114,15 @@ export function VoiceInputButton({
 					onClick={handleClick}
 					title={title ?? "点击停止录音"}
 					aria-label="停止录音"
-					className="flex h-8 min-w-[96px] flex-1 items-center gap-2 overflow-hidden rounded-lg bg-red-500/[0.07] px-3 text-red-500 transition-colors hover:bg-red-500/[0.12]"
+					className="flex h-8 min-w-[96px] flex-1 items-center gap-2 overflow-hidden rounded-lg bg-foreground/[0.05] px-3 text-foreground transition-colors hover:bg-foreground/[0.1]"
 				>
-					<VoiceWaveform className="h-4 flex-1 justify-between" bars={26} />
+					<VoiceWaveform
+						className="h-4 flex-1 justify-between"
+						bars={26}
+						barClassName="bg-foreground/75"
+					/>
 					<span className="shrink-0 text-xs tabular-nums">{formatTime(elapsedTime)}</span>
-					<span aria-hidden={true} className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-red-500" />
+					<span aria-hidden={true} className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-foreground" />
 				</button>
 			);
 		}

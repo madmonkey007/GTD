@@ -34,6 +34,8 @@ const DOT_COLORS = [
 
 const DOT = 17;
 const GAP = 8;
+// 左侧星期标签列宽（一/三/五），计入网格可用宽度
+const DAY_COL = 14;
 // 日历窗口长度：26 周（182 天），与统计侧 HEATMAP_DAYS 一致
 const HEATMAP_DAYS = 182;
 // 每分钟自检一次跨天：窗口以真实当天为准重建，最右列永远是今天所在列
@@ -43,12 +45,19 @@ const MAX_WEEKS = 26;
 // 宽度未测得前的首帧兜底列数
 const FALLBACK_WEEKS = 10;
 
+// L17 Calendar Heat：圆面积 = 篇数（sqrt 换算），静默日一粒小点
+function dotDiameter(count: number): number {
+	if (count === 0) return 10;
+	return Math.min(16, 7 + Math.sqrt(Math.min(count, 9)) * 3);
+}
+
+const WEEKDAY_LABELS = ["一", "三", "五"];
+
 /**
- * 自适应热力图（方案 A）：ResizeObserver 实测自身内容宽度，动态决定展示的
- * 周列数（不设下限），宽度缩小时只从左侧隐藏较早日期；网格右对齐，
- * 最右一列始终是包含今天的当前周；溢出由 overflow-hidden 兜底裁剪。
+ * 自适应热力图（L17 Calendar Heat 风格）：圆点格 + 顶部月份刻度 + 左侧星期标签 +
+ * 峰值日虚线圈。ResizeObserver 实测自身内容宽度，动态决定展示的周列数（不设下限），
+ * 宽度缩小时只从左侧隐藏较早日期；网格右对齐，最右一列始终是包含今天的当前周。
  * 日历窗口由组件内部生成（每分钟自检跨天），不依赖统计数据的新旧。
- * 抽屉、桌面拖拽侧栏、窗口缩放共用同一套测量逻辑。
  */
 export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryHeatmapProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -93,22 +102,77 @@ export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryH
 
 	const allWeeks = useMemo(() => groupDatesByWeek(dates), [dates]);
 
-	// 容纳下的周列数 = floor((可用宽 + GAP) / (DOT + GAP))；不设最小列数，
+	// 容纳下的周列数 = floor((可用宽 - 星期列 + GAP) / (DOT + GAP))；不设最小列数，
 	// 只取最右侧（最新）的 cols 周，右缘天然是今天所在列
 	const visibleWeeks = useMemo(() => {
 		if (containerWidth <= 0) return allWeeks.slice(-FALLBACK_WEEKS);
-		const fit = Math.floor((containerWidth + GAP) / (DOT + GAP));
+		const fit = Math.floor((containerWidth - DAY_COL - GAP + GAP) / (DOT + GAP));
 		const cols = Math.max(1, Math.min(MAX_WEEKS, fit));
 		return allWeeks.slice(-cols);
 	}, [allWeeks, containerWidth]);
 
 	const monthLabels = useMemo(() => getMonthLabelColumns(visibleWeeks), [visibleWeeks]);
 
+	// 峰值日：可见窗口内篇数最多的一天，画 L17 的虚线圈
+	const peak = useMemo(() => {
+		let best: { key: string; count: number } | null = null;
+		for (const week of visibleWeeks) {
+			for (const day of week.days) {
+				if (!day) continue;
+				const key = formatDateInput(day);
+				const count = dailyCounts.get(key) ?? 0;
+				if (count > 0 && (!best || count > best.count)) best = { key, count };
+			}
+		}
+		return best;
+	}, [visibleWeeks, dailyCounts]);
+
 	return (
 		<div ref={containerRef} className="w-full overflow-hidden">
-			{/* justify-end：万一超宽从左侧溢出被裁剪，右缘（今天列）固定不动 */}
-			<div className="flex justify-end" style={{ gap: GAP }}>
-				{visibleWeeks.map((week) => (
+			{/* 月份标签在上檐：写在「包含当月 1 号」的列上方，带发丝刻度 */}
+			<div className="flex justify-between" style={{ gap: GAP }}>
+				<div aria-hidden="true" style={{ width: DAY_COL }} className="shrink-0" />
+				{visibleWeeks.map((week, index) => {
+					const label = monthLabels.find((m) => m.index === index);
+					return (
+						<div
+							key={formatDateInput(week.weekStart)}
+							className="flex h-[13px] shrink-0 flex-col items-center justify-end gap-[3px]"
+							style={{ width: DOT }}
+						>
+							{label && (
+								<>
+									<span className="text-[8px] font-semibold leading-none tracking-wider text-muted-foreground/70">
+										{label.label}
+									</span>
+									<span className="h-[3px] w-px bg-border" />
+								</>
+							)}
+						</div>
+					);
+				})}
+			</div>
+
+			{/* 网格：左侧星期标签（一/三/五）+ 圆点日历列；整行两端贴齐，左侧标签贴左 */}
+			<div className="mt-[3px] flex justify-between" style={{ gap: GAP }}>
+				<div
+					aria-hidden="true"
+					className="flex shrink-0 flex-col"
+					style={{ width: DAY_COL, gap: GAP }}
+				>
+					{Array.from({ length: 7 }, (_, row) => (
+						<div
+							// biome-ignore lint/suspicious/noArrayIndexKey: 固定 7 行标签
+							key={`wd-${row}`}
+							className="flex h-[17px] items-center justify-start text-[8px] leading-none text-muted-foreground/50"
+						>
+							{WEEKDAY_LABELS.includes(["一", "二", "三", "四", "五", "六", "日"][row])
+								? ["一", "二", "三", "四", "五", "六", "日"][row]
+								: ""}
+						</div>
+					))}
+				</div>
+				{visibleWeeks.map((week, weekIndex) => (
 					<div
 						key={formatDateInput(week.weekStart)}
 						className="flex flex-col items-center"
@@ -130,45 +194,48 @@ export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryH
 							const tooltip = `${day.getMonth() + 1}/${day.getDate()} - ${count} 篇`;
 							const isSelected = key === selectedKey;
 							const isToday = key === todayKey;
+							const isPeak = peak?.key === key;
 							return (
 								<button
 									key={key}
 									type="button"
 									title={tooltip}
-									aria-label={`${tooltip}${isSelected ? "，已选中" : ""}`}
+									aria-label={`${tooltip}${isSelected ? "，已选中" : ""}${isPeak ? "，峰值日" : ""}`}
 									aria-pressed={isSelected}
 									onClick={onSelectDate ? () => onSelectDate(day) : undefined}
 									className={cn(
-										"h-[17px] w-[17px] shrink-0 rounded-[3px] transition-[box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-										DOT_COLORS[getHeatmapLevel(count)],
+										"relative flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full transition-[box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
 										onSelectDate ? "cursor-pointer" : "cursor-default",
 										isSelected
 											? "z-10 scale-110 ring-2 ring-primary ring-offset-2 ring-offset-background"
 											: "hover:ring-1 hover:ring-ring hover:ring-offset-1",
 										isToday && !isSelected && "ring-1 ring-foreground/40",
 									)}
-								/>
+								>
+									<span
+										className={cn(
+											"heat-dot rounded-full",
+											DOT_COLORS[getHeatmapLevel(count)],
+										)}
+										style={{
+											width: dotDiameter(count),
+											height: dotDiameter(count),
+											animationDelay: `${(weekIndex * 0.012 + row * 0.004).toFixed(3)}s`,
+										}}
+									/>
+									{isPeak && !isSelected && (
+										<span
+											aria-hidden="true"
+											className="pointer-events-none absolute -inset-[3px] rounded-full border border-dashed border-foreground/45"
+										/>
+									)}
+								</button>
 							);
 						})}
 					</div>
 				))}
 			</div>
 
-			{/* 月份标签：与格子同宽同间距、同样右对齐，任何宽度下保持列对齐 */}
-			<div className="mt-1 flex justify-end" style={{ gap: GAP }}>
-				{visibleWeeks.map((week, index) => {
-					const label = monthLabels.find((m) => m.index === index);
-					return (
-						<div
-							key={formatDateInput(week.weekStart)}
-							className="text-[9px] text-muted-foreground/50 leading-none text-center whitespace-nowrap"
-							style={{ width: DOT }}
-						>
-							{label ? label.label : ""}
-						</div>
-					);
-				})}
-			</div>
 		</div>
 	);
 }
