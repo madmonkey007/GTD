@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import TurndownService from "turndown";
 import { uploadJournalImage } from "@/lib/api";
 import { compressImageIfNeeded } from "@/lib/imageCompress";
+import { useAudioRecordingStore } from "@/lib/store/audio-recording-store";
 import { NoteImageFrame } from "./components/NoteImageFrame";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -446,6 +447,31 @@ export function DiaryTiptapEditor({
 	const editorRef = useRef<Editor | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
+	// 语音输入实时回显：当前 partial 文本在编辑器里占据的范围。
+	// DashScope partial 为累计全文，每次原位替换该范围即实现"边说边出字"；
+	// 停止时用最终文本做最后一次替换（无 partial 时退化为追加）。
+	const voiceRangeRef = useRef<{ from: number; to: number } | null>(null);
+	const isVoiceRecording = useAudioRecordingStore((state) => state.isRecording);
+	useEffect(() => {
+		if (!isVoiceRecording) voiceRangeRef.current = null;
+	}, [isVoiceRecording]);
+
+	const insertVoiceText = useCallback((text: string) => {
+		const ed = editorRef.current;
+		const clean = text.trim();
+		if (!ed || !clean) return;
+		const existing = voiceRangeRef.current;
+		if (existing) {
+			const { from } = existing;
+			ed.chain().focus().insertContentAt({ from, to: existing.to }, ` ${clean}`).run();
+			voiceRangeRef.current = { from, to: from + 1 + clean.length };
+		} else {
+			const from = ed.state.selection.from;
+			ed.chain().focus().insertContent(` ${clean}`).run();
+			voiceRangeRef.current = { from, to: from + 1 + clean.length };
+		}
+	}, []);
+
 	const insertImages = useCallback((items: { src: string; alt: string }[]) => {
 		const ed = editorRef.current;
 		if (!ed || items.length === 0) return;
@@ -742,10 +768,8 @@ export function DiaryTiptapEditor({
 							ownerId="diary-tiptap"
 							stopPropagation
 							editorRef={editorRef}
-							onTranscript={(text) => {
-								const ed = editorRef.current;
-								if (ed) ed.chain().focus().insertContent(` ${text}`).run();
-							}}
+							onTranscript={(text) => insertVoiceText(text)}
+							onPartial={(text) => insertVoiceText(text)}
 						/>
 						{toolbarEnd}
 					</div>
