@@ -447,18 +447,26 @@ export function DiaryTiptapEditor({
 	const editorRef = useRef<Editor | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	// 语音输入实时回显：当前 partial 文本在编辑器里占据的范围。
-	// DashScope partial 为累计全文，每次原位替换该范围即实现"边说边出字"；
-	// 停止时用最终文本做最后一次替换（无 partial 时退化为追加）。
+	// 语音输入实时回显：partial 按句推送（只含当前句）。
+	// voiceBaseRef 累计已完成句子，live span 原位替换「已完成 + 当前 partial」，
+	// 一句识别完成即固化，第二句从空格后继续实时追加，不再互相覆盖。
 	const voiceRangeRef = useRef<{ from: number; to: number } | null>(null);
+	const voiceBaseRef = useRef("");
+	const voiceDoneRef = useRef(false);
 	const isVoiceRecording = useAudioRecordingStore((state) => state.isRecording);
 	useEffect(() => {
-		if (!isVoiceRecording) voiceRangeRef.current = null;
+		if (isVoiceRecording) {
+			voiceRangeRef.current = null;
+			voiceBaseRef.current = "";
+			voiceDoneRef.current = false;
+		} else {
+			voiceRangeRef.current = null;
+		}
 	}, [isVoiceRecording]);
 
-	const insertVoiceText = useCallback((text: string) => {
+	const insertVoiceDisplay = useCallback((full: string) => {
 		const ed = editorRef.current;
-		const clean = text.trim();
+		const clean = full.trim();
 		if (!ed || !clean) return;
 		const existing = voiceRangeRef.current;
 		if (existing) {
@@ -768,8 +776,28 @@ export function DiaryTiptapEditor({
 							ownerId="diary-tiptap"
 							stopPropagation
 							editorRef={editorRef}
-							onTranscript={(text) => insertVoiceText(text)}
-							onPartial={(text) => insertVoiceText(text)}
+							onTranscript={(text) => {
+								// 本地通道已在录音中实时回显，这里只做最后一次权威替换；
+								// 云端通道（无实时回显）则在此追加
+								if (!voiceDoneRef.current && text.trim()) {
+									insertVoiceDisplay(text.trim());
+									voiceDoneRef.current = true;
+								}
+							}}
+							onPartial={(text) => {
+								if (voiceDoneRef.current) return;
+								const full = [voiceBaseRef.current.trim(), text.trim()]
+									.filter(Boolean)
+									.join(" ");
+								insertVoiceDisplay(full);
+							}}
+							onSegmentFinal={(text) => {
+								if (voiceDoneRef.current) return;
+								voiceBaseRef.current = [voiceBaseRef.current.trim(), text.trim()]
+									.filter(Boolean)
+									.join(" ");
+								insertVoiceDisplay(voiceBaseRef.current);
+							}}
 						/>
 						{toolbarEnd}
 					</div>

@@ -8,8 +8,10 @@ import { toastError, toastWarning } from "@/lib/toast";
 export interface UseVoiceInputOptions {
 	/** 录音结束，把 final 文本追加到输入框 */
 	onTranscript: (text: string) => void;
-	/** 可选：实时 partial 预览 */
+	/** 可选：实时 partial 预览（按句推送，只含当前句） */
 	onPartial?: (text: string) => void;
+	/** 可选：一句话识别完成（is_final），用于实时固化该句 */
+	onSegmentFinal?: (text: string) => void;
 	/** 默认 true：启动前用 useConfig 探测 ASR key 是否已配置 */
 	checkConfig?: boolean;
 	/** 输入框唯一标识：跨面板切换后恢复该输入框的录音态 */
@@ -160,9 +162,11 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResul
 					voiceFinalBuffer = voiceFinalBuffer
 						? `${voiceFinalBuffer} ${trimmed}`
 						: trimmed;
+					// 单句识别完成：实时固化该句（编辑器边说边出字的关键回调）
+					optionsRef.current.onSegmentFinal?.(trimmed);
 				}
 			} else {
-				// partial 是累计全文，记录最新值作为回填主来源
+				// partial 按句推送，只含当前句的实时预览
 				voicePartialBuffer = text;
 				optionsRef.current.onPartial?.(text);
 			}
@@ -188,9 +192,13 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResul
 		setIsThisRecording(false);
 		activeVoiceOwnerId = null;
 		// 立即（同步）用当前已到达的文本回填输入框。
-		// partial 是累计全文，录音过程中已稳稳到达；停止瞬间即可用，无需等 WS final。
-		// 优先 final，回退最新 partial。
-		const text = (voiceFinalBuffer.trim() || voicePartialBuffer.trim());
+		// final 句子 + 未结束句的 partial 拼接（partial 已被 final 覆盖时去重）。
+		const finalText = voiceFinalBuffer.trim();
+		const partialText = voicePartialBuffer.trim();
+		let text = finalText;
+		if (partialText && !finalText.includes(partialText)) {
+			text = finalText ? `${finalText} ${partialText}` : partialText;
+		}
 		voiceFinalBuffer = "";
 		voicePartialBuffer = "";
 		if (text) {

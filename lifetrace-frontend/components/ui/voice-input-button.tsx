@@ -8,6 +8,8 @@ import { useVoiceInput } from "@/lib/hooks/useVoiceInput";
 interface VoiceInputButtonProps {
 	onTranscript: (text: string) => void;
 	onPartial?: (text: string) => void;
+	/** 可选：一句话识别完成（is_final）时回调，用于实时固化该句 */
+	onSegmentFinal?: (text: string) => void;
 	className?: string;
 	title?: string;
 	/** Tiptap 工具栏内点击时阻止冒泡 */
@@ -23,6 +25,7 @@ interface VoiceInputButtonProps {
 export function VoiceInputButton({
 	onTranscript,
 	onPartial,
+	onSegmentFinal,
 	className = "flex h-8 w-8 items-center justify-center rounded-lg",
 	title,
 	stopPropagation,
@@ -33,6 +36,7 @@ export function VoiceInputButton({
 	const voice = useVoiceInput({
 		onTranscript,
 		onPartial,
+		onSegmentFinal,
 		ownerId,
 		stopOnUnmount,
 	});
