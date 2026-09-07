@@ -29,7 +29,7 @@ export function OfflineBadge() {
 			: "bg-amber-500";
 
 	return (
-		<div className="fixed bottom-16 right-3 z-[9999] flex flex-col items-end gap-2">
+		<div className="fixed bottom-16 left-3 z-[9999] flex flex-col items-start gap-2">
 			{open && (
 				<div className="rounded-lg border bg-background p-3 text-xs shadow-lg min-w-44">
 					<div className="mb-2 font-medium">

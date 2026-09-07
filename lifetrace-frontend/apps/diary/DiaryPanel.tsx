@@ -482,6 +482,15 @@ export function DiaryPanel() {
 				// 跳过本次自动回填，避免第一条笔记被选中且内容被替换进编辑器
 				skipExternalSync.current = false;
 				return;
+			} else if (
+				!draft.id &&
+				!draft.userNotes &&
+				!draft.name
+			) {
+				// 编辑器当前是全新空草稿（如刚用快捷键快速记录提交完）：
+				// 外部刷新带来的 activeJournal 变化不回填编辑器，
+				// 否则新笔记会被选中（高亮）且内容重新写回输入框
+				return;
 			}
 		} else {
 			// 首次挂载（含从其他面板切回）：仅等待数据加载完成并锁定初始同步键，不回填编辑器。
