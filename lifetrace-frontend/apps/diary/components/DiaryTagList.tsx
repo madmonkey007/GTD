@@ -1,9 +1,10 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Tag } from "lucide-react";
+import { ChevronDown, ChevronRight, MoreHorizontal, Tag } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { TagMenuPopup } from "./TagMenu";
 
 interface TagsWithCount {
 	tagName: string;
@@ -19,6 +20,8 @@ interface DiaryTagListProps {
 export function DiaryTagList({ tagsWithCount, selectedTag, onSelectTag }: DiaryTagListProps) {
 	const t = useTranslations("journalPanel");
 	const [expanded, setExpanded] = useState(true);
+	const [menu, setMenu] = useState<{ tag: string; rect: DOMRect } | null>(null);
+	const locale = document.documentElement.lang || "zh";
 	const Chevron = expanded ? ChevronDown : ChevronRight;
 
 	return (
@@ -39,29 +42,54 @@ export function DiaryTagList({ tagsWithCount, selectedTag, onSelectTag }: DiaryT
 					<div className="flex flex-col gap-0.5">
 						{tagsWithCount.map(({ tagName, count }) => {
 							const isSelected = selectedTag === tagName;
+							const hasMenu = menu?.tag === tagName;
 							return (
-								<button
-									type="button"
+								<div
 									key={tagName}
-									onClick={() => onSelectTag?.(isSelected ? null : tagName)}
+									role="group"
 									className={cn(
-										"flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
-										"hover:bg-muted/40",
+										"group/tagitem flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+										hasMenu ? "bg-muted/40" : "hover:bg-muted/40",
 										isSelected
 											? "bg-primary/10 text-primary font-medium"
 											: "text-muted-foreground",
 									)}
 								>
-									<Tag className="h-3 w-3 shrink-0" />
-									<span className="flex-1 truncate text-left">{tagName}</span>
+									<button
+										type="button"
+										className="flex flex-1 items-center gap-2 text-left min-w-0"
+										onClick={() => onSelectTag?.(isSelected ? null : tagName)}
+									>
+										<Tag className="h-3 w-3 shrink-0" />
+										<span className="flex-1 truncate">{tagName}</span>
+									</button>
 									<span className="text-[10px] font-medium tabular-nums text-muted-foreground/70">
 										{count}
 									</span>
-								</button>
+									<button
+										type="button"
+										aria-label={`${tagName} menu`}
+										className="shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover/tagitem:opacity-100 focus-visible:opacity-100 hover:text-foreground cursor-pointer"
+										onClick={(e) => {
+											e.stopPropagation();
+											setMenu({ tag: tagName, rect: e.currentTarget.getBoundingClientRect() });
+										}}
+									>
+										<MoreHorizontal className="h-3.5 w-3.5" />
+									</button>
+								</div>
 							);
 						})}
 					</div>
 				))}
+			{menu && (
+				<TagMenuPopup
+					tagName={menu.tag}
+					locale={locale}
+					anchorRect={menu.rect}
+					onClose={() => setMenu(null)}
+				/>
+			)}
 		</div>
 	);
 }

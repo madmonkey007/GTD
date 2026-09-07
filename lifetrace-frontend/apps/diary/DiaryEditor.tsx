@@ -1177,7 +1177,7 @@ export function DiaryEditor({
 										</div>
 									);
 								})()}
-											<NoteMarkdown content={displayContent.join("\n")} className="text-foreground/80" />
+											<NoteMarkdown content={displayContent.join("\n")} className="text-foreground/80" withTagMenu />
 											{!isExpanded && isLong && (
 												<span className="text-muted-foreground/40">{"\n"}...</span>
 											)}

@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import remarkGfm from "remark-gfm";
 import { NoteImageFrame } from "./NoteImageFrame";
+import { TagMenuPopup } from "./TagMenu";
 
 /**
  * 笔记卡片 markdown 渲染：支持列表、粗体、标题等，#tag 经 rehypeRaw 渲染为标签 chip；
@@ -50,26 +51,67 @@ function NoteImage({ src, alt }: React.ImgHTMLAttributes<HTMLImageElement>) {
 	);
 }
 
-export function NoteMarkdown({ content, className = "" }: { content: string; className?: string }) {
+export function NoteMarkdown({
+	content,
+	className = "",
+	withTagMenu = false,
+}: {
+	content: string;
+	className?: string;
+	/** 开启后每个标签 chip 右侧 hover 显示 "..." 菜单（编辑/删除标签） */
+	withTagMenu?: boolean;
+}) {
 	const segments = useMemo(() => segmentContent(content), [content]);
+	const [menu, setMenu] = useState<{ tag: string; rect: DOMRect } | null>(null);
+	const handleTagMenuClick = (e: React.MouseEvent) => {
+		if (!withTagMenu) return;
+		const btn = (e.target as HTMLElement).closest?.("[data-tag-menu]");
+		if (!(btn instanceof HTMLElement)) return;
+		e.stopPropagation();
+		e.preventDefault();
+		setMenu({ tag: btn.getAttribute("data-tag-menu") || "", rect: btn.getBoundingClientRect() });
+	};
 	return (
-		<div className={`text-sm text-muted-foreground leading-relaxed space-y-1 ${className}`}>
+		<div
+			role="group"
+			onKeyDown={(e) => {
+				if (e.key === "Enter") handleTagMenuClick(e as unknown as React.MouseEvent);
+			}}
+			className={`group/tag text-sm text-muted-foreground leading-relaxed space-y-1 ${className}`}
+			onClick={handleTagMenuClick}
+		>
 			{segments.map((seg, i) =>
 				seg.type === "images" ? (
 					<NoteImageGrid key={i} images={seg.images} />
 				) : (
-					<TextBlock key={i} text={seg.text} />
+					<TextBlock key={i} text={seg.text} withTagMenu={withTagMenu} />
 				),
 			)}
+			{menu &&
+				typeof document !== "undefined" &&
+				createPortal(
+					<TagMenuPopup
+						tagName={menu.tag}
+						locale={document.documentElement.lang || "zh"}
+						anchorRect={menu.rect}
+						onClose={() => setMenu(null)}
+					/>,
+					document.body,
+				)}
 		</div>
 	);
 }
 
 /** 文本段：#tag 预处理 + ReactMarkdown 渲染 */
-function TextBlock({ text }: { text: string }) {
+function TextBlock({ text, withTagMenu }: { text: string; withTagMenu?: boolean }) {
 	const processed = text.replace(
 		/#(\S+)/g,
-		'<span class="inline-flex items-center rounded-[50px] px-[10px] py-[3px] font-body text-xs tracking-[0.02em]" style="background-color: color-mix(in oklch, var(--color-card-primary, var(--primary)) 10%, transparent); color: var(--color-card-primary, var(--primary));">#$1</span>',
+		(_match, tag: string) =>
+			`<span class="relative inline-flex items-center rounded-[50px] px-[10px] py-[3px] font-body text-xs tracking-[0.02em] group/tagchip" style="background-color: color-mix(in oklch, var(--color-card-primary, var(--primary)) 10%, transparent); color: var(--color-card-primary, var(--primary));"><span>#${tag}</span>${
+				withTagMenu
+					? `<button type="button" data-tag-menu="${tag}" aria-label="${tag}" class="ml-0.5 inline-flex items-center justify-center opacity-0 transition-opacity group-hover/tagchip:opacity-100 cursor-pointer" style="font-weight:700;">&#8943;</button>`
+					: ""
+			}</span>`,
 	);
 	return (
 		<ReactMarkdown

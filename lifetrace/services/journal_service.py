@@ -593,6 +593,89 @@ class JournalService:
             raise HTTPException(status_code=404, detail="日记不存在")
         return JournalResponse(**journal)
 
+    def rename_tag(self, tag_name: str, new_name: str) -> dict[str, Any]:
+        """重命名标签（全局）：更新标签实体并同步所有笔记正文中的 #tag 文本"""
+        tag_name = (tag_name or "").strip()
+        new_name = (new_name or "").strip()
+        if not tag_name:
+            raise HTTPException(status_code=400, detail="缺少标签名称")
+        if not new_name:
+            raise HTTPException(status_code=400, detail="标签名称不能为空")
+        affected = self._journals_with_tag(tag_name)
+        result = self.journal_manager.rename_tag_by_name(tag_name, new_name)
+        if result is None:
+            raise HTTPException(status_code=404, detail="标签不存在")
+        if affected:
+            self._sync_tag_text(affected)
+        tag_id, final_name = result
+        return {"id": tag_id, "tag_name": final_name}
+
+    def delete_tag(self, tag_name: str) -> list[int]:
+        """删除标签（全局）：移除所有笔记的关联并清理正文中的 #tag 文本"""
+        tag_name = (tag_name or "").strip()
+        if not tag_name:
+            raise HTTPException(status_code=400, detail="缺少标签名称")
+        affected = self._journals_with_tag(tag_name)
+        removed = self.journal_manager.delete_tag_by_name(tag_name)
+        if not removed:
+            return []
+        self._sync_tag_text(affected)
+        return affected
+
+    def _journals_with_tag(self, tag_name: str) -> list[int]:
+        """列出带指定标签的全部笔记ID（受影响集合需在删除前取好）"""
+        ids: list[int] = []
+        offset = 0
+        while True:
+            batch = self.journal_manager.list_journals(
+                limit=200, offset=offset, start_date=None, end_date=None
+            )
+            for j in batch:
+                if any(t.get("tag_name") == tag_name for t in j.get("tags", [])):
+                    ids.append(j["id"])
+            if len(batch) < 200:
+                break
+            offset += 200
+        return ids
+
+    def _sync_tag_text(self, journal_ids: list[int]) -> None:
+        """标签改名/删除后，按笔记最新标签列表重写正文 #tag 文本并重建向量索引。
+
+        对每条受影响笔记：剔除正文里已无对应标签实体的 #tag（删除/改名旧名），
+        再把标签列表中缺失的 #标签 补进正文（改名合并到新名）。
+        """
+        try:
+            for journal_id in dict.fromkeys(journal_ids):
+                current = self.journal_manager.get_journal(journal_id)
+                if not current:
+                    continue
+                notes = current.get("user_notes") or ""
+                tag_names = [t["tag_name"] for t in current.get("tags", [])]
+                extracted = self._auto_extract_tags(notes)
+                updated = notes
+                for t in extracted:
+                    if t not in tag_names:
+                        updated = re.sub(
+                            rf"(^|\s)#{re.escape(t)}(?=\s|[，。；！？,.;!?]|$)",
+                            r"\1",
+                            updated,
+                        )
+                if tag_names:
+                    updated = self._ensure_tags_in_content(updated, tag_names)
+                if updated != notes:
+                    self.journal_manager.update_journal(
+                        journal_id,
+                        JournalUpdatePayload(user_notes=updated),
+                    )
+                self._index_journal_async(
+                    journal_id,
+                    current.get("name", ""),
+                    updated,
+                    tag_names,
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"同步标签正文文本失败: {exc}")
+
     def list_journals(
         self,
         limit: int,

@@ -262,6 +262,39 @@ async def update_journal(
         raise HTTPException(status_code=500, detail=f"更新日记失败: {e!s}") from e
 
 
+@router.put("/api/journals/tags/{tag_name}")
+async def rename_tag(
+    tag_name: str = Path(..., description="原标签名称"),
+    payload: dict | None = None,
+    service: JournalService = Depends(get_journal_service),
+):
+    """重命名标签（全局生效，同步所有笔记正文）"""
+    try:
+        new_name = (payload or {}).get("tag_name") or (payload or {}).get("tagName") or ""
+        return service.rename_tag(tag_name, new_name)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"重命名标签失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"重命名标签失败: {e!s}") from e
+
+
+@router.delete("/api/journals/tags/{tag_name}")
+async def delete_tag(
+    tag_name: str = Path(..., description="标签名称"),
+    service: JournalService = Depends(get_journal_service),
+):
+    """删除标签（全局生效，从所有笔记中移除该标签）"""
+    try:
+        service.delete_tag(tag_name)
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除标签失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"删除标签失败: {e!s}") from e
+
+
 @router.post("/api/journals/{journal_id}/generate-title", response_model=JournalResponse)
 async def generate_journal_title(
     journal_id: int = Path(..., description="日记ID"),

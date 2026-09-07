@@ -178,6 +178,81 @@ class JournalManager:
 
 
 
+    def _get_tag_by_name(self, session, tag_name: str) -> Tag | None:
+        return (
+            session.query(Tag)
+            .filter(col(Tag.tag_name) == tag_name)
+            .filter(col(Tag.deleted_at).is_(None))
+            .first()
+        )
+
+    def rename_tag_by_name(self, tag_name: str, new_name: str) -> tuple[int, str] | None:
+        """重命名标签（全局生效）。新名已存在时把关联合并过去并软删旧标签。
+        返回 (标签ID, 最终名称)；会话关闭后 ORM 对象不可访问，故返回简单元组。"""
+        tag_name = (tag_name or "").strip()
+        new_name = (new_name or "").strip()
+        if not tag_name or not new_name or len(new_name) > 50 or tag_name == new_name:
+            return None
+        try:
+            with self.db_base.get_session() as session:
+                tag = self._get_tag_by_name(session, tag_name)
+                if not tag or tag.id is None:
+                    return None
+                existing = self._get_tag_by_name(session, new_name)
+                if existing is not None and existing.id is not None:
+                    rels = (
+                        session.query(JournalTagRelation)
+                        .filter(col(JournalTagRelation.tag_id) == tag.id)
+                        .all()
+                    )
+                    for rel in rels:
+                        dup = (
+                            session.query(JournalTagRelation)
+                            .filter(
+                                col(JournalTagRelation.journal_id) == rel.journal_id,
+                                col(JournalTagRelation.tag_id) == existing.id,
+                            )
+                            .first()
+                        )
+                        if dup is None:
+                            rel.tag_id = existing.id
+                        else:
+                            session.delete(rel)
+                    tag.deleted_at = get_utc_now()
+                    session.flush()
+                    return existing.id, existing.tag_name
+                tag.tag_name = new_name
+                session.flush()
+                return tag.id, tag.tag_name
+        except SQLAlchemyError as e:
+            logger.error(f"重命名标签失败 tag={tag_name!r}: {e}")
+            return None
+
+    def delete_tag_by_name(self, tag_name: str) -> list[int]:
+        """删除标签并移除所有笔记的该标签关联，返回受影响的笔记ID列表"""
+        tag_name = (tag_name or "").strip()
+        if not tag_name:
+            return []
+        try:
+            with self.db_base.get_session() as session:
+                tag = self._get_tag_by_name(session, tag_name)
+                if not tag or tag.id is None:
+                    return []
+                rels = (
+                    session.query(JournalTagRelation)
+                    .filter(col(JournalTagRelation.tag_id) == tag.id)
+                    .all()
+                )
+                affected = [rel.journal_id for rel in rels]
+                for rel in rels:
+                    session.delete(rel)
+                tag.deleted_at = get_utc_now()
+                session.flush()
+                return affected
+        except SQLAlchemyError as e:
+            logger.error(f"删除标签失败 tag={tag_name!r}: {e}")
+            return []
+
     def _replace_tags(self, session, journal_id: int, tags: list[str] | None) -> None:
         """替换日记标签关联"""
         session.query(JournalTagRelation).filter_by(journal_id=journal_id).delete(
