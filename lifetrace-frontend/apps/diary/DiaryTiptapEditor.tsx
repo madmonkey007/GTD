@@ -678,6 +678,7 @@ export function DiaryTiptapEditor({
 				.ProseMirror li::marker { color: rgb(var(--muted-foreground) / 0.8); }
 			`}</style>
 <div className={`DiaryTiptapEditor-toolbar @container relative flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5 ${variant === "sheet" ? "px-0 pb-2 pt-2" : "px-3 pb-2 pt-1"}`}>
+					{!isVoiceRecording && (
 					<div className="flex items-center gap-0.5 min-w-0">
 						{/* 常驻：加粗 / 插入图片（多列窄卡片下其余收入「…」菜单，避免溢出） */}
 						{FORMAT_ACTIONS.filter((a) => a.key === "bold").map(({ key, icon: Icon, title }) => (
@@ -768,13 +769,17 @@ export function DiaryTiptapEditor({
 						</div>
 						)}
 					</div>
+					)}
 					<div className="flex items-center gap-1 shrink-0 ml-auto">
-						{/* 字数统计 */}
+						{/* 录音时隐藏字数统计，让波纹条横贯 */}
+						{!isVoiceRecording && (
 						<span className="text-[10px] text-muted-foreground/55 select-none tabular-nums mr-1 hidden @min-[220px]:inline">{wordCount}</span>
+						)}
 						{/* 语音输入（发送按钮左侧） */}
 						<VoiceInputButton
 							ownerId="diary-tiptap"
 							stopPropagation
+							expandOnRecord={true}
 							editorRef={editorRef}
 							onTranscript={(text) => {
 								// 本地通道已在录音中实时回显，这里只做最后一次权威替换；

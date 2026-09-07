@@ -4,6 +4,7 @@ import { Mic, MicOff } from "lucide-react";
 import { useEffect, useState, type MouseEvent } from "react";
 import { useConfig } from "@/lib/query";
 import { useVoiceInput } from "@/lib/hooks/useVoiceInput";
+import { VoiceWaveform } from "./voice-waveform";
 
 interface VoiceInputButtonProps {
 	onTranscript: (text: string) => void;
@@ -20,6 +21,8 @@ interface VoiceInputButtonProps {
 	ownerId?: string;
 	/** 卸载时停止录音（弹窗类输入框传 true） */
 	stopOnUnmount?: boolean;
+	/** 录音时按钮展开为横贯工具栏的波纹条（占满剩余空间，点击停止） */
+	expandOnRecord?: boolean;
 }
 
 export function VoiceInputButton({
@@ -32,6 +35,7 @@ export function VoiceInputButton({
 	editorRef,
 	ownerId,
 	stopOnUnmount,
+	expandOnRecord = false,
 }: VoiceInputButtonProps) {
 	const voice = useVoiceInput({
 		onTranscript,
@@ -101,6 +105,23 @@ export function VoiceInputButton({
 		"transition-colors hover:bg-foreground/5 text-muted-foreground";
 
 	if (voice.isThisRecording) {
+		// 展开态：波纹条横贯工具栏剩余空间，点击任意位置停止
+		if (expandOnRecord) {
+			return (
+				<button
+					type="button"
+					onMouseDown={handleMouseDown}
+					onClick={handleClick}
+					title={title ?? "点击停止录音"}
+					aria-label="停止录音"
+					className="flex h-8 min-w-[96px] flex-1 items-center gap-2 overflow-hidden rounded-lg bg-red-500/[0.07] px-3 text-red-500 transition-colors hover:bg-red-500/[0.12]"
+				>
+					<VoiceWaveform className="h-4 flex-1 justify-between" bars={26} />
+					<span className="shrink-0 text-xs tabular-nums">{formatTime(elapsedTime)}</span>
+					<span aria-hidden={true} className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-red-500" />
+				</button>
+			);
+		}
 		return (
 			<button
 				type="button"

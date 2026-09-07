@@ -583,3 +583,34 @@ html body.dark .driver-popover {
 *::-webkit-scrollbar-corner {
 	background: transparent;
 }
+
+/* 语音录音按钮内的实时波纹（VoiceInputButton 展开态） */
+@keyframes voice-wave-bar {
+	0%,
+	100% {
+		transform: scaleY(0.25);
+	}
+	50% {
+		transform: scaleY(1);
+	}
+}
+
+/* 笔记热力图圆点入场（L17 Calendar Heat）：quarticOut 快进快停，逐点错峰 */
+@keyframes heat-pop {
+	from {
+		transform: scale(0);
+		opacity: 0;
+	}
+	to {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+.heat-dot {
+	animation: heat-pop 0.4s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+	.heat-dot {
+		animation: none;
+	}
+}
