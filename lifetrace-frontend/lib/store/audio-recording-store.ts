@@ -8,12 +8,12 @@
  * - 组件卸载时不清理录音资源，只有显式调用 stopRecording 才会停止
  *
  * 双转写通道（启动时探测后端能力自动选路）：
- * - cloud：POST /api/cloud-audio/uploads 预签名上传（Supabase）→ DashScope
- *   paraformer 异步文件转写 → 轮询结果。适用于 Vercel serverless 后端
- *   （不支持长连接 WebSocket）。
- * - local：浏览器 WebAudio 采集 PCM16(16k) 直推后端 WebSocket
- *   /api/audio/transcribe（fun-asr-realtime），实时返回 partial 文本。
- *   适用于本地 Mac 后端（没有 /api/cloud-audio 路由）。
+ * - local：浏览器 WebAudio 采集 PCM16(16k) 经 WebSocket 直推后端
+ *   /api/audio/transcribe（fun-asr-realtime），实时返回文本。
+ *   适用于本地 Mac 后端。
+ * - cloud：同样采集 PCM16，但只在本地缓存，停止后整体 POST 到
+ *   /api/cloud-audio/transcriptions，由 Vercel 函数经出站 WebSocket
+ *   转交 fun-asr-realtime 并同步返回文本（serverless 不支持入站 WS）。
  */
 
 import { create } from "zustand";
@@ -93,7 +93,7 @@ interface AudioRecordingActions {
 		onError?: ErrorCallback,
 		is24x7?: boolean,
 	) => Promise<void>;
-	/** 停止录音（云端：上传并轮询转写；本地：发送 stop 指令） */
+	/** 停止录音（本地：发送 stop 指令；云端：整体提交 PCM 并等待转写文本） */
 	stopRecording: (segmentTimestamps?: number[]) => Promise<void>;
 	/** 重置时间戳引用（用于新段落） */
 	resetLastFinalEnd: () => void;
@@ -129,9 +129,8 @@ type AudioRecordingStore = AudioRecordingState & AudioRecordingActions;
 let wsRef: WebSocket | null = null;
 let audioContextRef: AudioContext | null = null;
 let processorRef: ScriptProcessorNode | null = null;
-let mediaRecorderRef: MediaRecorder | null = null;
 let mediaStreamRef: MediaStream | null = null;
-let recordingChunksRef: Blob[] = [];
+let pcmChunksRef: Int16Array[] = [];
 
 // 回调函数引用
 let currentOnTranscription: TranscriptionCallback | null = null;
@@ -197,7 +196,7 @@ function cleanupRecordingResources(
 	segmentTimestamps?: number[],
 	isReconnecting = false,
 ): void {
-	// 本地通道：停止 WebAudio
+	// WebAudio 采集（两种通道共用）
 	if (processorRef) {
 		try {
 			processorRef.disconnect();
@@ -215,15 +214,6 @@ function cleanupRecordingResources(
 		}
 		audioContextRef = null;
 	}
-	// 云端通道：停止 MediaRecorder
-	if (mediaRecorderRef && mediaRecorderRef.state !== "inactive") {
-		try {
-			mediaRecorderRef.stop();
-		} catch {
-			// ignore
-		}
-	}
-	mediaRecorderRef = null;
 	if (mediaStreamRef) {
 		for (const track of mediaStreamRef.getTracks()) {
 			track.stop();
@@ -266,66 +256,25 @@ function cleanupRecordingResources(
 	}
 }
 
-function getPreferredAudioMimeType(): string | undefined {
-	const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
-	return candidates.find((type) => MediaRecorder.isTypeSupported(type));
-}
-
-function fileExtensionFromMimeType(type: string): string {
-	if (type.includes("mp4")) return "m4a";
-	if (type.includes("mpeg")) return "mp3";
-	if (type.includes("wav")) return "wav";
-	return "webm";
-}
-
-function waitForRecorderStop(recorder: MediaRecorder): Promise<Blob> {
-	return new Promise((resolve, reject) => {
-		recorder.ondataavailable = (event) => {
-			if (event.data.size > 0) recordingChunksRef.push(event.data);
-		};
-		recorder.onerror = () => reject(new Error("录音失败，请重试"));
-		recorder.onstop = () => {
-			const type = recorder.mimeType || "audio/webm";
-			resolve(new Blob(recordingChunksRef, { type }));
-		};
-	});
-}
-
 async function fetchJson<T>(path: string, init: RequestInit): Promise<T> {
-	const response = await fetch(`${getApiBaseUrl()}${path}`, init);
+	const response = await fetch(`${getApiBaseUrl()}/${path.replace(/^\//, "")}`, init);
 	if (!response.ok) throw new Error(`音频云端服务返回 ${response.status}`);
 	return response.json() as Promise<T>;
 }
 
 /**
- * 云端通道：录音以 multipart 单请求直传后端，后端经 DashScope SDK
- * 的 file:// 本地上传转交 paraformer-v2 异步转写，前端轮询结果
- * @param onTranscribing 提交完成、开始轮询时回调
+ * 云端通道：整段 PCM16 提交后端，同步等待转写文本
  */
-async function transcribeCloudRecording(blob: Blob, onTranscribing?: () => void): Promise<string> {
-	if (blob.size === 0) throw new Error("没有录到可上传的音频");
-	if (blob.size > 4 * 1024 * 1024) throw new Error("录音超过 4MB 限制，请分段录制");
-	const extension = fileExtensionFromMimeType(blob.type);
-	const form = new FormData();
-	form.append("file", blob, `recording.${extension}`);
-	const submit = await fetchJson<{ task_id: string; status: string }>("/api/cloud-audio/transcriptions", {
-		method: "POST",
-		headers: authHeaders(),
-		body: form,
-	});
-
+async function transcribeCloudRecording(pcm: Blob, onTranscribing?: () => void): Promise<string> {
+	if (pcm.size === 0) throw new Error("没有录到可上传的音频");
+	if (pcm.size > 4 * 1024 * 1024) throw new Error("录音超过 4MB 限制，请分段录制");
 	onTranscribing?.();
-
-	for (let attempt = 0; attempt < 90; attempt++) {
-		await new Promise((resolve) => setTimeout(resolve, 2000));
-		const result = await fetchJson<{ status: string; text?: string; error?: string }>(
-			`/api/cloud-audio/transcriptions/${submit.task_id}`,
-			{ method: "GET", headers: authHeaders() },
-		);
-		if (result.status === "completed") return result.text || "";
-		if (result.status === "failed") throw new Error(result.error || "转写失败");
-	}
-	throw new Error("转写仍在处理中，请稍后重试");
+	const result = await fetchJson<{ text: string; error?: string }>("/api/cloud-audio/transcriptions", {
+		method: "POST",
+		headers: authHeaders({ "Content-Type": "audio/l16;rate=16000" }),
+		body: pcm,
+	});
+	return result.text || "";
 }
 
 // ========== Zustand Store ==========
@@ -371,308 +320,313 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 			transcriptionStatus: "idle",
 		});
 
-		if (transport === "cloud") {
-			try {
-				// 获取麦克风权限
-				console.log("[AudioRecordingStore] 请求麦克风权限...");
-				const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-				console.log("[AudioRecordingStore] ✅ 麦克风权限已获取");
-				mediaStreamRef = stream;
-				recordingChunksRef = [];
-
-				// 保存回调引用
-				currentOnTranscription = onTranscription;
-				currentOnRealtimeNlp = onRealtimeNlp || null;
-				currentOnError = onError || null;
-				const options = getPreferredAudioMimeType();
-				const recorder = options ? new MediaRecorder(stream, { mimeType: options }) : new MediaRecorder(stream);
-				mediaRecorderRef = recorder;
-				recorder.start();
-			} catch (error) {
-				console.error("Failed to start recording:", error);
-				cleanupRecordingResources();
-				set({
-					isRecording: false,
-					recordingStartedAt: null,
-					recordingStartedDate: null,
-				});
-				if (onError) {
-					onError(error as Error);
-				}
-			}
-			return;
-		}
-
-		// ===== 本地通道：PCM16(16k) WebSocket 实时转写 =====
 		try {
-			// 新一次录音开始，复位主动关闭标志（防御：上一次 onclose 可能未触发）
-			intentionalCloseRef = false;
-			// 设置 7×24 模式标志
-			currentIs24x7 = is24x7;
-			shouldReconnectRef = is24x7; // 7×24 模式启用自动重连
-
-			// 如果是重连成功，重置重连计数
-			if (reconnectAttemptsRef > 0) {
-				reconnectAttemptsRef = 0;
-				console.log("[AudioRecordingStore] WebSocket 重连成功");
-			}
-
 			// 获取麦克风权限
 			console.log("[AudioRecordingStore] 请求麦克风权限...");
 			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 			console.log("[AudioRecordingStore] ✅ 麦克风权限已获取");
 			mediaStreamRef = stream;
+			pcmChunksRef = [];
 
 			// 保存回调引用
 			currentOnTranscription = onTranscription;
 			currentOnRealtimeNlp = onRealtimeNlp || null;
 			currentOnError = onError || null;
 
-			// 连接到后端 WebSocket
-			const apiBaseUrl = getApiBaseUrl();
-			const wsUrl = apiBaseUrl.replace("http://", "ws://").replace("https://", "wss://");
-			const wsEndpoint = `${wsUrl}/api/audio/transcribe`;
-			const ws = new WebSocket(wsEndpoint);
-			ws.binaryType = "arraybuffer";
+			if (transport === "local") {
+				// ===== 本地通道：PCM16(16k) WebSocket 实时转写 =====
+				intentionalCloseRef = false;
+				currentIs24x7 = is24x7;
+				shouldReconnectRef = is24x7;
+				if (reconnectAttemptsRef > 0) {
+					reconnectAttemptsRef = 0;
+					console.log("[AudioRecordingStore] WebSocket 重连成功");
+				}
 
-			ws.onopen = () => {
-				// 发送初始化消息
-				ws.send(JSON.stringify({ is_24x7: is24x7 }));
+				const apiBaseUrl = getApiBaseUrl();
+				const wsUrl = apiBaseUrl.replace("http://", "ws://").replace("https://", "wss://");
+				const wsEndpoint = `${wsUrl}/api/audio/transcribe`;
+				const ws = new WebSocket(wsEndpoint);
+				ws.binaryType = "arraybuffer";
 
-				// 使用 WebAudio 直接发送 PCM16(16k) 到后端
-				type AudioContextCtor = typeof AudioContext & {
-					webkitAudioContext?: typeof AudioContext;
+				ws.onopen = () => {
+					ws.send(JSON.stringify({ is_24x7: is24x7 }));
+
+					type AudioContextCtor = typeof AudioContext & {
+						webkitAudioContext?: typeof AudioContext;
+					};
+					const AudioCtx = (window.AudioContext ||
+						(window as unknown as { webkitAudioContext?: typeof AudioContext })
+							.webkitAudioContext) as AudioContextCtor;
+					const audioContext = new AudioCtx({ sampleRate: 16000 });
+					audioContextRef = audioContext;
+
+					const source = audioContext.createMediaStreamSource(stream);
+					const processor = audioContext.createScriptProcessor(4096, 1, 1);
+					processorRef = processor;
+
+					processor.onaudioprocess = (e) => {
+						if (ws.readyState !== WebSocket.OPEN) return;
+						const input = e.inputBuffer.getChannelData(0); // Float32 [-1, 1]
+						// 转 Int16 little-endian
+						const buffer = new ArrayBuffer(input.length * 2);
+						const view = new DataView(buffer);
+						for (let i = 0; i < input.length; i++) {
+							const s = Math.max(-1, Math.min(1, input[i]));
+							view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+						}
+						ws.send(buffer);
+					};
+
+					source.connect(processor);
+					processor.connect(audioContext.destination);
 				};
-				const AudioCtx = (window.AudioContext ||
-					(window as unknown as { webkitAudioContext?: typeof AudioContext })
-						.webkitAudioContext) as AudioContextCtor;
-				const audioContext = new AudioCtx({ sampleRate: 16000 });
-				audioContextRef = audioContext;
 
-				const source = audioContext.createMediaStreamSource(stream);
-				const processor = audioContext.createScriptProcessor(4096, 1, 1);
-				processorRef = processor;
+				ws.onmessage = (event) => {
+					try {
+						if (typeof event.data === "string") {
+							const data = JSON.parse(event.data);
 
-				processor.onaudioprocess = (e) => {
-					if (ws.readyState !== WebSocket.OPEN) return;
-					const input = e.inputBuffer.getChannelData(0); // Float32 [-1, 1]
-					// 转 Int16 little-endian
-					const buffer = new ArrayBuffer(input.length * 2);
-					const view = new DataView(buffer);
-					for (let i = 0; i < input.length; i++) {
-						const s = Math.max(-1, Math.min(1, input[i]));
-						view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+							// 转录结果
+							if (data.header?.name === "TranscriptionResultChanged") {
+								const text = data.payload?.result;
+								const isFinal = data.payload?.is_final || false;
+								if (text && currentOnTranscription) {
+									currentOnTranscription(text, isFinal);
+								}
+								return;
+							}
+
+							// 实时优化文本
+							if (data.header?.name === "OptimizedTextChanged") {
+								const text = data.payload?.text;
+								if (currentOnRealtimeNlp && typeof text === "string") {
+									currentOnRealtimeNlp({ optimizedText: text });
+								}
+								return;
+							}
+
+							// 实时提取结果
+							if (data.header?.name === "ExtractionChanged") {
+								const todos = data.payload?.todos;
+								const schedules = data.payload?.schedules;
+								if (currentOnRealtimeNlp) {
+									currentOnRealtimeNlp({
+										todos: Array.isArray(todos) ? todos : [],
+										schedules: Array.isArray(schedules) ? schedules : [],
+									});
+								}
+								return;
+							}
+
+							// 分段保存通知（7×24 模式）
+							if (data.header?.name === "SegmentSaved") {
+								const reason = data.payload?.message || "分段保存";
+								if (currentOnTranscription) {
+									currentOnTranscription(`__SEGMENT_SAVED__:${reason}`, true);
+								}
+								console.log("[AudioRecordingStore] 收到分段保存通知:", reason);
+								return;
+							}
+						}
+					} catch (error) {
+						console.error("Failed to parse transcription data:", error);
 					}
-					ws.send(buffer);
 				};
 
-				source.connect(processor);
-				processor.connect(audioContext.destination);
-			};
-
-			ws.onmessage = (event) => {
-				try {
-					if (typeof event.data === "string") {
-						const data = JSON.parse(event.data);
-
-						// 转录结果
-						if (data.header?.name === "TranscriptionResultChanged") {
-							const text = data.payload?.result;
-							const isFinal = data.payload?.is_final || false;
-							if (text && currentOnTranscription) {
-								currentOnTranscription(text, isFinal);
-							}
-							return;
-						}
-
-						// 实时优化文本
-						if (data.header?.name === "OptimizedTextChanged") {
-							const text = data.payload?.text;
-							if (currentOnRealtimeNlp && typeof text === "string") {
-								currentOnRealtimeNlp({ optimizedText: text });
-							}
-							return;
-						}
-
-						// 实时提取结果
-						if (data.header?.name === "ExtractionChanged") {
-							const todos = data.payload?.todos;
-							const schedules = data.payload?.schedules;
-							if (currentOnRealtimeNlp) {
-								currentOnRealtimeNlp({
-									todos: Array.isArray(todos) ? todos : [],
-									schedules: Array.isArray(schedules) ? schedules : [],
-								});
-							}
-							return;
-						}
-
-						// 分段保存通知（7×24 模式）
-						if (data.header?.name === "SegmentSaved") {
-							// 通知前端分段已保存，需要重置时间戳和文本
-							const reason = data.payload?.message || "分段保存";
-							if (currentOnTranscription) {
-								currentOnTranscription(`__SEGMENT_SAVED__:${reason}`, true);
-							}
-							console.log("[AudioRecordingStore] 收到分段保存通知:", reason);
-							return;
-						}
-					}
-				} catch (error) {
-					console.error("Failed to parse transcription data:", error);
-				}
-			};
-
-			ws.onerror = () => {
-				// 主动停止期间，后端不回发 close 帧导致的 onerror 属于预期行为，屏蔽
-				if (intentionalCloseRef) {
-					console.debug("[AudioRecordingStore] intentional close onerror ignored");
-					return;
-				}
-				const errorMessage = "WebSocket连接错误，请检查后端服务是否运行";
-				set({ isRecording: false });
-				if (currentOnError) {
-					currentOnError(new Error(errorMessage));
-				}
-			};
-
-			ws.onclose = (event) => {
-				set({
-					isRecording: false,
-					recordingStartedAt: null,
-					recordingStartedDate: null,
-					lastFinalEndMs: null,
-				});
-
-				// 正常关闭（用户主动停止或服务器正常关闭）不需要触发错误
-				if (event.wasClean) {
-					shouldReconnectRef = false;
-					currentIs24x7 = false;
-					intentionalCloseRef = false;
-					return;
-				}
-
-				// 主动停止导致的非干净关闭（后端未回发 close 帧）：视为正常，不报错
-				if (intentionalCloseRef) {
-					console.debug("[AudioRecordingStore] intentional close onclose(code=%s) treated as clean", event.code);
-					shouldReconnectRef = false;
-					currentIs24x7 = false;
-					intentionalCloseRef = false;
-					return;
-				}
-
-				// 如果已经被标记为不应该重连（用户主动关闭），直接返回
-				if (!shouldReconnectRef) {
-					console.log("[AudioRecordingStore] 已禁用自动重连，跳过重连");
-					return;
-				}
-
-				// 异常关闭：如果是 7×24 模式，尝试自动重连
-				if (currentIs24x7 && shouldReconnectRef && reconnectAttemptsRef < maxReconnectAttempts) {
-					reconnectAttemptsRef++;
-					console.log(
-						`[AudioRecordingStore] WebSocket 连接断开，${reconnectDelayMs / 1000}秒后尝试重连 (${reconnectAttemptsRef}/${maxReconnectAttempts})`,
-					);
-
-					// 清理资源但保留回调（用于重连）
-					cleanupRecordingResources(undefined, true);
-
-					reconnectTimeoutRef = setTimeout(() => {
-						if (currentOnTranscription && shouldReconnectRef) {
-							console.log("[AudioRecordingStore] 尝试重新连接 WebSocket...");
-							// 使用保存的回调重新启动录音
-							get()
-								.startRecording(
-									currentOnTranscription,
-									currentOnRealtimeNlp || undefined,
-									currentOnError || undefined,
-									currentIs24x7,
-								)
-								.catch((error) => {
-									console.error("[AudioRecordingStore] 重连失败:", error);
-									if (currentOnError) {
-										currentOnError(error as Error);
-									}
-								});
-						}
-					}, reconnectDelayMs);
-					return;
-				}
-
-				// 异常关闭提供详细错误信息
-				let errorMessage = "WebSocket连接异常关闭";
-				switch (event.code) {
-					case 1006:
-						errorMessage =
-							"WebSocket连接异常断开，可能是网络问题或服务器未响应。请检查：\n1. 后端服务是否正常运行\n2. 网络连接是否正常\n3. 防火墙或代理设置是否正确";
-						break;
-					case 1000:
+				ws.onerror = () => {
+					// 主动停止期间，后端不回发 close 帧导致的 onerror 属于预期行为，屏蔽
+					if (intentionalCloseRef) {
+						console.debug("[AudioRecordingStore] intentional close onerror ignored");
 						return;
-					case 1001:
-						errorMessage = "服务器主动断开连接（端点离开）";
-						break;
-					case 1002:
-						errorMessage = "协议错误导致连接关闭";
-						break;
-					case 1003:
-						errorMessage = "不支持的数据类型导致连接关闭";
-						break;
-					case 1007:
-						errorMessage = "数据格式错误导致连接关闭";
-						break;
-					case 1008:
-						errorMessage = "策略违规导致连接关闭";
-						break;
-					case 1009:
-						errorMessage = "消息过大导致连接关闭";
-						break;
-					case 1010:
-						errorMessage = "扩展协商失败导致连接关闭";
-						break;
-					case 1011:
-						errorMessage = "服务器内部错误导致连接关闭";
-						break;
-					case 1012:
-						errorMessage = "服务重启导致连接关闭";
-						break;
-					case 1013:
-						errorMessage = "服务过载导致连接关闭";
-						break;
-					default:
-						errorMessage = `WebSocket连接异常关闭: ${event.reason || `错误代码 ${event.code}`}`;
-				}
+					}
+					const errorMessage = "WebSocket连接错误，请检查后端服务是否运行";
+					set({ isRecording: false });
+					if (currentOnError) {
+						currentOnError(new Error(errorMessage));
+					}
+				};
 
-				console.error("[AudioRecordingStore] WebSocket closed abnormally:", {
-					code: event.code,
-					reason: event.reason,
-					wasClean: event.wasClean,
-				});
+				ws.onclose = (event) => {
+					set({
+						isRecording: false,
+						recordingStartedAt: null,
+						recordingStartedDate: null,
+						lastFinalEndMs: null,
+					});
 
-				if (currentOnError) {
-					currentOnError(new Error(errorMessage));
+					if (event.wasClean) {
+						shouldReconnectRef = false;
+						currentIs24x7 = false;
+						intentionalCloseRef = false;
+						return;
+					}
+
+					if (intentionalCloseRef) {
+						console.debug("[AudioRecordingStore] intentional close onclose(code=%s) treated as clean", event.code);
+						shouldReconnectRef = false;
+						currentIs24x7 = false;
+						intentionalCloseRef = false;
+						return;
+					}
+
+					if (!shouldReconnectRef) {
+						console.log("[AudioRecordingStore] 已禁用自动重连，跳过重连");
+						return;
+					}
+
+					if (currentIs24x7 && shouldReconnectRef && reconnectAttemptsRef < maxReconnectAttempts) {
+						reconnectAttemptsRef++;
+						console.log(
+							`[AudioRecordingStore] WebSocket 连接断开，${reconnectDelayMs / 1000}秒后尝试重连 (${reconnectAttemptsRef}/${maxReconnectAttempts})`,
+						);
+
+						cleanupRecordingResources(undefined, true);
+
+						reconnectTimeoutRef = setTimeout(() => {
+							if (currentOnTranscription && shouldReconnectRef) {
+								console.log("[AudioRecordingStore] 尝试重新连接 WebSocket...");
+								get()
+									.startRecording(
+										currentOnTranscription,
+										currentOnRealtimeNlp || undefined,
+										currentOnError || undefined,
+										currentIs24x7,
+									)
+									.catch((error) => {
+										console.error("[AudioRecordingStore] 重连失败:", error);
+										if (currentOnError) {
+											currentOnError(error as Error);
+										}
+									});
+							}
+						}, reconnectDelayMs);
+						return;
+					}
+
+					let errorMessage = "WebSocket连接异常关闭";
+					switch (event.code) {
+						case 1006:
+							errorMessage =
+								"WebSocket连接异常断开，可能是网络问题或服务器未响应。请检查：\n1. 后端服务是否正常运行\n2. 网络连接是否正常\n3. 防火墙或代理设置是否正确";
+							break;
+						case 1000:
+							return;
+						case 1001:
+							errorMessage = "服务器主动断开连接（端点离开）";
+							break;
+						case 1002:
+							errorMessage = "协议错误导致连接关闭";
+							break;
+						case 1003:
+							errorMessage = "不支持的数据类型导致连接关闭";
+							break;
+						case 1007:
+							errorMessage = "数据格式错误导致连接关闭";
+							break;
+						case 1008:
+							errorMessage = "策略违规导致连接关闭";
+							break;
+						case 1009:
+							errorMessage = "消息过大导致连接关闭";
+							break;
+						case 1010:
+							errorMessage = "扩展协商失败导致连接关闭";
+							break;
+						case 1011:
+							errorMessage = "服务器内部错误导致连接关闭";
+							break;
+						case 1012:
+							errorMessage = "服务重启导致连接关闭";
+							break;
+						case 1013:
+							errorMessage = "服务过载导致连接关闭";
+							break;
+						default:
+							errorMessage = `WebSocket连接异常关闭: ${event.reason || `错误代码 ${event.code}`}`;
+					}
+
+					console.error("[AudioRecordingStore] WebSocket closed abnormally:", {
+						code: event.code,
+						reason: event.reason,
+						wasClean: event.wasClean,
+					});
+
+					if (currentOnError) {
+						currentOnError(new Error(errorMessage));
+					}
+				};
+
+				wsRef = ws;
+				return;
+			}
+
+			// ===== 云端通道：仅本地采集 PCM16，停止后整体提交 =====
+			type AudioContextCtor = typeof AudioContext & {
+				webkitAudioContext?: typeof AudioContext;
+			};
+			const AudioCtx = (window.AudioContext ||
+				(window as unknown as { webkitAudioContext?: typeof AudioContext })
+					.webkitAudioContext) as AudioContextCtor;
+			const audioContext = new AudioCtx({ sampleRate: 16000 });
+			audioContextRef = audioContext;
+
+			const source = audioContext.createMediaStreamSource(stream);
+			const processor = audioContext.createScriptProcessor(4096, 1, 1);
+			processorRef = processor;
+
+			processor.onaudioprocess = (e) => {
+				const input = e.inputBuffer.getChannelData(0); // Float32 [-1, 1]
+				const buffer = new Int16Array(input.length);
+				for (let i = 0; i < input.length; i++) {
+					const s = Math.max(-1, Math.min(1, input[i]));
+					buffer[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
 				}
+				pcmChunksRef.push(buffer);
 			};
 
-			wsRef = ws;
+			source.connect(processor);
+			processor.connect(audioContext.destination);
 		} catch (error) {
 			console.error("Failed to start recording:", error);
+			cleanupRecordingResources();
+			set({
+				isRecording: false,
+				recordingStartedAt: null,
+				recordingStartedDate: null,
+			});
 			if (onError) {
 				onError(error as Error);
 			}
 		}
 	},
 
-	/** 停止录音：云端 → 上传并轮询转写；本地 → 发送 stop 指令 */
+	/** 停止录音：云端 → 整段 PCM 提交并同步等转写；本地 → 发送 stop 指令 */
 	stopRecording: async (segmentTimestamps?: number[]) => {
 		const transport = await detectTransport();
+		const stoppedRecording = get().isRecording;
 
 		if (transport === "cloud") {
-			const recorder = mediaRecorderRef;
-			if (!recorder) return;
-
-			const stopped = waitForRecorderStop(recorder);
-			recorder.stop();
-			mediaRecorderRef = null;
+			// 停止 WebAudio 采集，拼装整段 PCM16
+			const chunks = pcmChunksRef;
+			pcmChunksRef = [];
+			if (processorRef) {
+				try {
+					processorRef.disconnect();
+				} catch {
+					// ignore
+				}
+				processorRef.onaudioprocess = null;
+				processorRef = null;
+			}
+			if (audioContextRef) {
+				try {
+					audioContextRef.close();
+				} catch {
+					// ignore
+				}
+				audioContextRef = null;
+			}
 			if (mediaStreamRef) {
 				for (const track of mediaStreamRef.getTracks()) track.stop();
 				mediaStreamRef = null;
@@ -682,15 +636,25 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 				recordingStartedAt: null,
 				recordingStartedDate: null,
 				lastFinalEndMs: null,
-				transcriptionStatus: nextTranscriptionStatus("recording-stopped"),
+				transcriptionStatus: stoppedRecording ? nextTranscriptionStatus("recording-stopped") : "idle",
 			});
+			if (!stoppedRecording) return;
+
+			const totalLen = chunks.reduce((sum, c) => sum + c.length, 0);
+			if (totalLen === 0) {
+				set({ transcriptionStatus: "idle" });
+				return;
+			}
+			const pcm = new Int16Array(totalLen);
+			let offset = 0;
+			for (const chunk of chunks) {
+				pcm.set(chunk, offset);
+				offset += chunk.length;
+			}
+			const pcmBlob = new Blob([pcm.buffer], { type: "audio/l16;rate=16000" });
 
 			try {
-				const blob = await stopped;
-				const text = await transcribeCloudRecording(blob, () => {
-					// 上传完成，进入轮询转写阶段
-					set({ transcriptionStatus: nextTranscriptionStatus("upload-finished") });
-				});
+				const text = await transcribeCloudRecording(pcmBlob);
 				set({ transcriptionStatus: nextTranscriptionStatus("transcription-finished") });
 				if (text && currentOnTranscription) currentOnTranscription(text, true);
 			} catch (error) {
