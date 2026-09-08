@@ -54,7 +54,8 @@ export function VoiceInputButton({
 	const asrKey = String(
 		cfg?.audio_asr_api_key ?? cfg?.audioAsrApiKey ?? "",
 	).trim();
-	const cloudAsrConfigured = cfg?.asr_configured === true;
+	const cloudAsrConfigured =
+		cfg?.asr_configured === true || cfg?.asrConfigured === true;
 	const asrConfigured =
 		cloudAsrConfigured ||
 		(asrKey.length > 0 &&

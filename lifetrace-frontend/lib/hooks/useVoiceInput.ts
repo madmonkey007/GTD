@@ -116,7 +116,8 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResul
 		asrKeyRef.current = (cfg?.audio_asr_api_key ?? cfg?.audioAsrApiKey) as
 			| string
 			| undefined;
-		cloudAsrConfiguredRef.current = cfg?.asr_configured === true;
+		cloudAsrConfiguredRef.current =
+			cfg?.asr_configured === true || cfg?.asrConfigured === true;
 	}, [config]);
 
 	const [supported, setSupported] = useState(false);
