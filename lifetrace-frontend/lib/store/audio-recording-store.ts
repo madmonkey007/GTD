@@ -162,7 +162,7 @@ let transportProbe: Promise<AudioTransport> | null = null;
 function detectTransport(): Promise<AudioTransport> {
 	transportProbe ??= (async () => {
 		try {
-			const response = await fetch(`${getApiBaseUrl()}/api/cloud-audio/transcriptions/probe`, {
+			const response = await fetch(`${getHttpBase()}/api/cloud-audio/transcriptions/probe`, {
 				method: "GET",
 			});
 			return response.status === 404 ? "local" : "cloud";
@@ -176,15 +176,61 @@ function detectTransport(): Promise<AudioTransport> {
 // ========== 内部辅助函数 ==========
 
 /**
- * 获取 API 基础 URL
+ * HTTP 基地址：浏览器一律同源相对路径（云端经 Vercel 函数、本地经 Next
+ * rewrites 代理；PWA/独立安装场景下绝对地址如 localhost:8001 不可达，
+ * 会被 Service Worker 兜底成 503）。SSR 才用环境变量。
  */
-function getApiBaseUrl(): string {
+function getHttpBase(): string {
+	return typeof window !== "undefined"
+		? ""
+		: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+}
+
+/**
+ * 本地实时 WS 基地址：仅本地场景使用（Next rewrites 不支持 WebSocket 升级，
+ * 必须直连后端端口；Electron 由启动注入 NEXT_PUBLIC_API_URL/动态端口）。
+ */
+function getWsBaseUrl(): string {
 	return (
 		process.env.NEXT_PUBLIC_API_URL ||
 		(typeof window !== "undefined" &&
 			(window as Window & { __BACKEND_URL__?: string }).__BACKEND_URL__) ||
 		"http://localhost:8001"
 	);
+}
+
+/**
+ * Float32 采样 → Int16 PCM16；实际采样率非 16k（移动端常见 48k，
+ * AudioContext 的 sampleRate 选项可能被设备忽略）时线性插值重采样，
+ * 否则音频变速失真、识别为空。
+ */
+function floatToInt16Resample(input: Float32Array, sourceRate: number): Int16Array {
+	const ratio = sourceRate / 16000;
+	if (Math.abs(ratio - 1) < 0.001) {
+		const out = new Int16Array(input.length);
+		for (let i = 0; i < input.length; i++) {
+			const s = Math.max(-1, Math.min(1, input[i]));
+			out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+		}
+		return out;
+	}
+	const outLen = Math.floor(input.length / ratio);
+	const out = new Int16Array(outLen);
+	for (let i = 0; i < outLen; i++) {
+		const pos = i * ratio;
+		const idx = Math.floor(pos);
+		const frac = pos - idx;
+		const next = input[idx + 1] ?? input[idx] ?? 0;
+		const s = Math.max(-1, Math.min(1, input[idx] * (1 - frac) + next * frac));
+		out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+	}
+	return out;
+}
+
+async function fetchJson<T>(path: string, init: RequestInit): Promise<T> {
+	const response = await fetch(`${getHttpBase()}${path}`, init);
+	if (!response.ok) throw new Error(`音频云端服务返回 ${response.status}`);
+	return response.json() as Promise<T>;
 }
 
 /**
@@ -254,12 +300,6 @@ function cleanupRecordingResources(
 		reconnectAttemptsRef = 0;
 		currentIs24x7 = false;
 	}
-}
-
-async function fetchJson<T>(path: string, init: RequestInit): Promise<T> {
-	const response = await fetch(`${getApiBaseUrl()}/${path.replace(/^\//, "")}`, init);
-	if (!response.ok) throw new Error(`音频云端服务返回 ${response.status}`);
-	return response.json() as Promise<T>;
 }
 
 /**
@@ -343,7 +383,7 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 					console.log("[AudioRecordingStore] WebSocket 重连成功");
 				}
 
-				const apiBaseUrl = getApiBaseUrl();
+				const apiBaseUrl = getWsBaseUrl();
 				const wsUrl = apiBaseUrl.replace("http://", "ws://").replace("https://", "wss://");
 				const wsEndpoint = `${wsUrl}/api/audio/transcribe`;
 				const ws = new WebSocket(wsEndpoint);
@@ -368,14 +408,9 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 					processor.onaudioprocess = (e) => {
 						if (ws.readyState !== WebSocket.OPEN) return;
 						const input = e.inputBuffer.getChannelData(0); // Float32 [-1, 1]
-						// 转 Int16 little-endian
-						const buffer = new ArrayBuffer(input.length * 2);
-						const view = new DataView(buffer);
-						for (let i = 0; i < input.length; i++) {
-							const s = Math.max(-1, Math.min(1, input[i]));
-							view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-						}
-						ws.send(buffer);
+						// 转 Int16 little-endian（实际采样率非 16k 时先重采样）
+						const pcm16 = floatToInt16Resample(input, audioContext.sampleRate);
+						ws.send(pcm16.buffer);
 					};
 
 					source.connect(processor);
@@ -577,12 +612,8 @@ export const useAudioRecordingStore = create<AudioRecordingStore>((set, get) => 
 
 			processor.onaudioprocess = (e) => {
 				const input = e.inputBuffer.getChannelData(0); // Float32 [-1, 1]
-				const buffer = new Int16Array(input.length);
-				for (let i = 0; i < input.length; i++) {
-					const s = Math.max(-1, Math.min(1, input[i]));
-					buffer[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-				}
-				pcmChunksRef.push(buffer);
+				// 实际采样率非 16k 时先重采样（移动端 AudioContext 常为 48k）
+				pcmChunksRef.push(floatToInt16Resample(input, audioContext.sampleRate));
 			};
 
 			source.connect(processor);
