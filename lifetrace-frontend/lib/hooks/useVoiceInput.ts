@@ -219,7 +219,9 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResul
 		}
 		if (optionsRef.current.checkConfig !== false && !cloudAsrConfiguredRef.current) {
 			const key = asrKeyRef.current;
-			if (typeof key === "string" && isPlaceholderKey(key)) {
+			// 配置仍在加载（config 未返回）时不拦截：云端 asr_configured=true 的
+			// 场景下，过早点击会被误判为未配置；真未配置时后端会给出明确报错
+			if (config !== undefined && typeof key === "string" && isPlaceholderKey(key)) {
 				toastError("语音转写未配置或不可用，请联系管理员设置 ASR key");
 				return;
 			}

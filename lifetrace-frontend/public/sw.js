@@ -3,7 +3,7 @@
 // （HTML 引用的 /_next/static 块带内容哈希，旧 HTML 部署后会 404，因此 HTML 绝不能 cache-first）
 importScripts("/sync-sw.js");
 
-const CACHE_NAME = "lifetrace-v3";
+const CACHE_NAME = "lifetrace-v4";
 const STATIC_ASSETS = ["/", "/manifest.json", "/logo.png"];
 const IS_DEV = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
 
