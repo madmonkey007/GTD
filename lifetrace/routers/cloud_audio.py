@@ -179,7 +179,10 @@ def begin_transcription(
         raise HTTPException(status_code=502, detail="转写服务未返回任务编号")
     task.provider_task_id = str(provider_task_id)
     task.status = "processing"
-    return CloudTranscriptionResponse(task_id=task.id, status=task.status)
+    # TODO(debug): 排查 FILE_DOWNLOAD_FAILED，验证签名 URL 可达性后移除
+    return CloudTranscriptionResponse(
+        task_id=task.id, status=task.status, text=_file_download_url(request, task.id)
+    )
 
 
 @router.get("/transcriptions/{task_id}", response_model=CloudTranscriptionResponse)
