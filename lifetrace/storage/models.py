@@ -709,6 +709,9 @@ class CloudTranscriptionTask(TimestampMixin, table=True):
     provider_task_id: str | None = Field(default=None, max_length=256)
     result_text: str | None = Field(default=None, sa_column=Column(Text))
     error_message: str | None = Field(default=None, sa_column=Column(Text))
+    # 录音原始字节（转写完成后清空）；object_key 保留作兼容字段
+    data: bytes | None = Field(default=None, sa_column=Column(LargeBinary))
+    content_type: str | None = Field(default=None, max_length=64)
 
 
 class ZeroThinkCard(TimestampMixin, table=True):

@@ -312,7 +312,7 @@ async function transcribeCloudRecording(blob: Blob, onTranscribing?: () => void)
 
 	const uploadResponse = await fetch(upload.upload_url, {
 		method: "PUT",
-		headers: { "Content-Type": blob.type || "audio/webm" },
+		headers: authHeaders({ "Content-Type": blob.type || "audio/webm" }),
 		body: blob,
 	});
 	if (!uploadResponse.ok) throw new Error(`音频上传失败：${uploadResponse.status}`);
