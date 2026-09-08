@@ -5,6 +5,10 @@ desktop application has richer implementations in the regular routers, while
 Vercel needs stable responses for the shared web UI and its polling hooks.
 """
 
+from __future__ import annotations
+
+import os
+
 from fastapi import APIRouter
 
 from lifetrace.core.module_registry import get_capabilities_report
@@ -31,8 +35,15 @@ async def cloud_llm_status() -> dict[str, bool]:
 
 @router.get("/get-config")
 async def cloud_config() -> dict[str, object]:
-    """Keep the legacy response shape without returning API keys to browsers."""
-    return {"success": True, "config": {}}
+    """Keep the legacy response shape without returning API keys to browsers.
+
+    asr_configured 只上报"服务端是否已配置转写"，让前端显示语音按钮；
+    真实的 DASHSCOPE_API_KEY 永远不离开服务端。
+    """
+    return {
+        "success": True,
+        "config": {"asr_configured": bool(os.environ.get("DASHSCOPE_API_KEY", ""))},
+    }
 
 
 @router.get("/notifications")

@@ -47,15 +47,18 @@ export function VoiceInputButton({
 
 	const [elapsedTime, setElapsedTime] = useState(0);
 
-	// 云端语音输入尚不完善：云端 /api/get-config 不下发 ASR key（返回空配置），
-	// 配置未就绪时直接隐藏麦克风按钮；本地配置了 ASR 则照常显示
+	// 云端部署：/api/get-config 不下发 ASR key，但会返回 asr_configured 标志
+	// （服务端用环境变量做转写，key 不出浏览器）。本地部署则直接检查 key 本身。
 	const { data: appConfig } = useConfig();
+	const cfg = appConfig as Record<string, unknown> | undefined;
 	const asrKey = String(
-		(appConfig as Record<string, unknown> | undefined)?.audio_asr_api_key ??
-			(appConfig as Record<string, unknown> | undefined)?.audioAsrApiKey ??
-			"",
+		cfg?.audio_asr_api_key ?? cfg?.audioAsrApiKey ?? "",
 	).trim();
-	const asrConfigured = asrKey.length > 0 && !/YOUR_(LLM|ASR|API)_KEY_HERE|XXX/.test(asrKey.toUpperCase());
+	const cloudAsrConfigured = cfg?.asr_configured === true;
+	const asrConfigured =
+		cloudAsrConfigured ||
+		(asrKey.length > 0 &&
+			!/YOUR_(LLM|ASR|API)_KEY_HERE|XXX/.test(asrKey.toUpperCase()));
 
 	useEffect(() => {
 		const start = voice.recordingStartedAt;

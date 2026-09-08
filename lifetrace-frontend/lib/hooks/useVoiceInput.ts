@@ -108,12 +108,15 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResul
 
 	// config 异步加载，存 ref 供 toggle 在事件时读取最新值
 	// 后端 /api/get-config 返回扁平 snake_case：audio_asr_api_key
-	const configRef = useRef<string | undefined>(undefined);
+	// 云端部署不下发 key，只返回 asr_configured 布尔标志（服务端持 key）
+	const asrKeyRef = useRef<string | undefined>(undefined);
+	const cloudAsrConfiguredRef = useRef(false);
 	useEffect(() => {
 		const cfg = config as Record<string, unknown> | undefined;
-		configRef.current = (cfg?.audio_asr_api_key ?? cfg?.audioAsrApiKey) as
+		asrKeyRef.current = (cfg?.audio_asr_api_key ?? cfg?.audioAsrApiKey) as
 			| string
 			| undefined;
+		cloudAsrConfiguredRef.current = cfg?.asr_configured === true;
 	}, [config]);
 
 	const [supported, setSupported] = useState(false);
@@ -213,8 +216,8 @@ export function useVoiceInput(options: UseVoiceInputOptions): UseVoiceInputResul
 			toastError("当前浏览器不支持语音输入");
 			return;
 		}
-		if (optionsRef.current.checkConfig !== false) {
-			const key = configRef.current;
+		if (optionsRef.current.checkConfig !== false && !cloudAsrConfiguredRef.current) {
+			const key = asrKeyRef.current;
 			if (typeof key === "string" && isPlaceholderKey(key)) {
 				toastError("语音转写未配置或不可用，请联系管理员设置 ASR key");
 				return;
