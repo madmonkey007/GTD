@@ -15,6 +15,8 @@ import { useLocaleStore } from "@/lib/store/locale";
 import { useUiStore } from "@/lib/store/ui-store";
 import { useMobileToolbarStore } from "@/lib/store/mobile-toolbar-store";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { useTextareaVoiceEcho } from "@/lib/hooks/useTextareaVoiceEcho";
+import { useAudioRecordingStore } from "@/lib/store/audio-recording-store";
 import { useTodoStore } from "@/lib/store/todo-store";
 import { useFocusTarget } from "@/lib/store/focus-target-store";
 import { useInboxDraftStore, type InboxDraft } from "@/lib/store/inbox-draft-store";
@@ -324,6 +326,12 @@ export function QuickCommandPanel() {
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  // 语音实时回显（与笔记输入框同款交互）
+  const inboxEcho = useTextareaVoiceEcho(
+    () => input,
+    (value) => setInput(value),
+  );
+  const isVoiceRecording = useAudioRecordingStore((s) => s.isRecording);
   // 收集箱草稿（仅本地）：Enter 存草稿；右上角收集箱入口可转待办/笔记或交给 agent
   const drafts = useInboxDraftStore((s) => s.drafts);
   const addDraft = useInboxDraftStore((s) => s.addDraft);
@@ -692,18 +700,22 @@ export function QuickCommandPanel() {
           />
           <VoiceInputButton
             ownerId="quick-command"
-            onTranscript={(text) => {
-              setInput((prev) => (prev ? prev + " " + text : text));
-              // 输入高度自适应
+            expandOnRecord={true}
+            onTranscript={inboxEcho.onTranscript}
+            onPartial={(text) => {
+              inboxEcho.onPartial?.(text);
               const ta = taRef.current;
               if (ta) {
                 ta.style.height = "auto";
                 ta.style.height = `${Math.min(ta.scrollHeight, 160)}px`;
               }
             }}
+            onSegmentFinal={inboxEcho.onSegmentFinal}
             className="flex-shrink-0 rounded-lg p-2.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           />
           {/* Agent 按钮：输入框内，点击走现有 agent 模式（不点则 Enter 仅存本地草稿） */}
+          {/* 录音时隐藏 Agent/草稿按钮，波纹条延伸到原按钮位置 */}
+          {!isVoiceRecording && (
           <button
             type="button"
             onClick={onAgentSubmit}
@@ -713,6 +725,7 @@ export function QuickCommandPanel() {
           >
             <Sparkles className="w-4 h-4" />
           </button>
+          )}
           {isStreaming ? (
             <button
               type="button"
@@ -723,6 +736,7 @@ export function QuickCommandPanel() {
               <Square className="w-4 h-4" />
             </button>
           ) : (
+            !isVoiceRecording && (
             <button
               type="button"
               onClick={onSubmit}
@@ -732,6 +746,7 @@ export function QuickCommandPanel() {
             >
               <ArrowUp className="w-4 h-4" />
             </button>
+            )
           )}
         </div>
       </div>

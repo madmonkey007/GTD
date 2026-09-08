@@ -180,13 +180,15 @@ export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryH
 					>
 						{week.days.map((day, row) => {
 							if (!day) {
-								// 当前周里今天之后的日期：占位空格，保持 7 行高度
+								// 当前周里今天之后的日期：淡色小点占位（未来无数据，不可点击）
 								return (
 									<div
 										// biome-ignore lint/suspicious/noArrayIndexKey: 占位格无稳定 key
 										key={`placeholder-${row}`}
-										className="h-[17px] w-[17px]"
-									/>
+										className="flex h-[17px] w-[17px] items-center justify-center"
+									>
+										<span className="heat-dot h-[10px] w-[10px] rounded-full bg-heatmap-0 opacity-40" />
+									</div>
 								);
 							}
 							const key = formatDateInput(day);

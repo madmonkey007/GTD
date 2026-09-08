@@ -3,6 +3,8 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { useAudioRecordingStore } from "@/lib/store/audio-recording-store";
+import { useTextareaVoiceEcho } from "@/lib/hooks/useTextareaVoiceEcho";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
 import { LinkedNotes } from "./LinkedNotes";
 
@@ -105,11 +107,25 @@ export function InputBox({
 	);
 
 	// 右侧按钮组（@ 按钮和发送/停止按钮）
+	// 语音输入：与笔记输入框同款交互——录音时按钮展开为波纹条，文本实时回显；
+	// 录音中隐藏发送等其余按钮，让波纹条延伸到原发送按钮位置
+	const voiceEcho = useTextareaVoiceEcho(
+		() => inputValue,
+		(value) => onChange(value),
+	);
+	const isVoiceRecording = useAudioRecordingStore((s) => s.isRecording);
 	const actionButtons = (
 		<div className="flex items-center gap-1">
 			{onTranscript && (
-				<VoiceInputButton ownerId="chat-input" onTranscript={onTranscript} />
+				<VoiceInputButton
+					ownerId="chat-input"
+					expandOnRecord={true}
+					onTranscript={voiceEcho.onTranscript}
+					onPartial={voiceEcho.onPartial}
+					onSegmentFinal={voiceEcho.onSegmentFinal}
+				/>
 			)}
+			{!isVoiceRecording && (
 			<button
 				type="button"
 				onClick={onAtClick}
@@ -121,8 +137,9 @@ export function InputBox({
 			>
 				<AtSign className="h-4 w-4" />
 			</button>
-
-			{isStreaming && onStop ? (
+			)}
+			{!isVoiceRecording &&
+			(isStreaming && onStop ? (
 				<button
 					type="button"
 					onClick={onStop}
@@ -151,10 +168,10 @@ export function InputBox({
 				>
 					<ArrowUp className="h-4 w-4" />
 				</button>
-			)}
+			))
+			}
 		</div>
 	);
-
 	// 紧凑布局：输入框和按钮在同一行
 	if (isCompactLayout) {
 		return (

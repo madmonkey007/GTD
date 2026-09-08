@@ -14,10 +14,12 @@ import type { ToolCallEvent } from "@/lib/api";
 import type { ChatMessage, ToolCallStep } from "@/apps/chat/types";
 import { LinkedNotes } from "@/apps/chat/components/input/LinkedNotes";
 import { useNoteChatStore } from "@/lib/store/note-chat-store";
+import { useAudioRecordingStore } from "@/lib/store/audio-recording-store";
 import { useLocaleStore } from "@/lib/store/locale";
 import { queryKeys } from "@/lib/query/keys";
 import { MessageBubble } from "@/apps/chat/components/chat-ui/index";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
+import { useTextareaVoiceEcho } from "@/lib/hooks/useTextareaVoiceEcho";
 
 // ─── Tab definitions ───
 
@@ -379,6 +381,12 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
   const abortRef = useRef<AbortController | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // 语音实时回显（与笔记输入框同款交互）
+  const chatEcho = useTextareaVoiceEcho(
+    () => inputValue,
+    (value) => setInputValue(value),
+  );
+  const isVoiceRecording = useAudioRecordingStore((s) => s.isRecording);
   const clearLinkedNotes = useNoteChatStore((s) => s.clearLinkedNotes);
   const pendingInsight = useNoteChatStore((s) => s.pendingInsight);
   const clearPendingInsight = useNoteChatStore((s) => s.clearPendingInsight);
@@ -807,9 +815,13 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
             />
             <VoiceInputButton
               ownerId="diary-chat"
-              onTranscript={(text) => setInputValue((prev) => (prev ? prev + " " + text : text))}
+              onTranscript={chatEcho.onTranscript}
+              onPartial={chatEcho.onPartial}
+              onSegmentFinal={chatEcho.onSegmentFinal}
+              expandOnRecord={true}
             />
-            {isStreaming ? (
+            {/* 录音时隐藏发送按钮，波纹条延伸到原发送按钮位置 */}
+            {isVoiceRecording ? null : isStreaming ? (
               <button type="button" onClick={handleStop} title="停止"
                 className="flex items-center justify-center rounded-lg bg-muted/50 p-1.5 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors">
                 <Square className="w-3.5 h-3.5 fill-current" />
