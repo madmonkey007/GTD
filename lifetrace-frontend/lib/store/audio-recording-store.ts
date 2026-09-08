@@ -157,13 +157,13 @@ let transportProbe: Promise<AudioTransport> | null = null;
 
 /**
  * 探测后端是否提供云端转写路由（仅 Vercel 部署挂载）。
- * GET 命中 POST-only 路由返回 405（已挂载）；未挂载返回 404（本地后端 → WS 通道）。
+ * 无鉴权 GET：云端命中路由先走鉴权返回 401；本地未挂载返回 404（→ WS 通道）。
  * 结果按会话缓存，避免每次录音都探测。
  */
 function detectTransport(): Promise<AudioTransport> {
 	transportProbe ??= (async () => {
 		try {
-			const response = await fetch(`${getApiBaseUrl()}/api/cloud-audio/uploads`, {
+			const response = await fetch(`${getApiBaseUrl()}/api/cloud-audio/transcriptions/probe`, {
 				method: "GET",
 			});
 			return response.status === 404 ? "local" : "cloud";
@@ -298,29 +298,20 @@ async function fetchJson<T>(path: string, init: RequestInit): Promise<T> {
 }
 
 /**
- * 云端通道：上传录音到 Supabase 并轮询 DashScope 转写结果
- * @param onTranscribing 上传完成、开始轮询时回调
+ * 云端通道：录音以 multipart 单请求直传后端，后端经 DashScope SDK
+ * 的 file:// 本地上传转交 paraformer-v2 异步转写，前端轮询结果
+ * @param onTranscribing 提交完成、开始轮询时回调
  */
 async function transcribeCloudRecording(blob: Blob, onTranscribing?: () => void): Promise<string> {
 	if (blob.size === 0) throw new Error("没有录到可上传的音频");
+	if (blob.size > 4 * 1024 * 1024) throw new Error("录音超过 4MB 限制，请分段录制");
 	const extension = fileExtensionFromMimeType(blob.type);
-	const upload = await fetchJson<{ task_id: string; upload_url: string }>("/api/cloud-audio/uploads", {
+	const form = new FormData();
+	form.append("file", blob, `recording.${extension}`);
+	const submit = await fetchJson<{ task_id: string; status: string }>("/api/cloud-audio/transcriptions", {
 		method: "POST",
-		headers: authHeaders({ "Content-Type": "application/json" }),
-		body: JSON.stringify({ filename: `recording.${extension}`, content_type: blob.type || "audio/webm" }),
-	});
-
-	const uploadResponse = await fetch(upload.upload_url, {
-		method: "PUT",
-		headers: authHeaders({ "Content-Type": blob.type || "audio/webm" }),
-		body: blob,
-	});
-	if (!uploadResponse.ok) throw new Error(`音频上传失败：${uploadResponse.status}`);
-
-	await fetchJson<{ status: string }>("/api/cloud-audio/transcriptions", {
-		method: "POST",
-		headers: authHeaders({ "Content-Type": "application/json" }),
-		body: JSON.stringify({ task_id: upload.task_id }),
+		headers: authHeaders(),
+		body: form,
 	});
 
 	onTranscribing?.();
@@ -328,7 +319,7 @@ async function transcribeCloudRecording(blob: Blob, onTranscribing?: () => void)
 	for (let attempt = 0; attempt < 90; attempt++) {
 		await new Promise((resolve) => setTimeout(resolve, 2000));
 		const result = await fetchJson<{ status: string; text?: string; error?: string }>(
-			`/api/cloud-audio/transcriptions/${upload.task_id}`,
+			`/api/cloud-audio/transcriptions/${submit.task_id}`,
 			{ method: "GET", headers: authHeaders() },
 		);
 		if (result.status === "completed") return result.text || "";

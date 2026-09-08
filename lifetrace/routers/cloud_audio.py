@@ -1,36 +1,28 @@
-"""Serverless upload contract for post-recording cloud transcription.
+"""Serverless contract for post-recording cloud transcription.
 
-音频字节直接存 Neon（cloud_transcription_tasks.data，bytea），转写时生成
-带 HMAC 签名的短期公开下载 URL 供 DashScope 拉取，不再依赖外部对象存储
-（Supabase 环境值从未配置成功过，且多一个外部依赖多一分配置成本）。
+浏览器录音（webm/mp4）以 multipart 直接 POST 到本路由，服务端把字节写入
+/tmp 后经 dashscope SDK 的 file:// 本地上传能力转交 DashScope 对象存储并
+提交 paraformer-v2 异步转写，前端凭 task_id 轮询结果。
 
-安全模型：
-- 上传/发起/轮询均需 Bearer Token，且任务按 user_id 隔离；
-- 文件下载 URL 无用户鉴权（DashScope 服务器无法携带用户令牌），
-  以「不可猜测的 task_id + HMAC(task_id, exp) 签名 + 1 小时过期」保护，
-  转写完成后即清空音频字节。
+- 不依赖外部对象存储（Supabase 值从未配置成功）；
+- 音频字节同时存 Neon（cloud_transcription_tasks.data）用于排障，
+  转写完成即清空，缩短数据驻留；
+- 上传/轮询均需 Bearer Token，任务按 user_id 隔离。
 """
 
 from __future__ import annotations
 
-import hashlib
-import hmac
+import contextlib
 import os
-import time
 import uuid
 from typing import TYPE_CHECKING, Any
 
 import dashscope
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from lifetrace.core.dependencies import get_current_user, get_db_session
-from lifetrace.schemas.cloud_audio import (
-    CloudAudioUploadRequest,
-    CloudAudioUploadResponse,
-    CloudTranscriptionRequest,
-    CloudTranscriptionResponse,
-)
+from lifetrace.schemas.cloud_audio import CloudTranscriptionResponse
 from lifetrace.storage.models import CloudTranscriptionTask, User
 
 if TYPE_CHECKING:
@@ -38,8 +30,7 @@ if TYPE_CHECKING:
 
 router = APIRouter(prefix="/api/cloud-audio", tags=["cloud-audio"])
 
-MAX_AUDIO_BYTES = 5 * 1024 * 1024
-_SIGNED_URL_TTL_SECONDS = 3600
+MAX_AUDIO_BYTES = 4 * 1024 * 1024  # Vercel 请求体上限 4.5MB，留出余量
 
 
 def _owned_task(session: Session, task_id: str, user: User) -> CloudTranscriptionTask:
@@ -47,27 +38,6 @@ def _owned_task(session: Session, task_id: str, user: User) -> CloudTranscriptio
     if task is None or user.id is None or task.user_id != user.id:
         raise HTTPException(status_code=404, detail="转写任务不存在")
     return task
-
-
-def _sign(task_id: str, exp: int) -> str:
-    secret = os.environ.get("JWT_SECRET_KEY", "")
-    return hmac.new(secret.encode(), f"{task_id}:{exp}".encode(), hashlib.sha256).hexdigest()
-
-
-def _base_url(request: Request) -> str:
-    """Vercel 在函数前挂反向代理，真实外部地址取转发头。"""
-    proto = request.headers.get("x-forwarded-proto") or request.url.scheme
-    host = (
-        request.headers.get("x-forwarded-host")
-        or request.headers.get("host")
-        or request.url.netloc
-    )
-    return f"{proto}://{host}"
-
-
-def _file_download_url(request: Request, task_id: str) -> str:
-    exp = int(time.time()) + _SIGNED_URL_TTL_SECONDS
-    return f"{_base_url(request)}/api/cloud-audio/files/{task_id}?exp={exp}&sig={_sign(task_id, exp)}"
 
 
 def _read_field(value: Any, name: str) -> Any:
@@ -108,81 +78,63 @@ def _download_transcription_text(transcription_url: str) -> str:
     return _extract_transcription_text(response.json())
 
 
-@router.post("/uploads", response_model=CloudAudioUploadResponse)
-def create_upload(
-    payload: CloudAudioUploadRequest,
-    request: Request,
+@router.post("/transcriptions", response_model=CloudTranscriptionResponse)
+async def create_transcription(
+    file: UploadFile = File(..., description="录音音频（webm/mp4/wav 等）"),
     session: Session = Depends(get_db_session),
     user: User = Depends(get_current_user),
-) -> CloudAudioUploadResponse:
+) -> CloudTranscriptionResponse:
     if user.id is None:
         raise HTTPException(status_code=401, detail="未登录")
+    api_key = os.environ.get("DASHSCOPE_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="云端转写尚未配置")
+
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="录音内容为空")
+    if len(data) > MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="录音超过 4MB 限制，请分段录制")
+
+    content_type = file.content_type or "audio/webm"
+    extension = {"audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/wav": "wav"}.get(
+        content_type, "webm"
+    )
     task_id = uuid.uuid4().hex
-    extension = payload.filename.rsplit(".", 1)[-1].lower() if "." in payload.filename else "webm"
     object_key = f"{user.id}/{task_id}.{extension}"
+
+    # 音频字节落 /tmp，dashscope SDK 支持 file:// 本地路径：
+    # 内部会上传到 DashScope 自己的对象存储并替换为内部 URL
+    tmp_path = f"/tmp/{task_id}.{extension}"
+    with open(tmp_path, "wb") as tmp_file:
+        tmp_file.write(data)
+
+    try:
+        submitted = dashscope.Transcription.async_call(
+            model="paraformer-v2",
+            file_urls=[f"file://{tmp_path}"],
+            api_key=api_key,
+        )
+    finally:
+        with contextlib.suppress(OSError):
+            os.remove(tmp_path)
+
+    provider_task_id = getattr(getattr(submitted, "output", None), "task_id", None)
+    if not provider_task_id:
+        raise HTTPException(status_code=502, detail="转写服务未返回任务编号")
+
     session.add(
         CloudTranscriptionTask(
             id=task_id,
             user_id=user.id,
             object_key=object_key,
-            content_type=payload.content_type or "audio/webm",
-            status="awaiting_upload",
+            content_type=content_type,
+            data=data,
+            provider_task_id=str(provider_task_id),
+            status="processing",
         )
     )
-    return CloudAudioUploadResponse(
-        task_id=task_id,
-        object_key=object_key,
-        upload_url=f"{_base_url(request)}/api/cloud-audio/uploads/{task_id}/content",
-    )
-
-
-@router.put("/uploads/{task_id}/content")
-async def upload_content(
-    task_id: str,
-    request: Request,
-    session: Session = Depends(get_db_session),
-    user: User = Depends(get_current_user),
-) -> dict[str, Any]:
-    task = _owned_task(session, task_id, user)
-    body = await request.body()
-    if not body:
-        raise HTTPException(status_code=400, detail="录音内容为空")
-    if len(body) > MAX_AUDIO_BYTES:
-        raise HTTPException(status_code=413, detail="音频超过 5MB 限制")
-    task.data = body
-    task.status = "uploaded"
-    return {"status": "uploaded", "size": len(body)}
-
-
-@router.post("/transcriptions", response_model=CloudTranscriptionResponse)
-def begin_transcription(
-    payload: CloudTranscriptionRequest,
-    request: Request,
-    session: Session = Depends(get_db_session),
-    user: User = Depends(get_current_user),
-) -> CloudTranscriptionResponse:
-    task = _owned_task(session, payload.task_id, user)
-    if task.provider_task_id:
-        return CloudTranscriptionResponse(task_id=task.id, status=task.status, text=task.result_text)
-    api_key = os.environ.get("DASHSCOPE_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=503, detail="云端转写尚未配置")
-    if not task.data:
-        raise HTTPException(status_code=400, detail="录音尚未上传")
-    submitted = dashscope.Transcription.async_call(
-        model="paraformer-v2",
-        file_urls=[_file_download_url(request, task.id)],
-        api_key=api_key,
-    )
-    provider_task_id = getattr(getattr(submitted, "output", None), "task_id", None)
-    if not provider_task_id:
-        raise HTTPException(status_code=502, detail="转写服务未返回任务编号")
-    task.provider_task_id = str(provider_task_id)
-    task.status = "processing"
-    # TODO(debug): 排查 FILE_DOWNLOAD_FAILED，验证签名 URL 可达性后移除
-    return CloudTranscriptionResponse(
-        task_id=task.id, status=task.status, text=_file_download_url(request, task.id)
-    )
+    return CloudTranscriptionResponse(task_id=task_id, status="processing")
 
 
 @router.get("/transcriptions/{task_id}", response_model=CloudTranscriptionResponse)
@@ -211,26 +163,4 @@ def get_transcription(
                 task.error_message = str(getattr(provider_output, "message", "转写失败"))
     return CloudTranscriptionResponse(
         task_id=task.id, status=task.status, text=task.result_text, error=task.error_message
-    )
-
-
-@router.get("/files/{task_id}")
-def download_file(
-    task_id: str,
-    exp: int,
-    sig: str,
-    session: Session = Depends(get_db_session),
-) -> Response:
-    """DashScope 专用下载端点：无用户鉴权，以签名 + 过期保护。"""
-    if exp < int(time.time()):
-        raise HTTPException(status_code=403, detail="下载链接已过期")
-    if not hmac.compare_digest(_sign(task_id, exp), sig):
-        raise HTTPException(status_code=403, detail="下载链接无效")
-    task = session.get(CloudTranscriptionTask, task_id)
-    if task is None or task.data is None:
-        raise HTTPException(status_code=404, detail="音频不存在")
-    return Response(
-        content=task.data,
-        media_type=task.content_type or "audio/webm",
-        headers={"Cache-Control": "no-store"},
     )
