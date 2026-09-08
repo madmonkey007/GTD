@@ -18,6 +18,7 @@
 
 import { create } from "zustand";
 import { authHeaders } from "@/lib/auth/session";
+import { probeAudioTransport } from "./audio-transport";
 import {
 	isTranscriptionBusy,
 	nextTranscriptionStatus,
@@ -153,23 +154,25 @@ let intentionalCloseRef = false;
 // ========== 通道探测 ==========
 
 let transportProbe: Promise<AudioTransport> | null = null;
+// 云端转写是否已配置（探测响应携带，供提交前给出明确报错）
+let cloudAsrConfigured = false;
 
 /**
- * 探测后端是否提供云端转写路由（仅 Vercel 部署挂载）。
- * 无鉴权 GET：云端命中路由先走鉴权返回 401；本地未挂载返回 404（→ WS 通道）。
- * 结果按会话缓存，避免每次录音都探测。
+ * 通道探测（探测失败不缓存、不猜测回退，抛错由调用方明确提示）
  */
 function detectTransport(): Promise<AudioTransport> {
-	transportProbe ??= (async () => {
-		try {
-			const response = await fetch(`${getHttpBase()}/api/cloud-audio/transcriptions/probe`, {
-				method: "GET",
-			});
-			return response.status === 404 ? "local" : "cloud";
-		} catch {
-			return "local";
-		}
-	})();
+	transportProbe ??= probeAudioTransport(fetch, getHttpBase())
+		.then((probe) => {
+			if (probe.transport === "cloud") {
+				cloudAsrConfigured = probe.asrConfigured;
+			}
+			return probe.transport;
+		})
+		.catch((error) => {
+			transportProbe = null;
+			cloudAsrConfigured = false;
+			throw new Error(`语音服务探测失败：${error instanceof Error ? error.message : String(error)}`);
+		});
 	return transportProbe;
 }
 
@@ -308,6 +311,7 @@ function cleanupRecordingResources(
 async function transcribeCloudRecording(pcm: Blob, onTranscribing?: () => void): Promise<string> {
 	if (pcm.size === 0) throw new Error("没有录到可上传的音频");
 	if (pcm.size > 4 * 1024 * 1024) throw new Error("录音超过 4MB 限制，请分段录制");
+	if (!cloudAsrConfigured) throw new Error("云端语音转写尚未配置（缺少 DASHSCOPE_API_KEY）");
 	onTranscribing?.();
 	const result = await fetchJson<{ text: string; error?: string }>("/api/cloud-audio/transcriptions", {
 		method: "POST",

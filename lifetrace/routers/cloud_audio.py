@@ -33,6 +33,19 @@ MAX_AUDIO_BYTES = 4 * 1024 * 1024  # 4MB ≈ 16k/16bit 单声道约 131 秒
 _TRANSCRIBE_TIMEOUT_SECONDS = 55  # 低于函数 maxDuration=60
 
 
+@router.get("/probe")
+def probe() -> dict[str, Any]:
+    """通道探测：明确告知前端当前部署的转写方式与配置状态。
+
+    - 200 + transport=cloud：云端部署，走 HTTP 转写（不泄露 ASR Key）；
+    - 404：本地部署未挂载本路由，前端走本地 WebSocket。
+    """
+    return {
+        "transport": "cloud",
+        "asr_configured": bool(os.environ.get("DASHSCOPE_API_KEY", "").strip()),
+    }
+
+
 async def _transcribe_pcm(pcm: bytes, api_key: str) -> dict[str, str]:
     """把整段 PCM 经出站 WebSocket 流式推给 fun-asr-realtime 并收集文本。"""
     client = ASRClient()
