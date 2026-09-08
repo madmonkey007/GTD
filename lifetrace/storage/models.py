@@ -257,6 +257,7 @@ class Tag(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     tag_name: str = Field(max_length=50, unique=True)  # 标签名称
+    pinned: bool = Field(default=False)  # 侧栏置顶
     created_at: datetime = Field(default_factory=get_utc_time)
     deleted_at: datetime | None = None
 

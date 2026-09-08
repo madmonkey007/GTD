@@ -622,6 +622,19 @@ class JournalService:
         self._sync_tag_text(affected)
         return affected
 
+    def set_tag_pinned(self, tag_name: str, pinned: bool) -> dict[str, Any]:
+        """设置标签置顶（全局状态，存于 Tag 实体）"""
+        tag_name = (tag_name or "").strip()
+        if not tag_name:
+            raise HTTPException(status_code=400, detail="缺少标签名称")
+        if not self.journal_manager.set_tag_pinned(tag_name, pinned):
+            raise HTTPException(status_code=404, detail="标签不存在")
+        return {"tag_name": tag_name, "pinned": pinned}
+
+    def get_pinned_tags(self) -> list[str]:
+        """置顶标签名列表"""
+        return sorted(self.journal_manager.get_pinned_tags())
+
     def _journals_with_tag(self, tag_name: str) -> list[int]:
         """列出带指定标签的全部笔记ID（受影响集合需在删除前取好）"""
         ids: list[int] = []

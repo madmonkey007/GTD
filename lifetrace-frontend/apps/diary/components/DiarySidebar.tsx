@@ -121,7 +121,7 @@ export function DiarySidebar({
 			/>
 
 			{/* Tags */}
-			<DiaryTagList tagsWithCount={stats.tagsWithCount} selectedTag={selectedTag} onSelectTag={onSelectTag} />
+			<DiaryTagList tagsWithCount={stats.tagsWithCount} pinnedTags={stats.pinnedTags} selectedTag={selectedTag} onSelectTag={onSelectTag} />
 
 			{/* 项目归档入口（Trash 之上） */}
 			<ProjectArchiveEntry active={archiveViewActive} onShowArchive={onShowArchive} />

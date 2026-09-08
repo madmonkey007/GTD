@@ -2,25 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 import { customFetcher } from "@/lib/api/fetcher";
 import { queryKeys } from "@/lib/query/keys";
 import { toast } from "@/lib/toast";
 
 /**
  * 标签 "..." 菜单弹层：点击标签右侧的 ... 按钮后出现，
- * 编辑直接展示输入框（含当前名称，Enter 提交 / Escape 取消），
- * 删除需二次确认。编辑与删除均为全局操作（影响所有带该标签的笔记）。
+ * 支持置顶、编辑（直接展示输入框，Enter 提交 / Escape 取消）、
+ * 删除（二次确认）。编辑与删除均为全局操作（影响所有带该标签的笔记）。
  */
 export function TagMenuPopup({
 	tagName,
 	locale,
 	anchorRect,
+	pinned = false,
 	onClose,
 }: {
 	tagName: string;
 	locale: string;
 	anchorRect: DOMRect;
+	pinned?: boolean;
 	onClose: () => void;
 }) {
 	const queryClient = useQueryClient();
@@ -47,6 +49,23 @@ export function TagMenuPopup({
 
 	const invalidate = () => {
 		void queryClient.invalidateQueries({ queryKey: queryKeys.journals.all });
+	};
+
+	const togglePin = async () => {
+		setBusy(true);
+		try {
+			await customFetcher(`/api/journals/tags/${encodeURIComponent(tagName)}/pin`, {
+				method: "PUT",
+				data: { pinned: !pinned },
+			});
+			toast(isZh ? (pinned ? "已取消置顶" : "已置顶") : pinned ? "Unpinned" : "Pinned");
+			invalidate();
+		} catch {
+			toast(isZh ? "操作失败" : "Operation failed", { type: "warning" });
+		} finally {
+			setBusy(false);
+			onClose();
+		}
 	};
 
 	const renameTag = async (newName: string) => {
@@ -88,14 +107,14 @@ export function TagMenuPopup({
 	};
 
 	const top = anchorRect.bottom + 4;
-	const left = Math.min(anchorRect.left, window.innerWidth - 180);
+	const left = Math.min(anchorRect.left, window.innerWidth - 132);
 
 	return (
 		<div
 			ref={rootRef}
 			role="menu"
 			style={{ position: "fixed", top, left, zIndex: 9999 }}
-			className="min-w-[160px] overflow-hidden rounded-lg border border-border/60 bg-background p-1.5 shadow-md"
+			className="min-w-[128px] overflow-hidden rounded-lg border border-border/60 bg-background p-1.5 shadow-md"
 		>
 			{mode === "edit" ? (
 				<div className="flex flex-col gap-1.5 p-1">
@@ -165,6 +184,16 @@ export function TagMenuPopup({
 				</div>
 			) : (
 				<>
+					<button
+						type="button"
+						role="menuitem"
+						disabled={busy}
+						onClick={() => void togglePin()}
+						className="flex w-full items-center rounded px-2 py-1.5 text-xs hover:bg-muted/40 transition-colors"
+					>
+						{pinned ? <PinOff className="h-3.5 w-3.5 mr-2" /> : <Pin className="h-3.5 w-3.5 mr-2" />}
+						{isZh ? (pinned ? "取消置顶" : "置顶") : pinned ? "Unpin" : "Pin"}
+					</button>
 					<button
 						type="button"
 						role="menuitem"

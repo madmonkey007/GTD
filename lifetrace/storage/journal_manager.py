@@ -228,6 +228,35 @@ class JournalManager:
             logger.error(f"重命名标签失败 tag={tag_name!r}: {e}")
             return None
 
+    def set_tag_pinned(self, tag_name: str, pinned: bool) -> bool:
+        """设置标签置顶状态，返回是否成功"""
+        tag_name = (tag_name or "").strip()
+        try:
+            with self.db_base.get_session() as session:
+                tag = self._get_tag_by_name(session, tag_name)
+                if not tag or tag.id is None:
+                    return False
+                tag.pinned = pinned
+                session.flush()
+                return True
+        except SQLAlchemyError as e:
+            logger.error(f"设置标签置顶失败 tag={tag_name!r}: {e}")
+            return False
+
+    def get_pinned_tags(self) -> set[str]:
+        """返回所有置顶标签名（会话关闭后仅保留名称）"""
+        try:
+            with self.db_base.get_session() as session:
+                rows = (
+                    session.query(Tag.tag_name)
+                    .filter(col(Tag.deleted_at).is_(None), col(Tag.pinned).is_(True))
+                    .all()
+                )
+                return {name for (name,) in rows}
+        except SQLAlchemyError as e:
+            logger.error(f"查询置顶标签失败: {e}")
+            return set()
+
     def delete_tag_by_name(self, tag_name: str) -> list[int]:
         """删除标签并移除所有笔记的该标签关联，返回受影响的笔记ID列表"""
         tag_name = (tag_name or "").strip()

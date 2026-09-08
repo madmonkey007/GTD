@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { customFetcher } from "@/lib/api/fetcher";
 import { formatDateInput, getLocalRangeApi, parseJournalDate } from "@/apps/diary/journal-utils";
 import { extractTagsFromContent, useJournalLites } from "@/lib/query";
 
@@ -20,6 +22,7 @@ export interface DiaryStatsData {
 	totalDays: number;
 	dailyCounts: Map<string, number>;
 	tagsWithCount: TagsWithCount[];
+	pinnedTags: Set<string>;
 	dates: Date[];
 	maxDailyCount: number;
 }
@@ -28,6 +31,11 @@ function getStartDate(mode: DiaryFilterMode): Date {
 	const now = new Date();
 	const days = mode === "last7" ? 7 : HEATMAP_DAYS;
 	return new Date(now.getFullYear(), now.getMonth(), now.getDate() - days);
+}
+
+function unwrapPinned(res: unknown): string[] {
+	const data = (res as { data?: unknown })?.data ?? res;
+	return Array.isArray(data) ? data.filter((v): v is string => typeof v === "string") : [];
 }
 
 export function useDiaryStats() {
@@ -51,6 +59,13 @@ export function useDiaryStats() {
 		endDate: statsRange.endDate,
 	});
 
+	// 置顶标签：控制侧栏排序（置顶优先），标签操作后随 journals 失效刷新
+	const { data: pinnedTags } = useQuery({
+		queryKey: ["journals", "tags", "pinned"],
+		staleTime: 5 * 60 * 1000,
+		queryFn: () => customFetcher<string[]>("/api/journals/tags/pinned").then((res) => unwrapPinned(res)),
+	});
+
 	const stats = useMemo<DiaryStatsData | undefined>(() => {
 		if (!data?.notes) return undefined;
 
@@ -69,9 +84,15 @@ export function useDiaryStats() {
 			}
 		}
 
+		const pinned = new Set(pinnedTags ?? []);
 		const tagsWithCount = Array.from(tagCountMap.entries())
 			.map(([tagName, count]) => ({ tagName, count }))
-			.sort((a, b) => b.count - a.count);
+			.sort((a, b) => {
+				const pa = pinned.has(a.tagName) ? 0 : 1;
+				const pb = pinned.has(b.tagName) ? 0 : 1;
+				if (pa !== pb) return pa - pb;
+				return b.count - a.count;
+			});
 
 		const now = new Date();
 		const dates: Date[] = [];
@@ -92,10 +113,11 @@ export function useDiaryStats() {
 			totalDays: daySet.size,
 			dailyCounts,
 			tagsWithCount,
+			pinnedTags: pinned,
 			dates,
 			maxDailyCount: Math.max(maxDailyCount, 1),
 		};
-	}, [data]);
+	}, [data, pinnedTags]);
 
 	return {
 		stats,

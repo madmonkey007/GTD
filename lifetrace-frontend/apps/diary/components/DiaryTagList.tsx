@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, MoreHorizontal, Tag } from "lucide-react";
+import { ChevronDown, ChevronRight, MoreHorizontal, Pin, Tag } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -14,10 +14,11 @@ interface TagsWithCount {
 interface DiaryTagListProps {
 	tagsWithCount: TagsWithCount[];
 	selectedTag?: string | null;
+	pinnedTags?: Set<string>;
 	onSelectTag?: (tagName: string | null) => void;
 }
 
-export function DiaryTagList({ tagsWithCount, selectedTag, onSelectTag }: DiaryTagListProps) {
+export function DiaryTagList({ tagsWithCount, selectedTag, pinnedTags, onSelectTag }: DiaryTagListProps) {
 	const t = useTranslations("journalPanel");
 	const [expanded, setExpanded] = useState(true);
 	const [menu, setMenu] = useState<{ tag: string; rect: DOMRect } | null>(null);
@@ -43,6 +44,7 @@ export function DiaryTagList({ tagsWithCount, selectedTag, onSelectTag }: DiaryT
 						{tagsWithCount.map(({ tagName, count }) => {
 							const isSelected = selectedTag === tagName;
 							const hasMenu = menu?.tag === tagName;
+							const isPinned = pinnedTags?.has(tagName) ?? false;
 							return (
 								<div
 									key={tagName}
@@ -60,7 +62,11 @@ export function DiaryTagList({ tagsWithCount, selectedTag, onSelectTag }: DiaryT
 										className="flex flex-1 items-center gap-2 text-left min-w-0"
 										onClick={() => onSelectTag?.(isSelected ? null : tagName)}
 									>
-										<Tag className="h-3 w-3 shrink-0" />
+										{isPinned ? (
+											<Pin className="h-3 w-3 shrink-0" />
+										) : (
+											<Tag className="h-3 w-3 shrink-0" />
+										)}
 										<span className="flex-1 truncate">{tagName}</span>
 									</button>
 									<span className="text-[10px] font-medium tabular-nums text-muted-foreground/70">
@@ -87,6 +93,7 @@ export function DiaryTagList({ tagsWithCount, selectedTag, onSelectTag }: DiaryT
 					tagName={menu.tag}
 					locale={locale}
 					anchorRect={menu.rect}
+					pinned={pinnedTags?.has(menu.tag) ?? false}
 					onClose={() => setMenu(null)}
 				/>
 			)}

@@ -279,6 +279,35 @@ async def rename_tag(
         raise HTTPException(status_code=500, detail=f"重命名标签失败: {e!s}") from e
 
 
+@router.get("/api/journals/tags/pinned")
+async def get_pinned_tags(
+    service: JournalService = Depends(get_journal_service),
+):
+    """置顶标签名列表"""
+    try:
+        return service.get_pinned_tags()
+    except Exception as e:
+        logger.error(f"查询置顶标签失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"查询置顶标签失败: {e!s}") from e
+
+
+@router.put("/api/journals/tags/{tag_name}/pin")
+async def set_tag_pin(
+    tag_name: str = Path(..., description="标签名称"),
+    payload: dict | None = None,
+    service: JournalService = Depends(get_journal_service),
+):
+    """设置/取消标签置顶"""
+    try:
+        pinned = bool((payload or {}).get("pinned", True))
+        return service.set_tag_pinned(tag_name, pinned)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"设置标签置顶失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"设置标签置顶失败: {e!s}") from e
+
+
 @router.delete("/api/journals/tags/{tag_name}")
 async def delete_tag(
     tag_name: str = Path(..., description="标签名称"),
