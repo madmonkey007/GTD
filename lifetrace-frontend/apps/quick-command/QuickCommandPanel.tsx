@@ -320,6 +320,7 @@ export function QuickCommandPanel() {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const hasText = input.trim().length > 0;
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [streamingId, setStreamingId] = useState<string | null>(null);
@@ -682,9 +683,9 @@ export function QuickCommandPanel() {
         )}
       </div>
 
-      {/* 输入区 */}
+      {/* 输入区：输入文字后隐藏语音/Agent，发送按钮贴右下角 */}
       <div className="border-t border-border/30 px-4 py-3">
-        <div className="mx-auto flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3 py-2 focus-within:border-primary/40 transition-colors" style={{ width: isMobile ? "100%" : "70%" }}>
+        <div className={`mx-auto flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3 py-2 focus-within:border-primary/40 transition-colors ${hasText ? "items-end" : ""}`} style={{ width: isMobile ? "100%" : "70%" }}>
           <textarea
             ref={taRef}
             value={input}
@@ -698,6 +699,7 @@ export function QuickCommandPanel() {
             placeholder={locale === "zh" ? "输入内容，Enter 存为收集箱草稿；点 ✨ 交给 Agent" : "Type… Enter saves a draft; ✨ asks the agent"}
             className="flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/40 max-h-40"
           />
+          {(!hasText || isVoiceRecording) && (
           <VoiceInputButton
             ownerId="quick-command"
             expandOnRecord={true}
@@ -713,9 +715,10 @@ export function QuickCommandPanel() {
             onSegmentFinal={inboxEcho.onSegmentFinal}
             className="flex-shrink-0 rounded-lg p-2.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           />
+          )}
           {/* Agent 按钮：输入框内，点击走现有 agent 模式（不点则 Enter 仅存本地草稿） */}
-          {/* 录音时隐藏 Agent/草稿按钮，波纹条延伸到原按钮位置 */}
-          {!isVoiceRecording && (
+          {/* 有文字或录音时隐藏 Agent，只保留发送/停止 */}
+          {!hasText && !isVoiceRecording && (
           <button
             type="button"
             onClick={onAgentSubmit}
@@ -736,7 +739,7 @@ export function QuickCommandPanel() {
               <Square className="w-4 h-4" />
             </button>
           ) : (
-            !isVoiceRecording && (
+            !isVoiceRecording && hasText && (
             <button
               type="button"
               onClick={onSubmit}
