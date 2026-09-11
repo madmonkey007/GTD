@@ -69,7 +69,15 @@ if (!releaseDir || !fs.existsSync(releaseDir)) {
 	process.exit(1);
 }
 
-const resourcesDir = path.join(releaseDir, "resources");
+// On Windows, Tauri's resource_dir() resolves to the directory that CONTAINS the
+// executable (the release dir itself), NOT a "resources" subdir. The previous
+// target "<release>/resources" placed files where the Rust side never looks
+// (get_backend_path/get_server_path join directly onto resource_dir()). Target the
+// executable directory instead so running the raw (un-installed) binary resolves
+// resources too. The shipped installer is populated authoritatively by
+// bundle.resources (map form) at build time; this post-build copy is only a
+// safety net for the raw-binary workflow.
+const resourcesDir = releaseDir;
 fs.mkdirSync(resourcesDir, { recursive: true });
 
 const standaloneSrc = path.join(rootDir, ".next", "standalone");

@@ -47,6 +47,10 @@ export interface AppConfig {
 	llmModel?: string;
 	llmTemperature?: number;
 	llmMaxTokens?: number;
+	// 标题生成模型配置（AI 自动生成笔记标题专用 LLM）
+	titleLlmApiKey?: string;
+	titleLlmBaseUrl?: string;
+	titleLlmModel?: string;
 	// 录制配置
 	jobsRecorderEnabled?: boolean;
 	jobsRecorderInterval?: number;

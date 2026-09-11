@@ -198,7 +198,7 @@ function getWsBaseUrl(): string {
 		process.env.NEXT_PUBLIC_API_URL ||
 		(typeof window !== "undefined" &&
 			(window as Window & { __BACKEND_URL__?: string }).__BACKEND_URL__) ||
-		"http://localhost:8001"
+		"http://localhost:8100"
 	);
 }
 

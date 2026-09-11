@@ -19,12 +19,24 @@ try {
 // 判断是 build 版还是 dev 版
 const BUILD_TYPE = process.env.NODE_ENV === "production" ? "build" : "dev";
 
-// 从环境变量读取 API 地址，如果读不到就使用 localhost:8100（Build 模式默认端口）
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+// 从环境变量读取 API 地址，如果读不到就使用 localhost:8100（Build 模式默认后端代理端口）。
+// 注意：8100 对应 src-tauri/src/config.rs 的 BUILD_BACKEND_PORT，build 模式下 axum 代理监听于此。
+// 开发模式请通过 NEXT_PUBLIC_API_URL 显式覆盖（例如 8001），不要依赖 fallback。
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100";
 const apiUrl = new URL(API_BASE_URL);
 
 const nextConfig: NextConfig = {
 	output: "standalone",
+	// 钉住 workspace root 为本目录。
+	// 否则 Turbopack 会向上扫描 lockfile，命中 D:\pnpm-lock.yaml（仓库外的游离文件）
+	// 并把 D:\ 当成根；standalone 产物随之按「根→项目」的相对路径嵌套成
+	// .next/standalone/manus/GTD/lifetrace-frontend/server.js，而 Tauri 侧
+	// (nextjs.rs get_server_path / tauri-prebuild.js / tauri-copy-resources.js /
+	// resolve-symlinks.js / copy-missing-deps.js) 一律假设扁平的
+	// .next/standalone/server.js，会导致找不到入口、静态资源 404。
+	turbopack: {
+		root: __dirname,
+	},
 	reactStrictMode: true,
 	typedRoutes: true,
 	devIndicators: false,

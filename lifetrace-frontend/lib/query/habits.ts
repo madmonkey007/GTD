@@ -20,7 +20,7 @@ import { queryKeys } from "./keys";
 const API_BASE =
 	typeof window !== "undefined"
 		? ""
-		: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+		: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100";
 
 // 前端习惯类型（沿用 apps/habits 里的 Habit 接口形状，id 为 string 以保持向后兼容）
 export interface Habit {
