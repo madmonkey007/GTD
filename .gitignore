@@ -107,6 +107,10 @@ dist-backend/
 # PWA icons (referenced in manifest.json and layout.tsx)
 !**/public/icon-192x192.png
 !**/public/icon-512x512.png
+!**/public/icon.png
+!**/public/apple-touch-icon.png
+# Iter 侧边栏/顶栏/island 引用 (原 free-todo-logos 的替代)
+!**/public/iter-logos/*.png
 # App logo variants referenced in AppHeader/PanelRegion/Island/tray-manager
 !**/public/free-todo-logos/free_todo_icon_4.png
 !**/public/free-todo-logos/free_todo_icon_4_with_grid.png
