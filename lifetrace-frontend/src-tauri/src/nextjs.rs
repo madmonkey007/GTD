@@ -14,6 +14,76 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+/// `CREATE_NO_WINDOW` process-creation flag (Windows).
+///
+/// `node.exe` (the standalone server) and `where.exe` (PATH probing) use the
+/// console subsystem. When spawned by this GUI-subsystem parent (which has no
+/// console), Windows would otherwise allocate a new console window that stays
+/// visible for the child's lifetime. This flag suppresses it.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Apply `CREATE_NO_WINDOW` on Windows so console-subsystem children do not
+/// attach/flash a console window. No-op on other platforms.
+#[cfg(windows)]
+fn hide_console(cmd: &mut Command) {
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_console(_cmd: &mut Command) {}
+
+/// Strip the Windows verbatim (`\\?\`) prefix that `fs::canonicalize` and
+/// Tauri's `resource_dir()` may return.
+///
+/// Node.js's CommonJS loader (`resolveMainPath` -> `realpathSync`) mis-parses
+/// `\\?\D:\...\server.js`: it attempts `lstat("D:")` and aborts with `EISDIR`
+/// before the script ever runs, so the spawned server exits immediately and
+/// `wait_for_server` times out. External console tools expect plain Win32
+/// paths, so normalize here before handing the path to `node`.
+fn deverbatim(path: &std::path::Path) -> PathBuf {
+    let text = path.to_string_lossy();
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{}", rest));
+    }
+    if let Some(rest) = text.strip_prefix(r"\\?\") {
+        return PathBuf::from(rest);
+    }
+    path.to_path_buf()
+}
+
+/// Forward a child process's piped stream into the log, line by line.
+///
+/// This both surfaces the child's output (crucial for diagnosing startup
+/// failures such as the `EISDIR` crash above) and keeps the pipe drained so
+/// node never blocks once the ~4 KiB OS pipe buffer fills.
+fn spawn_pipe_logger<R>(stream: R, label: &'static str)
+where
+    R: std::io::Read + Send + 'static,
+{
+    std::thread::spawn(move || {
+        use std::io::BufRead;
+        let mut reader = std::io::BufReader::new(stream);
+        let mut line = String::new();
+        loop {
+            line.clear();
+            match reader.read_line(&mut line) {
+                Ok(0) => break, // EOF
+                Ok(_) => {
+                    let trimmed = line.trim_end();
+                    if !trimmed.is_empty() {
+                        info!("[nextjs {}] {}", label, trimmed);
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+}
+
 /// Global Next.js process reference
 static NEXTJS_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
 
@@ -105,7 +175,8 @@ fn get_server_path(app: &AppHandle) -> Result<PathBuf, String> {
     let server_path = resource_path.join("standalone").join("server.js");
 
     if server_path.exists() {
-        Ok(server_path)
+        // Normalize away any `\\?\` verbatim prefix so node.exe can load it.
+        Ok(deverbatim(&server_path))
     } else {
         Err(format!("Server file not found at {:?}", server_path))
     }
@@ -167,19 +238,32 @@ pub async fn start_nextjs(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
     info!("Node.js path: {:?}", node_path);
 
     // Spawn Next.js server process
-    let child = Command::new(&node_path)
-        .arg(&server_path)
+    let mut cmd = Command::new(&node_path);
+    cmd.arg(&server_path)
         .current_dir(server_dir)
         .env("PORT", port.to_string())
         .env("HOSTNAME", "localhost")
         .env("NODE_ENV", "production")
         .env("NEXT_PUBLIC_API_URL", &backend_url)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    // Prevent node.exe (console subsystem) from opening a visible console window.
+    hide_console(&mut cmd);
+    let mut child = cmd
         .spawn()
         .map_err(|e| format!("Failed to start Next.js server: {}", e))?;
 
     info!("Spawned Next.js process with PID: {:?}", child.id());
+
+    // Drain the child's piped stdout/stderr into our logger. Without this the
+    // OS pipe buffers fill and node blocks, and any startup crash is silently
+    // lost (which is exactly why the `\\?\` path failure was invisible before).
+    if let Some(stdout) = child.stdout.take() {
+        spawn_pipe_logger(stdout, "stdout");
+    }
+    if let Some(stderr) = child.stderr.take() {
+        spawn_pipe_logger(stderr, "stderr");
+    }
 
     // Store process reference
     {
@@ -228,10 +312,10 @@ fn which_node() -> Result<PathBuf, String> {
         }
 
         // Try to find in PATH
-        if let Ok(output) = Command::new(if cfg!(windows) { "where" } else { "which" })
-            .arg(candidate)
-            .output()
-        {
+        let mut probe = Command::new(if cfg!(windows) { "where" } else { "which" });
+        probe.arg(candidate);
+        hide_console(&mut probe);
+        if let Ok(output) = probe.output() {
             if output.status.success() {
                 let path_str = String::from_utf8_lossy(&output.stdout)
                     .trim()

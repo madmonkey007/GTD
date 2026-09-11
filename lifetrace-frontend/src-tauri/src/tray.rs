@@ -15,6 +15,15 @@ use tauri::{
 
 /// Setup the system tray
 pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
+    // 防御性去重：Tauri 2 允许在 config + 代码两处都声明托盘。
+    // 若 config 的 app.trayIcon 仍在生效，会与这里的 TrayIconBuilder 各建一个，
+    // 导致系统托盘出现两个图标（其中一个无菜单、无法退出）。
+    // 已移除 tauri.web.pyinstaller.json 的 app.trayIcon；此处再按 id 幂等，双保险。
+    if app.tray_by_id("main-tray").is_some() {
+        info!("Tray 'main-tray' already exists, skipping duplicate creation");
+        return Ok(());
+    }
+
     info!("Setting up system tray...");
 
     let handle = app.handle();
@@ -40,7 +49,7 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
 
     let separator3 = PredefinedMenuItem::separator(handle)?;
 
-    let quit = MenuItem::with_id(handle, "quit", "Quit LifeTrace", true, Some("CmdOrCtrl+Q"))?;
+    let quit = MenuItem::with_id(handle, "quit", "Quit Iter", true, Some("CmdOrCtrl+Q"))?;
 
     // Build the menu
     let menu = Menu::with_items(
@@ -60,11 +69,11 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     // Get tray icon
     let icon = get_tray_icon(app)?;
 
-    // Create tray icon
-    let _tray = TrayIconBuilder::new()
+    // Create tray icon (use an explicit stable id so repeated setup can't duplicate it)
+    let _tray = TrayIconBuilder::with_id("main-tray")
         .icon(icon)
         .menu(&menu)
-        .tooltip("LifeTrace - Dynamic Island")
+        .tooltip("Iter")
         .on_menu_event(move |app, event| {
             handle_menu_event(app, event.id.as_ref());
         })

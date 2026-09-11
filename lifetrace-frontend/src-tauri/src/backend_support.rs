@@ -30,8 +30,9 @@ fn backend_port_range(mode: ServerMode) -> (u16, u16) {
 
 pub async fn is_lifetrace_backend(port: u16) -> bool {
     let url = format!("http://127.0.0.1:{}/health", port);
+    // reqwest 0.13 已移除 connect_timeout builder(改用 conn_opts), 这里用短总超时兜底。
     let client = Client::builder()
-        .timeout(Duration::from_secs(2))
+        .timeout(Duration::from_millis(350))
         .build()
         .unwrap_or_default();
 
@@ -53,13 +54,20 @@ pub async fn check_backend_health(
     timeout_ms: u64,
 ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
     let url = format!("http://127.0.0.1:{}/health", port);
+    // 尝试快速直连;若连接被拒立刻返回 false(不必等完整超时)
     let client = Client::builder()
         .timeout(Duration::from_millis(timeout_ms))
         .build()?;
 
     match client.get(&url).send().await {
         Ok(response) => Ok(response.status().is_success()),
-        Err(_) => Ok(false),
+        Err(e) => {
+            if e.is_connect() {
+                Ok(false)
+            } else {
+                Ok(false)
+            }
+        }
     }
 }
 

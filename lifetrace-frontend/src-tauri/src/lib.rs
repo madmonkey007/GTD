@@ -1,6 +1,6 @@
-//! LifeTrace - Tauri Application Library
+//! Iter - Tauri Application Library
 //!
-//! This module contains the core functionality for the LifeTrace desktop application,
+//! This module contains the core functionality for the Iter desktop application,
 //! including backend management, Next.js server management, system tray, and global shortcuts.
 //!
 //! ## Window Modes
@@ -41,7 +41,7 @@ pub fn run() {
     // Initialize logger
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    info!("Starting LifeTrace application...");
+    info!("Starting Iter application...");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())

@@ -1,5 +1,5 @@
 [package]
-name = "free-todo"
+name = "iter"
 version = "0.1.2"
 description = "LifeTrace - Your Intelligent Life Tracking Platform"
 license-file = "../../LICENSE"
@@ -34,3 +34,10 @@ libc = "0.2.180"
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+# 打包提速：release 编译更快（lto=false + 更多 codegen-units）。产物体积略有增大，属可接受权衡。
+[profile.release]
+lto = false
+codegen-units = 16
+incremental = true
+strip = true

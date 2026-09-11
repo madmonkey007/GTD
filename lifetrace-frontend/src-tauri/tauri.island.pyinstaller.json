@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2.1",
-  "productName": "LifeTrace Island",
+  "productName": "Iter Island",
   "version": "0.1.2",
   "identifier": "com.freeugroup.lifetrace.island",
   "build": {
@@ -12,7 +12,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
-        "title": "LifeTrace Island",
+        "title": "Iter Island",
         "width": 380,
         "height": 120,
         "minWidth": 300,
@@ -33,10 +33,6 @@
         "enable": true,
         "scope": ["**"]
       }
-    },
-    "trayIcon": {
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": true
     }
   },
   "bundle": {
@@ -48,10 +44,10 @@
       "icons/icon.ico"
     ],
     "targets": "all",
-    "resources": [
-      "../../dist-backend",
-      "../.next/standalone"
-    ],
+    "resources": {
+      "../../dist-backend/": "dist-backend/",
+      "../.next/standalone/": "standalone/"
+    },
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",

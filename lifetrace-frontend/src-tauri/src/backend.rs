@@ -26,6 +26,28 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 use tauri::AppHandle;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+/// `CREATE_NO_WINDOW` process-creation flag (Windows).
+///
+/// The backend executable (`lifetrace.exe`), `uv.exe`, and the Python runtime
+/// all use the console subsystem. When spawned by this GUI-subsystem parent
+/// (which has no console), Windows would otherwise allocate a new console
+/// window that stays visible for the child's lifetime. This flag suppresses it.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Apply `CREATE_NO_WINDOW` on Windows so console-subsystem children do not
+/// attach/flash a console window. No-op on other platforms.
+#[cfg(windows)]
+fn hide_console(cmd: &mut Command) {
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_console(_cmd: &mut Command) {}
+
 struct BackendState {
     backend_port: Arc<AtomicU16>,
     ready: Arc<AtomicBool>,
@@ -85,7 +107,9 @@ fn get_backend_runtime() -> BackendRuntime {
         }
     }
 
-    BackendRuntime::Uv
+    // 默认值：PyInstaller。打包发布版只携带编译好的 lifetrace.exe，
+    // 若误走 Uv/Script runtime 会去找源码脚本而找不到，导致后端起不来。
+    BackendRuntime::PyInstaller
 }
 
 fn run_uv_sync_if_needed(backend_root: &Path) -> Result<(), String> {
@@ -99,6 +123,7 @@ fn run_uv_sync_if_needed(backend_root: &Path) -> Result<(), String> {
     for (key, value) in uv_env_pairs() {
         cmd.env(key, value);
     }
+    hide_console(&mut cmd);
 
     let status = cmd
         .status()
@@ -173,11 +198,11 @@ pub async fn start_backend(
     }
 
     let app_handle = app.clone();
-    tokio::spawn(async move {
-        if let Err(err) = backend_supervisor(app_handle, mode).await {
-            error!("Backend supervisor exited: {}", err);
-        }
-    });
+        tokio::spawn(async move {
+            if let Err(err) = backend_supervisor(app_handle, mode).await {
+                error!("Backend supervisor exited: {}", err);
+            }
+        });
 
     Ok(())
 }
@@ -243,7 +268,15 @@ async fn backend_supervisor(app: AppHandle, mode: ServerMode) -> Result<(), Stri
             state.backend_port.store(0, Ordering::Relaxed);
         }
 
-        if let Some(port) = detect_running_backend_port(mode).await {
+        // 全新进程(无已管理子进程、且代理端口空)时直接启动后端,不必先扫描 8101-8199:
+        // 扫描每个空闲端口都要等连接超时,99 端口累积可达数十秒,前端会长时间"登录服务不可用"。
+        // detect 仅用于对"外部已启动的 lifetrace 后端"做复用,首次冷启动直接启用。
+        let detected = if managed {
+            detect_running_backend_port(mode).await
+        } else {
+            None
+        };
+        if let Some(port) = detected {
             state.backend_port.store(port, Ordering::Relaxed);
             state.ready.store(true, Ordering::Relaxed);
             backoff = Duration::from_millis(500);
@@ -424,6 +457,10 @@ async fn start_backend_process(app: &AppHandle, mode: ServerMode) -> Result<u16,
     info!("Backend path: {:?}", backend_path);
     info!("Data directory: {:?}", data_dir);
     info!("Server mode: {}", mode_label);
+
+    // Prevent the console-subsystem backend (lifetrace.exe / uv.exe / python)
+    // from opening a visible console window when spawned by this GUI process.
+    hide_console(&mut command);
 
     let mut child = command
         .stdout(Stdio::piped())
