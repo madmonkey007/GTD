@@ -10,7 +10,6 @@ import re
 from contextvars import ContextVar
 from datetime import datetime, time, timedelta
 from inspect import Parameter, signature
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
@@ -46,6 +45,7 @@ from lifetrace.storage.journal_manager import (
 )
 from lifetrace.storage.models import Activity, Todo
 from lifetrace.storage.sql_utils import col
+from lifetrace.util.base_paths import get_user_config_dir
 from lifetrace.util.logging_config import get_logger
 from lifetrace.util.settings import settings
 from lifetrace.util.time_utils import now_local_naive, to_local_naive
@@ -125,14 +125,30 @@ class JournalService:
         try:
             import yaml
 
-            cfg_path = Path(__file__).resolve().parent.parent / "config" / "config.yaml"
+            # 统一用用户数据目录（--data-dir 指定）读取，开发/打包/设置页三处一致。
+            # 此前用 Path(__file__) 在 PyInstaller 打包下解析到 _internal 内不存在的
+            # config.yaml，导致标题生成通道永远读不到配置。
+            cfg_path = get_user_config_dir() / "config.yaml"
             if cfg_path.exists():
                 with cfg_path.open(encoding="utf-8") as config_file:
                     cfg_all = yaml.safe_load(config_file) or {}
+                found_title_channel = False
                 for section in ("title_llm", "title_llm_fallback"):
                     channel = cfg_all.get(section)
                     if channel and channel.get("api_key"):
                         channels.append(channel)
+                        found_title_channel = True
+                # 未单独配置标题模型时，回退复用主 LLM 配置，避免重复维护。
+                if not found_title_channel:
+                    main_llm = cfg_all.get("llm") or {}
+                    if main_llm.get("api_key"):
+                        channels.append(
+                            {
+                                "api_key": main_llm["api_key"],
+                                "base_url": main_llm.get("base_url"),
+                                "model": main_llm.get("model"),
+                            }
+                        )
         except Exception as exc:
             logger.warning(f"读取标题模型配置失败: {exc}")
 
@@ -197,7 +213,7 @@ class JournalService:
                     title_client = _OpenAI(
                         base_url=channel["base_url"],
                         api_key=channel["api_key"],
-                        timeout=6,
+                        timeout=20,
                     )
                     extra = (
                         {"reasoning_effort": "none"}

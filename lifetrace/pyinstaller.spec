@@ -76,6 +76,7 @@ enable_upx = _env_flag(
 datas = [
     # Configuration files - 放在 app 根目录下的 config/
     (str(lifetrace_dir / "config" / "default_config.yaml"), "config"),
+    (str(lifetrace_dir / "config" / "prompt.yaml"), "config"),
     (str(lifetrace_dir / "config" / "rapidocr_config.yaml"), "config"),
     # Prompts directory - 包含所有拆分后的 prompt yaml 文件
     (str(lifetrace_dir / "config" / "prompts"), "config/prompts"),
@@ -216,6 +217,43 @@ lifetrace_parent_dir = str(lifetrace_dir.parent)
 # Collect data files and binaries from rapidocr_onnxruntime package
 # This ensures config.yaml and other data files are included
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
+# Collect ALL lifetrace submodules (routers/services/repositories/schemas/...).
+# core/module_registry.py registers routers dynamically via import_module("<string>"),
+# which PyInstaller's static analysis cannot follow. Listing only the package name
+# (e.g. "lifetrace.routers") bundles just its __init__, so deferred routers were
+# missing at runtime (ModuleNotFoundError -> the corresponding /api/* routes 404).
+#
+# 为什么不用 collect_submodules("lifetrace")：它底层是 pkgutil.walk_packages，
+# 无法递归进 PEP 420 命名空间包（无 __init__.py 的目录）。lifetrace 下
+# routers/llm/jobs/util/models/migrations 都是命名空间包，walk_packages 会整棵
+# 跳过 -> 实测 collect_submodules 只返回 95 个常规包模块、0 个 router。
+# 且 collect_submodules 会真正 import 子包（触发 alembic 迁移等副作用）。
+#
+# 改用文件系统遍历：对命名空间包完全可靠，只生成静态模块名列表（Analysis
+# 做静态字节码分析、不执行模块），无任何 import 副作用。
+def _walk_lifetrace_modules(pkg_root: Path) -> list[str]:
+    """遍历 pkg_root 下所有 .py，生成以包名(lifetrace)开头的点分模块名。"""
+    mods: set[str] = set()
+    base = pkg_root.parent  # repo root，使相对路径以 lifetrace 开头
+    # 跳过运行时数据/构建产物目录，避免污染模块列表
+    skip_dirs = {"__pycache__", "build", "dist", "data", "logs", ".venv", "node_modules"}
+    for py in pkg_root.rglob("*.py"):
+        rel_to_pkg = py.relative_to(pkg_root).parts  # 例如 ('routers', 'journal.py')
+        if any(part in skip_dirs for part in rel_to_pkg):
+            continue
+        rel = py.relative_to(base).with_suffix("")  # lifetrace/routers/journal
+        parts = [p for p in rel.parts if p != "__init__"]
+        # 至少两段(lifetrace.xxx)，且每段都是合法标识符
+        if len(parts) < 2 or not all(p.isidentifier() for p in parts):
+            continue
+        mods.add(".".join(parts))
+    return sorted(mods)
+
+
+lifetrace_submodules = _walk_lifetrace_modules(lifetrace_dir)
+hiddenimports.extend(lifetrace_submodules)
+print(f"[spec] filesystem-walk collected {len(lifetrace_submodules)} lifetrace submodules")
 
 # Collect all submodules to ensure nothing is missed
 rapidocr_submodules = collect_submodules("rapidocr_onnxruntime")

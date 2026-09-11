@@ -75,6 +75,7 @@ _SIMPLE_PREFIX_MAP: dict[str, tuple[int, str]] = {
     "chat_": (5, "chat"),
     "dify_": (5, "dify"),
     "tavily_": (7, "tavily"),
+    "title_llm_": (10, "title_llm"),
 }
 
 # ASR 配置键名映射（保留下划线的键名）
@@ -299,6 +300,10 @@ class ConfigService:
             "llm.model",
             "llm.temperature",
             "llm.max_tokens",
+            # 标题生成模型配置（AI 自动生成笔记标题专用 LLM）
+            "title_llm.api_key",
+            "title_llm.base_url",
+            "title_llm.model",
             # 服务器配置
             "server.host",
             "server.port",

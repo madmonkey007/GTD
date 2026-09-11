@@ -1,5 +1,7 @@
 # Build script for LifeTrace backend using PyInstaller (Windows PowerShell)
 # Usage: .\build-backend.ps1
+# Speedup: skip PyInstaller rebuild if dist-backend\lifetrace.exe already exists (reuse cache). Use -Force to force rebuild.
+param([switch]$Force)
 
 $ErrorActionPreference = "Stop"
 
@@ -55,6 +57,12 @@ try {
 }
 
 # Clean previous build
+$DIST_EXE = "$DIST_DIR\lifetrace.exe"
+if ((-not $Force) -and (Test-Path $DIST_EXE)) {
+    Write-Host "dist-backend\lifetrace.exe already exists, skipping PyInstaller rebuild."
+    Write-Host "Run with -Force to force rebuild."
+    exit 0
+}
 if (Test-Path $DIST_DIR) {
     Write-Host "Cleaning previous build..."
     Remove-Item -Recurse -Force $DIST_DIR
