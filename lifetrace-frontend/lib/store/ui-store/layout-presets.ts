@@ -32,7 +32,7 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
 	},
 	{
 		id: "lifetrace",
-		name: "LifeTrace 模式",
+		name: "Iter 模式",
 		panelFeatureMap: {
 			panelA: "activity",
 			panelB: "debugShots",

@@ -319,13 +319,13 @@ export default function LoginPage() {
 					<div className="relative">
 						<div className="flex items-center gap-2.5">
 							<Image
-								src="/free-todo-logos/free_todo_icon_4_with_grid.png"
-								alt="LifeTrace"
+								src="/iter-logos/logo-dark.png"
+								alt="Iter"
 								width={28}
 								height={28}
 								className="rounded-md"
 							/>
-							<span className="text-sm font-semibold tracking-wide">LifeTrace</span>
+							<span className="text-sm font-semibold tracking-wide">Iter</span>
 						</div>
 						<h1 className="mt-10 text-[2rem] font-semibold leading-snug tracking-tight">
 							记录生活，
@@ -351,20 +351,20 @@ export default function LoginPage() {
 					<FormBackgroundDoodles />
 					<div className="flex items-center gap-2.5 lg:hidden">
 						<Image
-							src="/free-todo-logos/free_todo_icon_4_dark_with_grid.png"
-							alt="LifeTrace"
+							src="/iter-logos/logo-light.png"
+							alt="Iter"
 							width={24}
 							height={24}
 							className="rounded-md dark:hidden"
 						/>
 						<Image
-							src="/free-todo-logos/free_todo_icon_4_with_grid.png"
-							alt="LifeTrace"
+							src="/iter-logos/logo-dark.png"
+							alt="Iter"
 							width={24}
 							height={24}
 							className="hidden rounded-md dark:block"
 						/>
-						<span className="text-sm font-semibold">LifeTrace</span>
+						<span className="text-sm font-semibold">Iter</span>
 					</div>
 
 					<h2 className="mt-6 text-2xl font-semibold tracking-tight lg:mt-0">

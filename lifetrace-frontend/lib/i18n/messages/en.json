@@ -83,8 +83,8 @@
       "categoryWorkspaceDescription": "Adjust appearance, time machine styles, and notifications.",
       "categoryAutomationTitle": "Automation",
       "categoryAutomationDescription": "Manage automation features like auto todo detection.",
-      "categoryAiTitle": "Intelligence & Integrations",
-      "categoryAiDescription": "Configure large language models, web search, and other AI services.",
+      "categoryAiTitle": "Model Services",
+      "categoryAiDescription": "Configure large language models, speech recognition, web search and other AI services",
       "categoryDeveloperTitle": "Scheduler & Advanced",
       "categoryDeveloperDescription": "Manage background task scheduling, speech recognition, and experimental features.",
       "categoryHelpTitle": "Help & About",
@@ -256,7 +256,11 @@
       "shortcutTodoLabel": "New Todo",
       "shortcutInboxLabel": "Inbox",
       "shortcutInUse": "in use",
-      "shortcutHint": "Takes effect immediately. Browsers reserve some combos (e.g. Ctrl+number); pick another if it does not work."
+      "shortcutHint": "Takes effect immediately. Browsers reserve some combos (e.g. Ctrl+number); pick another if it does not work.",
+      "titleLlmConfig": "Title Generation LLM",
+      "titleLlmDescription": "Dedicated LLM used for auto-generating note titles. When enabled you can configure a free model separately; when disabled it reuses the main LLM configured above.",
+      "titleLlmUseDedicated": "Enable dedicated title-generation model",
+      "saving": "Saving"
     },
     "costTracking": {
       "title": "Cost Tracking",
@@ -825,7 +829,7 @@
     "layouts": {
       "default": "Todo List Mode",
       "calendar": "Todo Calendar Mode",
-      "lifetrace": "LifeTrace Mode"
+      "lifetrace": "Iter Mode"
     }
   },
   "scheduler": {

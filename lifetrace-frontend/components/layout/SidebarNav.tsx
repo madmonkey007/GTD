@@ -34,19 +34,19 @@ export function SidebarNav() {
 			<button
 				onClick={() => setActiveView("list")}
 				className="relative h-6 w-6 shrink-0 mb-2.5"
-				title="GTD"
+				title="Iter"
 				type="button"
 			>
 				<Image
-					src="/free-todo-logos/free_todo_icon_4_dark_with_grid.png"
-					alt="GTD"
+					src="/iter-logos/logo-light.png"
+					alt="Iter"
 					fill
 					className="object-contain block dark:hidden"
 					priority
 				/>
 				<Image
-					src="/free-todo-logos/free_todo_icon_4_with_grid.png"
-					alt="GTD"
+					src="/iter-logos/logo-dark.png"
+					alt="Iter"
 					fill
 					className="object-contain hidden dark:block"
 					priority

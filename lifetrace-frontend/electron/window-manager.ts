@@ -288,7 +288,7 @@ export class WindowManager {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>LifeTrace 加载中</title>
+    <title>Iter 加载中</title>
     <style>
       html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f1115; color: #e5e7eb; font-family: "Segoe UI", Arial, sans-serif; }
       .wrap { display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; gap: 14px; }

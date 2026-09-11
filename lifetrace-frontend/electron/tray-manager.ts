@@ -59,7 +59,7 @@ export class TrayManager {
 			this.tray = new Tray(resizedIcon);
 
 			// Set tooltip
-			this.tray.setToolTip("LifeTrace - Dynamic Island");
+			this.tray.setToolTip("Iter");
 
 			// Build context menu
 			this.buildContextMenu();
@@ -141,7 +141,7 @@ export class TrayManager {
 			},
 			{ type: "separator" },
 			{
-				label: "Quit LifeTrace",
+				label: "Quit Iter",
 				role: "quit",
 			},
 		];
@@ -196,8 +196,8 @@ export class TrayManager {
 		// Update tooltip to reflect current state
 		this.tray.setToolTip(
 			isVisible
-				? "LifeTrace - Dynamic Island (Visible)"
-				: "LifeTrace - Dynamic Island (Hidden)"
+				? "Iter (Visible)"
+				: "Iter (Hidden)"
 		);
 
 		// Future: could change icon appearance here

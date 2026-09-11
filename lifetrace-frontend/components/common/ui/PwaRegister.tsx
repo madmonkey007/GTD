@@ -87,7 +87,7 @@ export function PwaRegister() {
 				onClick={install}
 				className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-lg transition hover:bg-slate-700"
 			>
-				安装 LifeTrace
+				安装 Iter
 			</button>
 		</div>
 	);

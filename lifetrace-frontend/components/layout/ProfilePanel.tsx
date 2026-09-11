@@ -290,7 +290,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		}
 	};
 
-	const displayName = user?.displayName?.trim() || user?.email?.split("@")[0] || "LifeTrace 用户";
+	const displayName = user?.displayName?.trim() || user?.email?.split("@")[0] || "Iter 用户";
 
 	const startEditName = () => {
 		setNameDraft(user?.displayName ?? "");
@@ -571,7 +571,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 			{/* Footer */}
 			<div className="px-6 py-4">
 				<div className="flex items-center justify-center gap-2 text-xs text-muted-foreground/40">
-					<span>LifeTrace v1.0</span>
+					<span>Iter v1.0</span>
 				</div>
 			</div>
 

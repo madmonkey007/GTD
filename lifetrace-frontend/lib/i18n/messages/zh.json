@@ -83,8 +83,8 @@
       "categoryWorkspaceDescription": "调整外观、时光机样式与通知。",
       "categoryAutomationTitle": "自动化",
       "categoryAutomationDescription": "管理自动待办检测等自动化能力。",
-      "categoryAiTitle": "智能模型与集成",
-      "categoryAiDescription": "配置大语言模型、联网搜索等 AI 服务，让智能融入工作流。",
+      "categoryAiTitle": "模型服务",
+      "categoryAiDescription": "配置大语言模型、语音识别、联网搜索等 AI 服务",
       "categoryDeveloperTitle": "调度与高级功能",
       "categoryDeveloperDescription": "管理后台任务调度、语音识别等高级与实验性能力。",
       "categoryHelpTitle": "帮助与关于",
@@ -256,7 +256,11 @@
       "shortcutTodoLabel": "记待办",
       "shortcutInboxLabel": "收集箱",
       "shortcutInUse": "已被使用",
-      "shortcutHint": "修改后立即生效。浏览器会保留部分组合键（如 Ctrl+数字），若无效请换一组。"
+      "shortcutHint": "修改后立即生效。浏览器会保留部分组合键（如 Ctrl+数字），若无效请换一组。",
+      "titleLlmConfig": "标题生成模型",
+      "titleLlmDescription": "AI 自动生成笔记标题时使用的专用大模型。开启后可单独配置免费模型（如阿里云百炼免费额度的 qwen）；关闭则复用上方主 LLM 配置。",
+      "titleLlmUseDedicated": "开启专用标题生成模型",
+      "saving": "保存中"
     },
     "costTracking": {
       "title": "费用统计",
@@ -825,7 +829,7 @@
     "layouts": {
       "default": "待办列表模式",
       "calendar": "待办日历模式",
-      "lifetrace": "LifeTrace 模式"
+      "lifetrace": "Iter 模式"
     }
   },
   "scheduler": {
