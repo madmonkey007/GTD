@@ -1,6 +1,6 @@
 {
-  "name": "LifeTrace",
-  "short_name": "LifeTrace",
+  "name": "Iter",
+  "short_name": "Iter",
   "description": "AI-powered smart life tracking & management platform.",
   "start_url": "/",
   "display": "standalone",
