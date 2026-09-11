@@ -111,6 +111,8 @@ dist-backend/
 !**/public/free-todo-logos/free_todo_icon_4.png
 !**/public/free-todo-logos/free_todo_icon_4_with_grid.png
 !**/public/free-todo-logos/free_todo_icon_4_dark_with_grid.png
+# Iter brand logos referenced in SidebarNav/AppHeader/Island/login (light+dark)
+!**/public/iter-logos/*.png
 
 # GitHub assets (large images)
 **/.github/assets/*.png
