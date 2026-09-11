@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 import {
 	AppearanceSection,
 	AudioAsrConfigSection,
-	AudioConfigSection,
 	AutomationTasksSection,
 	AutoTodoDetectionSection,
 	InboxDraftSettingsSection,
@@ -34,6 +33,7 @@ import {
 	ShortcutSettingsSection,
 	TavilyConfigSection,
 	TimeMachineStyleSection,
+	TitleLlmConfigSection,
 	VersionInfoSection,
 } from "./components";
 
@@ -58,8 +58,6 @@ export function SettingsPanel() {
 	const { data: config, isLoading: configLoading } = useConfig();
 
 	// 获取面板启用状态
-	const isFeatureEnabled = useUiStore((state) => state.isFeatureEnabled);
-	const isAudioPanelEnabled = isFeatureEnabled("audio");
 	const setSettingsOpen = useUiStore((state) => state.setSettingsOpen);
 
 	const categories: SettingsCategory[] = [
@@ -167,6 +165,8 @@ export function SettingsPanel() {
 				return (
 					<>
 						<LlmConfigSection config={config} loading={loading} />
+						<TitleLlmConfigSection config={config} loading={loading} />
+						<AudioAsrConfigSection config={config} loading={loading} />
 						<TavilyConfigSection config={config} loading={loading} />
 					</>
 				);
@@ -175,12 +175,6 @@ export function SettingsPanel() {
 					<>
 						{/* <DifyConfigSection config={config} loading={loading} /> */}
 						<SchedulerSection loading={loading} />
-						{isAudioPanelEnabled && (
-							<>
-								<AudioConfigSection config={config} loading={loading} />
-								<AudioAsrConfigSection config={config} loading={loading} />
-							</>
-						)}
 					</>
 				);
 			case "help":

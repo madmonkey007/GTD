@@ -21,6 +21,7 @@ export {
 	SettingsSection,
 } from "./SettingsSection";
 export { TavilyConfigSection } from "./TavilyConfigSection";
+export { TitleLlmConfigSection } from "./TitleLlmConfigSection";
 export { ToggleSwitch } from "./ToggleSwitch";
 export { AppearanceSection } from "./AppearanceSection";
 export { VersionInfoSection } from "./VersionInfoSection";
