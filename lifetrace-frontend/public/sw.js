@@ -1,9 +1,10 @@
 // 开发环境：直接透传所有请求，不做任何缓存，避免 ServiceWorker 缓存旧代码干扰开发
-// 生产环境：带哈希的静态资源 cache-first，页面 HTML 与 API network-first
+// 生产环境：带哈希的静态资源 cache-first，页面 HTML 与 API network-first，
+// 非哈希图片/字体（public 下，文件名不变内容会变）stale-while-revalidate
 // （HTML 引用的 /_next/static 块带内容哈希，旧 HTML 部署后会 404，因此 HTML 绝不能 cache-first）
 importScripts("/sync-sw.js");
 
-const CACHE_NAME = "lifetrace-v5";
+const CACHE_NAME = "lifetrace-v6";
 const STATIC_ASSETS = ["/", "/manifest.json", "/logo.png"];
 const IS_DEV = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
 
@@ -57,9 +58,15 @@ self.addEventListener("fetch", (event) => {
 		return;
 	}
 
-	// 带内容哈希的静态资源与图标：cache-first（内容不变，可长期缓存）
+	// 非哈希静态资源（public 下的图标/logo/字体）：stale-while-revalidate——
+	// 这些文件名不变内容会变（如换品牌 logo），先回缓存但同时后台拉新版入缓存，
+	// 下次打开即为新图，无需升级 CACHE_NAME
 	if (url.pathname.startsWith("/_next/static/") || /\.(png|svg|ico|woff2?)$/.test(url.pathname)) {
-		event.respondWith(cacheFirst(request));
+		if (url.pathname.startsWith("/_next/static/")) {
+			event.respondWith(cacheFirst(request));
+		} else {
+			event.respondWith(staleWhileRevalidate(request));
+		}
 		return;
 	}
 
@@ -85,6 +92,18 @@ self.addEventListener("message", (event) => {
 async function notifyClientsToSync() {
 	const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
 	for (const client of windows) client.postMessage({ type: "LIFETRACE_SYNC" });
+}
+
+async function staleWhileRevalidate(request) {
+	const cache = await caches.open(CACHE_NAME);
+	const cached = await cache.match(request);
+	const network = fetch(request)
+		.then((response) => {
+			if (response.ok) cache.put(request, response.clone());
+			return response;
+		})
+		.catch(() => cached);
+	return cached || network;
 }
 
 async function cacheFirst(request) {
