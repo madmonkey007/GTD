@@ -47,6 +47,10 @@ export function HabitStatsPanel({
 				</button>
 			</div>
 
+			{habits.length === 0 ? (
+				/* 空态直接占满 header 下方整块区域（与待办一致，垂直居中） */
+				<EmptyState icon={Repeat} title={t("empty")} className="flex-1" />
+			) : (
 			<div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
 				{/* 7-day calendar for all habits */}
 				{habits.length > 0 && (
@@ -64,9 +68,6 @@ export function HabitStatsPanel({
 
 				{/* Habit cards */}
 				<section className="space-y-2">
-					{habits.length === 0 && (
-						<EmptyState icon={Repeat} title={t("empty")} />
-					)}
 					<div className="space-y-1.5">
 						{habits.map((habit) => {
 							const isSelected = habit.id === selectedHabitId;
@@ -121,6 +122,7 @@ export function HabitStatsPanel({
 					</div>
 				</section>
 			</div>
+			)}
 		</div>
 	);
 }

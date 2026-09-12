@@ -824,6 +824,8 @@ export function DiaryEditor({
 					? "relative min-h-[60vh] pt-4 pb-10 sm:pt-6"
 					: "space-y-2 pb-3",
 				isMobile ? "pt-2" : "pt-1 pb-3",
+				// 空态时撑满滚动容器，让 EmptyState 垂直居中
+				notesList.length === 0 && !timeMachinePending && "flex min-h-full flex-col justify-start",
 			)}>
 				{(timeMachinePending || timeMachineDate) && (
 					<TimeMachineHeader
@@ -923,6 +925,7 @@ export function DiaryEditor({
 								? "写下第一句，它会出现在这里。"
 								: "Write the first line and it will appear here."
 						}
+						className="h-full"
 					/>
 				) : isTimeMachineMode && !editingCardId ? (
 					<TimeMachineCarousel
