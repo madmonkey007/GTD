@@ -22,11 +22,11 @@ import { useUiStore } from "@/lib/store/ui-store";
 import { cn } from "@/lib/utils";
 
 const FILTER_ITEMS = [
-	{ id: "inbox" as const, label: "收集箱", icon: Inbox },
-	{ id: "today" as const, label: "今天", icon: Calendar },
-	{ id: "last7days" as const, label: "最近7天", icon: CalendarRange7 },
-	{ id: "calendar" as const, label: "日历", icon: CalendarDays },
-	{ id: "quadrants" as const, label: "四象限", icon: LayoutGrid },
+	{ id: "inbox" as const, labelKey: "inbox", icon: Inbox },
+	{ id: "today" as const, labelKey: "today", icon: Calendar },
+	{ id: "last7days" as const, labelKey: "last7days", icon: CalendarRange7 },
+	{ id: "calendar" as const, labelKey: "calendar", icon: CalendarDays },
+	{ id: "quadrants" as const, labelKey: "quadrants", icon: LayoutGrid },
 ] as const;
 
 export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
@@ -135,7 +135,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 					<button
 						type="button"
 						onClick={() => { setSidebarMode(null); setSidebarTag(null); }}
-						title="清除筛选"
+						title={t("clearFilter")}
 						className={cn(
 							"flex items-center justify-center rounded text-muted-foreground hover:text-destructive transition-colors",
 							isMobile ? "h-9 w-9 -mr-1.5" : "h-5 w-5",
@@ -182,7 +182,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 							)}
 						>
 							<Icon className={cn("shrink-0", isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-							<span className="flex-1 text-left">{item.label}</span>
+							<span className="flex-1 text-left">{t(item.labelKey)}</span>
 							{!isViewEntry && (
 								<span className="text-[10px] font-medium tabular-nums text-muted-foreground/70">
 									{count}

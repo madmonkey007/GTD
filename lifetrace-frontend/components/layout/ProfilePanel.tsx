@@ -69,14 +69,15 @@ async function fetchProfileStats(): Promise<ProfileStats> {
 	};
 }
 
-const STAT_ITEMS: { key: keyof ProfileStats; label: string }[] = [
-	{ key: "journals", label: "笔记" },
-	{ key: "todos", label: "待办" },
-	{ key: "projects", label: "项目" },
-	{ key: "habits", label: "习惯" },
+const STAT_ITEMS: { key: keyof ProfileStats; labelKey: string }[] = [
+	{ key: "journals", labelKey: "statsNotes" },
+	{ key: "todos", labelKey: "statsTodos" },
+	{ key: "projects", labelKey: "statsProjects" },
+	{ key: "habits", labelKey: "statsHabits" },
 ];
 
 function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
+	const t = useTranslations("profile");
 	const [oldPassword, setOldPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
@@ -90,21 +91,21 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 	const submit = async () => {
 		if (saving) return;
 		if (newPassword.length < 8) {
-			toast("新密码至少 8 位", { type: "warning" });
+			toast(t("pwdTooShort"), { type: "warning" });
 			return;
 		}
 		if (newPassword !== confirmPassword) {
-			toast("两次输入的新密码不一致", { type: "warning" });
+			toast(t("pwdMismatch"), { type: "warning" });
 			return;
 		}
 		setSaving(true);
 		try {
 			await changePassword(oldPassword, newPassword);
-			toast("密码已修改");
+			toast(t("pwdChanged"));
 			onClose();
 		} catch (err) {
 			const status = (err as { status?: number }).status;
-			toast(status === 400 ? "原密码不正确" : "修改失败，请稍后再试", {
+			toast(t(status === 400 ? "pwdOldWrong" : "pwdChangeFailed"), {
 				type: "error",
 			});
 		} finally {
@@ -119,7 +120,7 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 		<div
 			role="dialog"
 			aria-modal="true"
-			aria-label="修改密码"
+			aria-label={t("changePassword")}
 			tabIndex={-1}
 			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
 			onClick={(event) => {
@@ -131,7 +132,7 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 		>
 			<div className="w-full max-w-sm rounded-xl border border-border/50 bg-popover p-5 shadow-xl">
 				<div className="mb-4 flex items-center justify-between">
-					<h3 className="text-sm font-semibold text-foreground">修改密码</h3>
+					<h3 className="text-sm font-semibold text-foreground">{t("changePassword")}</h3>
 					<button
 						type="button"
 						onClick={onClose}
@@ -145,14 +146,14 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 						inputRef={oldInputRef}
 						value={oldPassword}
 						onChange={(e) => setOldPassword(e.target.value)}
-						placeholder="原密码"
+						placeholder={t("oldPassword")}
 						autoComplete="current-password"
 						className={inputClass}
 					/>
 					<PasswordInput
 						value={newPassword}
 						onChange={(e) => setNewPassword(e.target.value)}
-						placeholder="新密码（至少 8 位）"
+						placeholder={t("newPassword")}
 						autoComplete="new-password"
 						className={inputClass}
 					/>
@@ -162,7 +163,7 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 						onKeyDown={(e) => {
 							if (e.key === "Enter" && !e.nativeEvent.isComposing) void submit();
 						}}
-						placeholder="确认新密码"
+						placeholder={t("confirmPassword")}
 						autoComplete="new-password"
 						className={inputClass}
 					/>
@@ -173,7 +174,7 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 						onClick={onClose}
 						className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/40"
 					>
-						取消
+						{t("cancel")}
 					</button>
 					<button
 						type="button"
@@ -181,7 +182,7 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 						disabled={saving || !oldPassword || !newPassword || !confirmPassword}
 						className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
 					>
-						{saving ? "保存中…" : "确认修改"}
+						{saving ? t("saving") : t("confirmChange")}
 					</button>
 				</div>
 			</div>
@@ -249,26 +250,26 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		event.target.value = "";
 		if (!file || avatarBusy) return;
 		if (!file.type.startsWith("image/")) {
-			toast("请选择图片文件", { type: "warning" });
+			toast(t("selectImage"), { type: "warning" });
 			return;
 		}
 		if (file.size > AVATAR_MAX_BYTES) {
-			toast("图片不能超过 2MB", { type: "warning" });
+			toast(t("imageTooLarge"), { type: "warning" });
 			return;
 		}
 		setAvatarBusy(true);
 		try {
 			await uploadAvatar(file);
 			updateUser({ hasAvatar: true });
-			toast("头像已更新");
+			toast(t("avatarUpdated"));
 		} catch (err) {
 			const status = (err as { status?: number }).status;
 			toast(
 				status === 413
-					? "图片不能超过 2MB"
+					? t("imageTooLarge")
 					: status === 400
-						? "仅支持 PNG/JPEG/WebP/GIF 图片"
-						: "头像上传失败，请稍后再试",
+						? t("imageTypeUnsupported")
+						: t("avatarUploadFailed"),
 				{ type: "error" },
 			);
 		} finally {
@@ -282,15 +283,15 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		try {
 			await deleteAvatar();
 			updateUser({ hasAvatar: false });
-			toast("已移除头像");
+			toast(t("avatarRemoved"));
 		} catch {
-			toast("移除失败，请稍后再试", { type: "error" });
+			toast(t("avatarRemoveFailed"), { type: "error" });
 		} finally {
 			setAvatarBusy(false);
 		}
 	};
 
-	const displayName = user?.displayName?.trim() || user?.email?.split("@")[0] || "Iter 用户";
+	const displayName = user?.displayName?.trim() || user?.email?.split("@")[0] || t("defaultUserName");
 
 	const startEditName = () => {
 		setNameDraft(user?.displayName ?? "");
@@ -308,9 +309,9 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		try {
 			const saved = await updateDisplayName(trimmed);
 			updateUser({ displayName: saved.displayName ?? null });
-			toast("昵称已更新");
+			toast(t("nicknameUpdated"));
 		} catch {
-			toast("昵称保存失败，请稍后再试", { type: "error" });
+			toast(t("nicknameSaveFailed"), { type: "error" });
 		} finally {
 			setSavingName(false);
 			setEditingName(false);
@@ -341,7 +342,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		},
 		{
 			id: "password",
-			label: "修改密码",
+			label: t("profile.changePassword"),
 			icon: KeyRound,
 			color: "text-indigo-500",
 			bg: "bg-indigo-500/10",
@@ -349,7 +350,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		},
 		{
 			id: "logout",
-			label: "退出登录",
+			label: t("profile.logout"),
 			icon: LogOut,
 			color: "text-destructive",
 			bg: "bg-destructive/10",
@@ -394,13 +395,13 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 						type="button"
 						onClick={() => avatarInputRef.current?.click()}
 						disabled={avatarBusy}
-						title="上传头像"
+						title={t("uploadAvatar")}
 						className="group relative block rounded-full focus:outline-none disabled:cursor-wait"
 					>
 						{avatarUrl ? (
 							<img
 								src={avatarUrl}
-								alt="头像"
+								alt={t("avatar")}
 								className="h-20 w-20 rounded-full object-cover ring-4 ring-background"
 							/>
 						) : (
@@ -414,7 +415,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 					</button>
 					{avatarBusy && (
 						<span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-xs text-white">
-							上传中…
+							{t("uploading")}
 						</span>
 					)}
 					{hasAvatar && (
@@ -422,8 +423,8 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 							type="button"
 							onClick={() => void handleRemoveAvatar()}
 							disabled={avatarBusy}
-							title="移除头像"
-							aria-label="移除头像"
+							title={t("removeAvatar")}
+							aria-label={t("removeAvatar")}
 							className="absolute -top-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-muted text-muted-foreground shadow-sm hover:text-destructive disabled:opacity-50"
 						>
 							<X className="h-3 w-3" />
@@ -452,14 +453,14 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 									if (e.key === "Escape") setEditingName(false);
 								}}
 								maxLength={120}
-								placeholder="输入昵称"
+								placeholder={t("nicknamePlaceholder")}
 								className="h-8 w-40 rounded-md border border-border/40 bg-background px-2 text-center text-sm text-foreground focus:outline-none focus:border-primary/40"
 							/>
 							<button
 								type="button"
 								onClick={() => void confirmEditName()}
 								disabled={savingName}
-								title="保存"
+								title={t("save")}
 								className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
 							>
 								<Check className="h-3.5 w-3.5" />
@@ -467,7 +468,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 							<button
 								type="button"
 								onClick={() => setEditingName(false)}
-								title="取消"
+								title={t("cancel")}
 								className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40"
 							>
 								<X className="h-3.5 w-3.5" />
@@ -477,7 +478,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 						<button
 							type="button"
 							onClick={startEditName}
-							title="编辑昵称"
+							title={t("editNickname")}
 							className="group mx-auto flex items-center gap-1.5 text-lg font-semibold text-foreground"
 						>
 							{displayName}
@@ -488,14 +489,14 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 						<p className="mt-0.5 text-sm text-muted-foreground">{user.email}</p>
 					)}
 					{!editingName && !user?.displayName && (
-						<p className="mt-1 text-xs text-muted-foreground/50">点击昵称可编辑</p>
+						<p className="mt-1 text-xs text-muted-foreground/50">{t("clickToEditNickname")}</p>
 					)}
 				</div>
 
 				{/* 数据统计 */}
 				{stats && (
 					<div className="grid w-full max-w-xs grid-cols-4 gap-2 pt-2">
-						{STAT_ITEMS.map(({ key, label }) => (
+						{STAT_ITEMS.map(({ key, labelKey }) => (
 							<div
 								key={key}
 								className="flex flex-col items-center rounded-lg border border-border/30 bg-card/30 py-2"
@@ -503,7 +504,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 								<span className="text-base font-semibold tabular-nums text-foreground">
 									{stats[key]}
 								</span>
-								<span className="text-[10px] text-muted-foreground">{label}</span>
+								<span className="text-[10px] text-muted-foreground">{t(labelKey)}</span>
 							</div>
 						))}
 					</div>
@@ -540,7 +541,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 				<div className="mt-4">
 					<div className="mb-1.5 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
 						<FlaskConical className="h-3.5 w-3.5" />
-						实验室
+						{t("lab")}
 					</div>
 					<div className="rounded-xl border border-dashed border-border/50 bg-card/20 divide-y divide-border/30">
 						{LAB_ITEMS.map((item) => {

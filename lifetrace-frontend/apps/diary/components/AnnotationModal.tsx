@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { useLocaleStore } from "@/lib/store/locale";
 import {
   Bold,
   Hash,
@@ -39,13 +40,22 @@ interface FormatAction {
   title: string;
 }
 
+const FORMAT_TITLES: Record<string, { zh: string; en: string }> = {
+  bold: { zh: "加粗", en: "Bold" },
+  highlight: { zh: "高亮", en: "Highlight" },
+  underline: { zh: "下划线", en: "Underline" },
+  ul: { zh: "无序列表", en: "Bulleted list" },
+  ol: { zh: "有序列表", en: "Numbered list" },
+  tag: { zh: "标签", en: "Tag" },
+};
+
 const FORMAT_ACTIONS: FormatAction[] = [
-  { key: "bold", icon: Bold, title: "加粗" },
-  { key: "highlight", icon: Highlighter, title: "高亮" },
-  { key: "underline", icon: Underline, title: "下划线" },
-  { key: "ul", icon: List, title: "无序列表" },
-  { key: "ol", icon: ListOrdered, title: "有序列表" },
-  { key: "tag", icon: Hash, title: "标签" },
+  { key: "bold", icon: Bold, title: "bold" },
+  { key: "highlight", icon: Highlighter, title: "highlight" },
+  { key: "underline", icon: Underline, title: "underline" },
+  { key: "ul", icon: List, title: "ul" },
+  { key: "ol", icon: ListOrdered, title: "ol" },
+  { key: "tag", icon: Hash, title: "tag" },
 ];
 
 export function AnnotationModal({
@@ -56,6 +66,7 @@ export function AnnotationModal({
   isSubmitting = false,
   recentTags = [],
 }: AnnotationModalProps) {
+  const locale = useLocaleStore((s) => s.locale);
   const [content, setContent] = useState("");
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -491,7 +502,7 @@ export function AnnotationModal({
                   <button
                     key={key}
                     type="button"
-                    title={title}
+                    title={locale === "zh" ? FORMAT_TITLES[title].zh : FORMAT_TITLES[title].en}
                     onClick={() => runFormat(key)}
                     className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
                   >

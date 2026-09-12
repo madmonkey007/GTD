@@ -784,7 +784,7 @@ export function DiaryEditor({
 										exit={{ opacity: 0, scale: 0.7 }}
 										transition={{ duration: 0.15 }}
 										onClick={() => setMobileComposerOpen(true)}
-										aria-label="新建笔记"
+										aria-label={locale === "zh" ? "新建笔记" : "New note"}
 										className="fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_20px_-6px_rgba(0,0,0,0.4)] transition-transform active:scale-95"
 										style={{ bottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }}
 									>
@@ -832,14 +832,14 @@ export function DiaryEditor({
 				{debouncedSearch && (
 					<div className="flex items-center gap-2 mb-3 px-5">
 						<span className="text-xs font-medium text-primary/80 bg-primary/8 rounded-full px-2.5 py-1 border border-primary/10">
-							搜索: "{debouncedSearch}"
+							{locale === "zh" ? "搜索: " : "Search: "}"{debouncedSearch}"
 						</span>
 						<button
 							type="button"
 							onClick={() => setSearchQuery("")}
 							className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
 						>
-							清除
+							{locale === "zh" ? "清除" : "Clear"}
 						</button>
 					</div>
 				)}
@@ -1126,7 +1126,7 @@ export function DiaryEditor({
 												</DropdownMenuItem>
 												<DropdownMenuItem onClick={() => onAnnotate?.(note)}>
 													<MessageSquarePlus className="w-3.5 h-3.5 mr-2" />
-													批注
+													{locale === "zh" ? "批注" : "Annotate"}
 												</DropdownMenuItem>
 												<DropdownMenuItem onClick={() => onSimilarClick?.(note.id)}>
 													<GitFork className="w-3.5 h-3.5 mr-2" />

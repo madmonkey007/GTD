@@ -17,6 +17,7 @@ import { compressImageIfNeeded } from "@/lib/imageCompress";
 import { useAudioRecordingStore } from "@/lib/store/audio-recording-store";
 import { NoteImageFrame } from "./components/NoteImageFrame";
 import { toast } from "@/lib/toast";
+import { useLocaleStore } from "@/lib/store/locale";
 import { cn } from "@/lib/utils";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
@@ -69,13 +70,22 @@ const FORMAT_CQ = [
 	"@min-[232px]:block", // tag
 ];
 
+const FORMAT_TITLES: Record<string, { zh: string; en: string }> = {
+	bold: { zh: "加粗", en: "Bold" },
+	underline: { zh: "下划线", en: "Underline" },
+	highlight: { zh: "高亮", en: "Highlight" },
+	ul: { zh: "无序列表", en: "Bulleted list" },
+	ol: { zh: "有序列表", en: "Numbered list" },
+	tag: { zh: "标签", en: "Tag" },
+};
+
 const FORMAT_ACTIONS: FormatAction[] = [
-	{ key: "bold", icon: Bold, title: "加粗" },
-	{ key: "underline", icon: Underline, title: "下划线" },
-	{ key: "highlight", icon: Highlighter, title: "高亮" },
-	{ key: "ul", icon: List, title: "无序列表" },
-	{ key: "ol", icon: ListOrdered, title: "有序列表" },
-	{ key: "tag", icon: Hash, title: "标签" },
+	{ key: "bold", icon: Bold, title: "bold" },
+	{ key: "underline", icon: Underline, title: "underline" },
+	{ key: "highlight", icon: Highlighter, title: "highlight" },
+	{ key: "ul", icon: List, title: "ul" },
+	{ key: "ol", icon: ListOrdered, title: "ol" },
+	{ key: "tag", icon: Hash, title: "tag" },
 ];
 
 const ALLOWED_TAGS = new Set([
@@ -233,6 +243,7 @@ const ImageGroupNodeView = ({
 	deleteNode: () => void;
 	updateAttributes: (attrs: Record<string, any>) => void;
 }) => {
+	const locale = useLocaleStore((s) => s.locale);
 	const images = (node.attrs.images ?? []) as { src: string; alt?: string }[];
 	const removeAt = (i: number) => {
 		const next = images.filter((_, idx) => idx !== i);
@@ -253,7 +264,7 @@ const ImageGroupNodeView = ({
 						<button
 							type="button"
 							onClick={() => removeAt(i)}
-							title="移除图片"
+							title={locale === "zh" ? "移除图片" : "Remove image"}
 							className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-500 text-white text-[11px] leading-none flex items-center justify-center shadow hover:bg-zinc-600 hover:scale-110 transition"
 						>
 							✕
@@ -319,6 +330,7 @@ export function DiaryTiptapEditor({
 		linkedNoteTitles,
 		onRemoveLink,
 	}: DiaryTiptapEditorProps) {
+	const locale = useLocaleStore((s) => s.locale);
 	const recentTagsRef = useRef<string[]>(recentTags);
 	recentTagsRef.current = recentTags;
 	const lastValueRef = useRef(value);
@@ -684,7 +696,7 @@ export function DiaryTiptapEditor({
 							<button
 								key={key}
 								type="button"
-								title={title}
+								title={locale === "zh" ? FORMAT_TITLES[title].zh : FORMAT_TITLES[title].en}
 								onClick={() => runFormat(key)}
 								className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
 							>
@@ -720,7 +732,7 @@ export function DiaryTiptapEditor({
 							<button
 								key={key}
 								type="button"
-								title={title}
+								title={locale === "zh" ? FORMAT_TITLES[title].zh : FORMAT_TITLES[title].en}
 								onClick={() => runFormat(key)}
 								className={cn(
 									"rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors",
@@ -755,7 +767,7 @@ export function DiaryTiptapEditor({
 											<button
 												key={key}
 												type="button"
-												title={title}
+												title={locale === "zh" ? FORMAT_TITLES[title].zh : FORMAT_TITLES[title].en}
 												onClick={() => { runFormat(key); setMoreFmtOpen(false); }}
 												className="rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
 											>

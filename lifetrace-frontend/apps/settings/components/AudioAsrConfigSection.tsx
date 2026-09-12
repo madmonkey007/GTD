@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { useLocaleStore } from "@/lib/store/locale";
 import { useTestAsrConfigApiTestAsrConfigPost } from "@/lib/generated/config/config";
 import { useSaveConfig } from "@/lib/query";
 import { toastError, toastSuccess } from "@/lib/toast";
@@ -13,6 +14,7 @@ interface AudioAsrConfigSectionProps {
 }
 
 export function AudioAsrConfigSection({ config, loading = false }: AudioAsrConfigSectionProps) {
+	const isZh = useLocaleStore((s) => s.locale) === "zh";
 	const t = useTranslations("page.settings");
 	const saveConfigMutation = useSaveConfig();
 	const testAsrMutation = useTestAsrConfigApiTestAsrConfigPost();
@@ -194,7 +196,7 @@ export function AudioAsrConfigSection({ config, loading = false }: AudioAsrConfi
 					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
 						<div className="space-y-1.5">
 							<label htmlFor="asr-model" className="block text-[13px] font-medium text-foreground/80">
-								模型
+								{isZh ? "模型" : "Model"}
 							</label>
 							<input
 								id="asr-model"
@@ -209,7 +211,7 @@ export function AudioAsrConfigSection({ config, loading = false }: AudioAsrConfi
 						</div>
 						<div className="space-y-1.5">
 							<label htmlFor="asr-sample-rate" className="block text-[13px] font-medium text-foreground/80">
-								采样率
+								{isZh ? "采样率" : "Sample rate"}
 							</label>
 							<input
 								id="asr-sample-rate"
@@ -225,7 +227,7 @@ export function AudioAsrConfigSection({ config, loading = false }: AudioAsrConfi
 						</div>
 						<div className="space-y-1.5">
 							<label htmlFor="asr-format" className="block text-[13px] font-medium text-foreground/80">
-								格式
+								{isZh ? "格式" : "Format"}
 							</label>
 							<input
 								id="asr-format"
@@ -240,7 +242,7 @@ export function AudioAsrConfigSection({ config, loading = false }: AudioAsrConfi
 						</div>
 						<div className="space-y-1.5">
 							<label htmlFor="asr-max-silence" className="block text-[13px] font-medium text-foreground/80">
-								静音阈值(ms)
+								{isZh ? "静音阈值(ms)" : "Silence threshold (ms)"}
 							</label>
 							<input
 								id="asr-max-silence"
@@ -273,7 +275,7 @@ export function AudioAsrConfigSection({ config, loading = false }: AudioAsrConfi
 							disabled={isLoading}
 							className="h-4 w-4 shrink-0 rounded border-border/60 text-primary focus:ring-primary/20"
 						/>
-						语义断句
+						{isZh ? "语义断句" : "Semantic segmentation"}
 					</label>
 					<label className="flex min-h-[44px] cursor-pointer items-center gap-2.5 rounded-lg px-1 text-[13px] text-foreground/80 transition-colors hover:bg-muted/30">
 						<input
@@ -289,7 +291,7 @@ export function AudioAsrConfigSection({ config, loading = false }: AudioAsrConfi
 							disabled={isLoading}
 							className="h-4 w-4 shrink-0 rounded border-border/60 text-primary focus:ring-primary/20"
 						/>
-						WebSocket 心跳
+						{isZh ? "WebSocket 心跳" : "WebSocket heartbeat"}
 					</label>
 				</div>
 

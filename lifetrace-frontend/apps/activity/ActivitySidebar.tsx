@@ -2,6 +2,7 @@ import { ActivityCard } from "@/apps/activity/ActivityCard";
 import type { ActivityGroup } from "@/apps/activity/utils/timeUtils";
 import { formatTimeRange } from "@/apps/activity/utils/timeUtils";
 import type { Activity } from "@/lib/types";
+import { useTranslations } from "next-intl";
 
 interface ActivitySidebarProps {
 	groups: ActivityGroup[];
@@ -16,6 +17,8 @@ export function ActivitySidebar({
 	onSelect,
 	loading = false,
 }: ActivitySidebarProps) {
+	const tActivity = useTranslations("activity");
+	const GROUP_LABEL_KEYS: Record<string, string> = { Today: "today", Yesterday: "yesterday", "This Week": "thisWeek", Older: "older" };
 	const allActivities = groups.flatMap((group) => group.items);
 	const selectedIndex = selectedId
 		? allActivities.findIndex((activity) => activity.id === selectedId)
@@ -24,9 +27,9 @@ export function ActivitySidebar({
 	return (
 		<aside className="relative flex h-full w-[280px] min-w-[220px] max-w-[320px] shrink flex-col overflow-hidden rounded-xl border border-border bg-card">
 			<div className="flex items-center justify-between px-3 py-2">
-				<h3 className="text-xs font-semibold text-foreground">Timeline</h3>
+				<h3 className="text-xs font-semibold text-foreground">{tActivity("timeline")}</h3>
 				{loading && (
-					<span className="text-[10px] text-muted-foreground">Loading...</span>
+					<span className="text-[10px] text-muted-foreground">{tActivity("loading")}</span>
 				)}
 			</div>
 			<div className="h-px w-full bg-border" />
@@ -40,7 +43,7 @@ export function ActivitySidebar({
 				{groups.map((group) => (
 					<div key={group.label} className="space-y-1.5">
 						<div className="flex items-center text-[10px] uppercase tracking-wide text-muted-foreground px-1">
-							<span>{group.label}</span>
+							<span>{GROUP_LABEL_KEYS[group.label] ? tActivity(GROUP_LABEL_KEYS[group.label]) : group.label}</span>
 						</div>
 						<div className="space-y-2">
 							{group.items.map((activity) => (
@@ -60,7 +63,7 @@ export function ActivitySidebar({
 				))}
 				{!loading && groups.length === 0 && (
 					<div className="rounded-md border border-dashed border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
-						No activities found.
+						{tActivity("empty")}
 					</div>
 				)}
 			</div>

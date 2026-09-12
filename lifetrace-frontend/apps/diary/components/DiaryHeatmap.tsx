@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocaleStore } from "@/lib/store/locale";
 import {
 	formatDateInput,
 	getMonthLabelColumns,
@@ -60,6 +61,7 @@ const WEEKDAY_LABELS = ["一", "三", "五"];
  * 日历窗口由组件内部生成（每分钟自检跨天），不依赖统计数据的新旧。
  */
 export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryHeatmapProps) {
+	const isZh = useLocaleStore((s) => s.locale) === "zh";
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [containerWidth, setContainerWidth] = useState(0);
 	const [, setDayTick] = useState(0);
@@ -193,7 +195,7 @@ export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryH
 							}
 							const key = formatDateInput(day);
 							const count = dailyCounts.get(key) ?? 0;
-							const tooltip = `${day.getMonth() + 1}/${day.getDate()} - ${count} 篇`;
+							const tooltip = `${day.getMonth() + 1}/${day.getDate()} - ${count} ${isZh ? "篇" : count > 1 ? "notes" : "note"}`;
 							const isSelected = key === selectedKey;
 							const isToday = key === todayKey;
 							const isPeak = peak?.key === key;
@@ -202,7 +204,7 @@ export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryH
 									key={key}
 									type="button"
 									title={tooltip}
-									aria-label={`${tooltip}${isSelected ? "，已选中" : ""}${isPeak ? "，峰值日" : ""}`}
+									aria-label={`${tooltip}${isSelected ? (isZh ? "，已选中" : ", selected") : ""}${isPeak ? (isZh ? "，峰值日" : ", peak day") : ""}`}
 									aria-pressed={isSelected}
 									onClick={onSelectDate ? () => onSelectDate(day) : undefined}
 									className={cn(

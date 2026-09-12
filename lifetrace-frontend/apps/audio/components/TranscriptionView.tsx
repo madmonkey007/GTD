@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useLocaleStore } from "@/lib/store/locale";
 import { cn } from "@/lib/utils";
 
 interface TodoItem {
@@ -57,6 +58,7 @@ export function TranscriptionView({
 	onSegmentClick,
 	isLoadingTimeline = false,
 }: TranscriptionViewProps) {
+	const isZh = useLocaleStore((s) => s.locale) === "zh";
 	const transcriptionRef = useRef<HTMLDivElement>(null);
 	const userNearBottomRef = useRef(true);
 	const lastContentHashRef = useRef("");
@@ -311,7 +313,7 @@ export function TranscriptionView({
 							: "bg-[oklch(var(--muted))] text-[oklch(var(--muted-foreground))] hover:text-[oklch(var(--foreground))]"
 					)}
 				>
-					原文
+					{isZh ? "原文" : "Original"}
 				</button>
 				<button
 					type="button"
@@ -323,7 +325,7 @@ export function TranscriptionView({
 							: "bg-[oklch(var(--muted))] text-[oklch(var(--muted-foreground))] hover:text-[oklch(var(--foreground))]"
 					)}
 				>
-					智能优化
+					{isZh ? "智能优化" : "Smart polish"}
 				</button>
 			</div>
 
@@ -342,7 +344,7 @@ export function TranscriptionView({
 					<div className="flex flex-col items-center justify-center h-full text-center">
 						<div className="flex items-center gap-2 py-4 text-sm text-[oklch(var(--muted-foreground))]">
 							<div className="h-4 w-4 border-2 border-[oklch(var(--primary))] border-t-transparent rounded-full animate-spin" />
-							<span>获取中...</span>
+							<span>{isZh ? "获取中..." : "Fetching..."}</span>
 						</div>
 					</div>
 				) : hasContent ? (
@@ -373,7 +375,7 @@ export function TranscriptionView({
 										<span className="mt-[1px]">{timeLabel || "--:--"}</span>
 										{showOptimizedTag ? (
 											<span className="ml-1 inline-flex items-center px-2 py-[2px] rounded-full text-[11px] font-medium bg-[oklch(var(--primary))/15] text-[oklch(var(--primary))]">
-												智能优化
+												{isZh ? "智能优化" : "Smart polish"}
 											</span>
 										) : null}
 									</div>
@@ -453,7 +455,7 @@ export function TranscriptionView({
 				{isLoadingTimeline && hasContent && (
 					<div className="flex items-center justify-center gap-2 py-4 text-sm text-[oklch(var(--muted-foreground))]">
 						<div className="h-4 w-4 border-2 border-[oklch(var(--primary))] border-t-transparent rounded-full animate-spin" />
-						<span>获取中...</span>
+						<span>{isZh ? "获取中..." : "Fetching..."}</span>
 					</div>
 				)}
 			</div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { ActivityDetail } from "@/apps/activity/ActivityDetail";
 import { ActivityHeader } from "@/apps/activity/ActivityHeader";
 import { ActivitySidebar } from "@/apps/activity/ActivitySidebar";
@@ -10,6 +11,7 @@ import { useActivityStore } from "@/lib/store/activity-store";
 import type { Activity } from "@/lib/types";
 
 export function ActivityPanel() {
+	const t = useTranslations("activity");
 	const { selectedActivityId, search, setSelectedActivityId, setSearch } =
 		useActivityStore();
 
@@ -68,14 +70,14 @@ export function ActivityPanel() {
 				: String(listError) || "Unknown error";
 		return (
 			<div className="flex h-full items-center justify-center text-destructive">
-				加载失败: {errorMessage}
+				{t("loadFailed")}: {errorMessage}
 			</div>
 		);
 	}
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden bg-background">
-			<ActivityHeader searchValue={search} onSearchChange={setSearch} />
+		<ActivityHeader searchValue={search} onSearchChange={setSearch} />
 			<div className="flex min-h-0 flex-1 gap-4 overflow-hidden p-4">
 				<ActivitySidebar
 					groups={groups}

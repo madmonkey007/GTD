@@ -2,6 +2,7 @@
 
 import { ArrowDownLeft, ArrowUpRight, Check, ChevronDown, Link2, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useLocaleStore } from "@/lib/store/locale";
 import {
 	Dialog,
 	DialogContent,
@@ -36,12 +37,12 @@ interface ReferenceModalProps {
 	allNotes: JournalView[];
 }
 
-/** 关系类型 → 中文标签 */
-const RELATION_LABEL: Record<RelationType, string> = {
-	SUPPORTS: "支撑",
-	EXTENDS: "延伸",
-	CONTRADICTS: "矛盾",
-	RELATES: "相关",
+/** 关系类型 → 双语标签 */
+const RELATION_LABEL: Record<RelationType, { zh: string; en: string }> = {
+	SUPPORTS: { zh: "支撑", en: "Supports" },
+	EXTENDS: { zh: "延伸", en: "Extends" },
+	CONTRADICTS: { zh: "矛盾", en: "Contradicts" },
+	RELATES: { zh: "相关", en: "Relates" },
 };
 
 /** 从 markdown 正文提取图片 URL 列表 */
@@ -82,6 +83,7 @@ function RelationChip({
 	link: NoteLinkView;
 	onChange: (linkId: number, type: RelationType) => void;
 }) {
+	const locale = useLocaleStore((s) => s.locale);
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -89,7 +91,7 @@ function RelationChip({
 					type="button"
 					className="inline-flex items-center gap-1 rounded-full bg-primary/8 px-2 py-0.5 text-[11px] font-medium text-primary transition-all hover:bg-primary/15 active:scale-[0.97]"
 				>
-					{RELATION_LABEL[link.relationType]}
+					{(locale === "zh" ? RELATION_LABEL[link.relationType].zh : RELATION_LABEL[link.relationType].en)}
 					<ChevronDown className="w-2.5 h-2.5 opacity-60" />
 				</button>
 			</DropdownMenuTrigger>
@@ -100,7 +102,7 @@ function RelationChip({
 						onClick={() => onChange(link.id, rt)}
 						className="text-xs"
 					>
-						{RELATION_LABEL[rt]}
+						{(locale === "zh" ? RELATION_LABEL[rt].zh : RELATION_LABEL[rt].en)}
 						{link.relationType === rt && <Check className="w-3 h-3 ml-auto" />}
 					</DropdownMenuItem>
 				))}
@@ -144,6 +146,7 @@ function LinkCard({
 	onChangeType: (linkId: number, type: RelationType) => void;
 	onDeleteAll: (links: NoteLinkView[]) => void;
 }) {
+	const locale = useLocaleStore((s) => s.locale);
 	const { updateNoteLink } = useNoteLinkMutations();
 	const [editing, setEditing] = useState(false);
 	const isMobile = useIsMobile();
@@ -171,7 +174,7 @@ function LinkCard({
 		<div className="group rounded-lg border border-border/50 bg-card/40 px-3 py-2.5 transition-colors hover:border-border/80 hover:bg-card">
 			{/* 标题：对端笔记名（仅一次；方向由所在分组标题承载，不再重复箭头） */}
 			<div className="truncate text-sm font-medium text-foreground/90">
-				{cp?.name || "无标题"}
+				{cp?.name || (locale === "zh" ? "无标题" : "Untitled")}
 			</div>
 
 			{/* 内容预览（已剔除图片语法，图片由下方缩略图承载） */}

@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle, Clock, Flame } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLocaleStore } from "@/lib/store/locale";
 import { useZeroThinkStore } from "@/lib/store/zero-think-store/store";
 import { InspirationBank } from "./components/InspirationBank";
 import { LockedCard } from "./components/LockedCard";
@@ -20,6 +21,8 @@ interface ZeroThinkPanelProps {
 }
 
 export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
+	const locale = useLocaleStore((s) => s.locale);
+	const isZh = locale === "zh";
 	const isMobile = useIsMobile();
 	const { mode, setMode, hasCompletedOnboarding, completeOnboarding } =
 		useZeroThinkStore();
@@ -154,7 +157,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 
 						{!isMobile && (
 							<h1 className="text-sm font-semibold tracking-tight text-foreground">
-								零秒思考
+								{isZh ? "零秒思考" : "Zero-Thought"}
 							</h1>
 						)}
 
@@ -195,11 +198,11 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 											</div>
 
 											<h2 className="text-xl font-semibold tracking-tight text-foreground mb-2">
-												欢迎来到零秒思考
+												{isZh ? "欢迎来到零秒思考" : "Welcome to Zero-Thought"}
 											</h2>
 											<p className="text-sm text-muted-foreground leading-relaxed">
-												每天用一分钟回答一个问题，写下4-6个答案。
-												训练快速思考和表达能力。
+												{isZh ? "每天用一分钟回答一个问题，写下4-6个答案。" : "Answer one question a minute and jot down 4-6 answers."}
+												{isZh ? "训练快速思考和表达能力。" : "Train fast thinking and expression."}
 											</p>
 										</motion.div>
 
@@ -224,7 +227,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 											animate={{ opacity: 1, y: 0 }}
 											transition={{ duration: 0.4, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
 										>
-											开始今日训练
+											{isZh ? "开始今日训练" : "Start today's session"}
 										</motion.button>
 									</div>
 								) : (

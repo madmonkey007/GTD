@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocaleStore } from "@/lib/store/locale";
 import { Play, RotateCcw, Settings, Square, Minus, Plus } from "lucide-react";
 import { StatsChart } from "./components/StatsChart";
 import { useTimer } from "./hooks/useTimer";
@@ -161,6 +162,7 @@ function saveSession(workMinutes: number) {
 }
 
 export function PomodoroView() {
+	const isZh = useLocaleStore((s) => s.locale) === "zh";
 	const [config, setConfig] = useState<PomodoroConfig>(loadConfig);
 	const [showSettings, setShowSettings] = useState(false);
 	const [sessionCounter, setSessionCounter] = useState(0);
@@ -219,7 +221,7 @@ export function PomodoroView() {
 						timer.phase === "work" ? "text-primary" : "text-emerald-500"
 					}`}
 				>
-					{timer.phase === "work" ? "专注时间" : "休息时间"}
+					{timer.phase === "work" ? (isZh ? "专注时间" : "Focus time") : (isZh ? "休息时间" : "Break time")}
 				</span>
 
 				{/* Circular progress */}
@@ -269,12 +271,12 @@ export function PomodoroView() {
 				{showSettings && (
 					<div className="flex w-full max-w-xs flex-col gap-3 rounded-xl border border-border/40 bg-muted/10 p-4">
 						<DurationControl
-							label="工作时长"
+							label={isZh ? "工作时长" : "Work duration"}
 							value={config.workMinutes}
 							onChange={(v) => updateConfig({ workMinutes: v })}
 						/>
 						<DurationControl
-							label="休息时长"
+							label={isZh ? "休息时长" : "Break duration"}
 							value={config.breakMinutes}
 							onChange={(v) => updateConfig({ breakMinutes: v })}
 						/>
@@ -290,20 +292,20 @@ export function PomodoroView() {
 						: "w-80 border-l border-border/40"
 				}`}
 			>
-				<h3 className="text-sm font-semibold">今日概览</h3>
+				<h3 className="text-sm font-semibold">{isZh ? "今日概览" : "Today at a glance"}</h3>
 
 				<div className="grid grid-cols-2 gap-2">
-					<StatCard label="今日番茄" value={stats.todayCount} unit="个" />
+					<StatCard label={isZh ? "今日番茄" : "Pomodoros today"} value={stats.todayCount} unit={isZh ? "个" : ""} />
 					<StatCard
-						label="专注时长"
+						label={isZh ? "专注时长" : "Focus time"}
 						value={stats.todayMinutes}
-						unit="分钟"
+						unit={isZh ? "分钟" : "min"}
 					/>
-					<StatCard label="总番茄数" value={stats.totalCount} unit="个" />
+					<StatCard label={isZh ? "总番茄数" : "Total pomodoros"} value={stats.totalCount} unit={isZh ? "个" : ""} />
 					<StatCard
 						label="总时长"
 						value={stats.totalMinutes}
-						unit="分钟"
+						unit={isZh ? "分钟" : "min"}
 					/>
 				</div>
 
