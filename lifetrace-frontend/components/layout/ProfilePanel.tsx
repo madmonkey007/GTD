@@ -77,7 +77,7 @@ const STAT_ITEMS: { key: keyof ProfileStats; labelKey: string }[] = [
 ];
 
 function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
-	const t = useTranslations("profile");
+	const tProfile = useTranslations("profile");
 	const [oldPassword, setOldPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
@@ -91,21 +91,21 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 	const submit = async () => {
 		if (saving) return;
 		if (newPassword.length < 8) {
-			toast(t("pwdTooShort"), { type: "warning" });
+			toast(tProfile("pwdTooShort"), { type: "warning" });
 			return;
 		}
 		if (newPassword !== confirmPassword) {
-			toast(t("pwdMismatch"), { type: "warning" });
+			toast(tProfile("pwdMismatch"), { type: "warning" });
 			return;
 		}
 		setSaving(true);
 		try {
 			await changePassword(oldPassword, newPassword);
-			toast(t("pwdChanged"));
+			toast(tProfile("pwdChanged"));
 			onClose();
 		} catch (err) {
 			const status = (err as { status?: number }).status;
-			toast(t(status === 400 ? "pwdOldWrong" : "pwdChangeFailed"), {
+			toast(tProfile(status === 400 ? "pwdOldWrong" : "pwdChangeFailed"), {
 				type: "error",
 			});
 		} finally {
@@ -120,7 +120,7 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 		<div
 			role="dialog"
 			aria-modal="true"
-			aria-label={t("changePassword")}
+			aria-label={tProfile("changePassword")}
 			tabIndex={-1}
 			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
 			onClick={(event) => {
@@ -132,7 +132,7 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 		>
 			<div className="w-full max-w-sm rounded-xl border border-border/50 bg-popover p-5 shadow-xl">
 				<div className="mb-4 flex items-center justify-between">
-					<h3 className="text-sm font-semibold text-foreground">{t("changePassword")}</h3>
+					<h3 className="text-sm font-semibold text-foreground">{tProfile("changePassword")}</h3>
 					<button
 						type="button"
 						onClick={onClose}
@@ -146,14 +146,14 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 						inputRef={oldInputRef}
 						value={oldPassword}
 						onChange={(e) => setOldPassword(e.target.value)}
-						placeholder={t("oldPassword")}
+						placeholder={tProfile("oldPassword")}
 						autoComplete="current-password"
 						className={inputClass}
 					/>
 					<PasswordInput
 						value={newPassword}
 						onChange={(e) => setNewPassword(e.target.value)}
-						placeholder={t("newPassword")}
+						placeholder={tProfile("newPassword")}
 						autoComplete="new-password"
 						className={inputClass}
 					/>
@@ -163,7 +163,7 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 						onKeyDown={(e) => {
 							if (e.key === "Enter" && !e.nativeEvent.isComposing) void submit();
 						}}
-						placeholder={t("confirmPassword")}
+						placeholder={tProfile("confirmPassword")}
 						autoComplete="new-password"
 						className={inputClass}
 					/>
@@ -174,7 +174,7 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 						onClick={onClose}
 						className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/40"
 					>
-						{t("cancel")}
+						{tProfile("cancel")}
 					</button>
 					<button
 						type="button"
@@ -182,7 +182,7 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 						disabled={saving || !oldPassword || !newPassword || !confirmPassword}
 						className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
 					>
-						{saving ? t("saving") : t("confirmChange")}
+						{saving ? tProfile("saving") : tProfile("confirmChange")}
 					</button>
 				</div>
 			</div>
@@ -192,6 +192,7 @@ function PasswordChangeDialog({ onClose }: { onClose: () => void }) {
 
 export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 	const t = useTranslations();
+	const tProfile = useTranslations("profile");
 	const router = useRouter();
 	const { openSettings } = useOpenSettings();
 	const { setActiveView: storeSetActiveView } = useUiStore();
@@ -250,26 +251,26 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		event.target.value = "";
 		if (!file || avatarBusy) return;
 		if (!file.type.startsWith("image/")) {
-			toast(t("selectImage"), { type: "warning" });
+			toast(tProfile("selectImage"), { type: "warning" });
 			return;
 		}
 		if (file.size > AVATAR_MAX_BYTES) {
-			toast(t("imageTooLarge"), { type: "warning" });
+			toast(tProfile("imageTooLarge"), { type: "warning" });
 			return;
 		}
 		setAvatarBusy(true);
 		try {
 			await uploadAvatar(file);
 			updateUser({ hasAvatar: true });
-			toast(t("avatarUpdated"));
+			toast(tProfile("avatarUpdated"));
 		} catch (err) {
 			const status = (err as { status?: number }).status;
 			toast(
 				status === 413
-					? t("imageTooLarge")
+					? tProfile("imageTooLarge")
 					: status === 400
-						? t("imageTypeUnsupported")
-						: t("avatarUploadFailed"),
+						? tProfile("imageTypeUnsupported")
+						: tProfile("avatarUploadFailed"),
 				{ type: "error" },
 			);
 		} finally {
@@ -283,15 +284,16 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		try {
 			await deleteAvatar();
 			updateUser({ hasAvatar: false });
-			toast(t("avatarRemoved"));
+			toast(tProfile("avatarRemoved"));
 		} catch {
-			toast(t("avatarRemoveFailed"), { type: "error" });
+			toast(tProfile("avatarRemoveFailed"), { type: "error" });
 		} finally {
 			setAvatarBusy(false);
 		}
 	};
 
-	const displayName = user?.displayName?.trim() || user?.email?.split("@")[0] || t("defaultUserName");
+	const displayName =
+		user?.displayName?.trim() || user?.email?.split("@")[0] || tProfile("defaultUserName");
 
 	const startEditName = () => {
 		setNameDraft(user?.displayName ?? "");
@@ -309,9 +311,9 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		try {
 			const saved = await updateDisplayName(trimmed);
 			updateUser({ displayName: saved.displayName ?? null });
-			toast(t("nicknameUpdated"));
+			toast(tProfile("nicknameUpdated"));
 		} catch {
-			toast(t("nicknameSaveFailed"), { type: "error" });
+			toast(tProfile("nicknameSaveFailed"), { type: "error" });
 		} finally {
 			setSavingName(false);
 			setEditingName(false);
@@ -342,7 +344,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		},
 		{
 			id: "password",
-			label: t("profile.changePassword"),
+			label: tProfile("changePassword"),
 			icon: KeyRound,
 			color: "text-indigo-500",
 			bg: "bg-indigo-500/10",
@@ -350,7 +352,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 		},
 		{
 			id: "logout",
-			label: t("profile.logout"),
+			label: tProfile("logout"),
 			icon: LogOut,
 			color: "text-destructive",
 			bg: "bg-destructive/10",
@@ -395,13 +397,13 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 						type="button"
 						onClick={() => avatarInputRef.current?.click()}
 						disabled={avatarBusy}
-						title={t("uploadAvatar")}
+						title={tProfile("uploadAvatar")}
 						className="group relative block rounded-full focus:outline-none disabled:cursor-wait"
 					>
 						{avatarUrl ? (
 							<img
 								src={avatarUrl}
-								alt={t("avatar")}
+								alt={tProfile("avatar")}
 								className="h-20 w-20 rounded-full object-cover ring-4 ring-background"
 							/>
 						) : (
@@ -415,7 +417,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 					</button>
 					{avatarBusy && (
 						<span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-xs text-white">
-							{t("uploading")}
+							{tProfile("uploading")}
 						</span>
 					)}
 					{hasAvatar && (
@@ -423,8 +425,8 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 							type="button"
 							onClick={() => void handleRemoveAvatar()}
 							disabled={avatarBusy}
-							title={t("removeAvatar")}
-							aria-label={t("removeAvatar")}
+							title={tProfile("removeAvatar")}
+							aria-label={tProfile("removeAvatar")}
 							className="absolute -top-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-muted text-muted-foreground shadow-sm hover:text-destructive disabled:opacity-50"
 						>
 							<X className="h-3 w-3" />
@@ -453,14 +455,14 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 									if (e.key === "Escape") setEditingName(false);
 								}}
 								maxLength={120}
-								placeholder={t("nicknamePlaceholder")}
+								placeholder={tProfile("nicknamePlaceholder")}
 								className="h-8 w-40 rounded-md border border-border/40 bg-background px-2 text-center text-sm text-foreground focus:outline-none focus:border-primary/40"
 							/>
 							<button
 								type="button"
 								onClick={() => void confirmEditName()}
 								disabled={savingName}
-								title={t("save")}
+								title={tProfile("save")}
 								className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
 							>
 								<Check className="h-3.5 w-3.5" />
@@ -468,7 +470,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 							<button
 								type="button"
 								onClick={() => setEditingName(false)}
-								title={t("cancel")}
+								title={tProfile("cancel")}
 								className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/40"
 							>
 								<X className="h-3.5 w-3.5" />
@@ -478,7 +480,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 						<button
 							type="button"
 							onClick={startEditName}
-							title={t("editNickname")}
+							title={tProfile("editNickname")}
 							className="group mx-auto flex items-center gap-1.5 text-lg font-semibold text-foreground"
 						>
 							{displayName}
@@ -489,7 +491,9 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 						<p className="mt-0.5 text-sm text-muted-foreground">{user.email}</p>
 					)}
 					{!editingName && !user?.displayName && (
-						<p className="mt-1 text-xs text-muted-foreground/50">{t("clickToEditNickname")}</p>
+						<p className="mt-1 text-xs text-muted-foreground/50">
+							{tProfile("clickToEditNickname")}
+						</p>
 					)}
 				</div>
 
@@ -504,7 +508,9 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 								<span className="text-base font-semibold tabular-nums text-foreground">
 									{stats[key]}
 								</span>
-								<span className="text-[10px] text-muted-foreground">{t(labelKey)}</span>
+								<span className="text-[10px] text-muted-foreground">
+									{tProfile(labelKey)}
+								</span>
 							</div>
 						))}
 					</div>
@@ -541,7 +547,7 @@ export function ProfilePanel({ setActiveView }: ProfilePanelProps) {
 				<div className="mt-4">
 					<div className="mb-1.5 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
 						<FlaskConical className="h-3.5 w-3.5" />
-						{t("lab")}
+						{tProfile("lab")}
 					</div>
 					<div className="rounded-xl border border-dashed border-border/50 bg-card/20 divide-y divide-border/30">
 						{LAB_ITEMS.map((item) => {
