@@ -37,15 +37,25 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 	});
 	const [showLegacy, setShowLegacy] = useState(false);
 
-	const { data: jobsData, isLoading: jobsLoading } =
+	const { data: jobsData, isLoading: jobsLoading, isError: jobsError } =
 		useGetAllJobsApiSchedulerJobsGet({
-			query: { refetchInterval: 10000 },
+			query: {
+				// 云端后端不部署 scheduler 模块（404）：不重试，出错即停止轮询
+				retry: false,
+				refetchInterval: (query) => (query.state.error ? false : 10000),
+			},
 		});
 
-	const { data: statusData, isLoading: statusLoading } =
-		useGetSchedulerStatusApiSchedulerStatusGet({
-			query: { refetchInterval: 10000 },
-		});
+	const {
+		data: statusData,
+		isLoading: statusLoading,
+		isError: statusError,
+	} = useGetSchedulerStatusApiSchedulerStatusGet({
+		query: {
+			retry: false,
+			refetchInterval: (query) => (query.state.error ? false : 10000),
+		},
+	});
 
 	const pauseJobMutation = usePauseJobApiSchedulerJobsJobIdPausePost();
 	const resumeJobMutation = useResumeJobApiSchedulerJobsJobIdResumePost();
@@ -221,6 +231,9 @@ export function SchedulerSection({ loading = false }: SchedulerSectionProps) {
 	const allJobs = jobsResponse?.jobs || [];
 	const activeJobs = allJobs.filter((job) => !isLegacyJob(job.id));
 	const legacyJobs = allJobs.filter((job) => isLegacyJob(job.id));
+
+	// 后端未启用 scheduler 模块（如云端部署）时整块隐藏（放在所有 hooks 之后）
+	if (jobsError && statusError) return null;
 
 	const renderJobItem = (job: JobInfo, isLegacy = false) => {
 		const isRunning = job.pending ?? false;

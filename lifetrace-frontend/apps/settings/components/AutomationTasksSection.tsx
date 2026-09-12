@@ -29,7 +29,7 @@ export function AutomationTasksSection({
 	loading = false,
 }: AutomationTasksSectionProps) {
 	const t = useTranslations("automationTasks");
-	const { data, isLoading } = useAutomationTasks();
+	const { data, isLoading, isError } = useAutomationTasks();
 	const createMutation = useCreateAutomationTask();
 	const deleteMutation = useDeleteAutomationTask();
 	const runMutation = useRunAutomationTask();
@@ -195,6 +195,9 @@ export function AutomationTasksSection({
 		{ value: "cron", label: t("scheduleType.cron") },
 		{ value: "once", label: t("scheduleType.once") },
 	];
+
+	// 后端未启用 automation 模块（如云端部署）时整块隐藏（放在所有 hooks 之后）
+	if (isError) return null;
 
 	return (
 		<SettingsSection title={t("title")} description={t("description")}>

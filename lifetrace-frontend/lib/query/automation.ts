@@ -13,6 +13,9 @@ export const useAutomationTasks = () =>
 		queryKey: queryKeys.automationTasks.list(),
 		queryFn: () =>
 			customFetcher<AutomationTaskListResponse>("/api/automation/tasks"),
+		// 云端后端不部署 automation 模块（404），静默失败避免报错刷屏
+		retry: false,
+		throwOnError: false,
 	});
 
 export const useCreateAutomationTask = () => {
