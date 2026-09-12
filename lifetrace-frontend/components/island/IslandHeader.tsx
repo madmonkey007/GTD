@@ -81,7 +81,7 @@ export function IslandHeader({ mode, onModeChange, isExpanded = false, onDragSta
         <div className="relative h-8 w-8 shrink-0">
           {/* 浅色模式图标 */}
           <Image
-            src="/iter-logos/logo-light.png"
+            src="/iter-logos/logo-light.png?v=2"
             alt="GTD Logo"
             width={32}
             height={32}
@@ -89,7 +89,7 @@ export function IslandHeader({ mode, onModeChange, isExpanded = false, onDragSta
           />
           {/* 深色模式图标 */}
           <Image
-            src="/iter-logos/logo-dark.png"
+            src="/iter-logos/logo-dark.png?v=2"
             alt="GTD Logo"
             width={32}
             height={32}

@@ -74,6 +74,9 @@ const nextConfig: NextConfig = {
 		];
 	},
 	images: {
+		// 允许全部本地路径带查询串（logo 等静态资源用 ?v=N 做缓存刷新）
+		// 匹配所有本地路径、任意查询串（logo 用 ?v=N 做缓存刷新）
+		localPatterns: [{ pathname: "/**" }],
 		remotePatterns: [
 			{
 				protocol: apiUrl.protocol.replace(":", "") as "http" | "https",

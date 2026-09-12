@@ -38,14 +38,14 @@ export function SidebarNav() {
 				type="button"
 			>
 				<Image
-					src="/iter-logos/logo-light.png"
+					src="/iter-logos/logo-light.png?v=2"
 					alt="Iter"
 					fill
 					className="object-contain block dark:hidden"
 					priority
 				/>
 				<Image
-					src="/iter-logos/logo-dark.png"
+					src="/iter-logos/logo-dark.png?v=2"
 					alt="Iter"
 					fill
 					className="object-contain hidden dark:block"

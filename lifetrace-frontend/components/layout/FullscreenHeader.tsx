@@ -20,7 +20,7 @@ export function MaximizeHeader({ hasNotifications }: MaximizeHeaderProps) {
 				<div className="relative h-8 w-8 shrink-0">
 					{/* 浅色模式图标 */}
 					<Image
-						src="/iter-logos/logo-light.png"
+						src="/iter-logos/logo-light.png?v=2"
 						alt="Iter Logo"
 						width={32}
 						height={32}
@@ -28,7 +28,7 @@ export function MaximizeHeader({ hasNotifications }: MaximizeHeaderProps) {
 					/>
 					{/* 深色模式图标 */}
 					<Image
-						src="/iter-logos/logo-dark.png"
+						src="/iter-logos/logo-dark.png?v=2"
 						alt="Iter Logo"
 						width={32}
 						height={32}

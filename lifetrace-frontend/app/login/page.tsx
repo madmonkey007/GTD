@@ -319,7 +319,7 @@ export default function LoginPage() {
 					<div className="relative">
 						<div className="flex items-center gap-2.5">
 							<Image
-								src="/iter-logos/logo-dark.png"
+								src="/iter-logos/logo-dark.png?v=2"
 								alt="Iter"
 								width={28}
 								height={28}
@@ -351,14 +351,14 @@ export default function LoginPage() {
 					<FormBackgroundDoodles />
 					<div className="flex items-center gap-2.5 lg:hidden">
 						<Image
-							src="/iter-logos/logo-light.png"
+							src="/iter-logos/logo-light.png?v=2"
 							alt="Iter"
 							width={24}
 							height={24}
 							className="rounded-md dark:hidden"
 						/>
 						<Image
-							src="/iter-logos/logo-dark.png"
+							src="/iter-logos/logo-dark.png?v=2"
 							alt="Iter"
 							width={24}
 							height={24}
