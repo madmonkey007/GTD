@@ -40,12 +40,13 @@ const notoSerifSC = Noto_Serif_SC({
 });
 
 export const metadata: Metadata = {
-	title: "GTD",
+	title: "Iter",
 	description: "A todo app that tracks your life.",
 	manifest: "/manifest.json",
 	other: {
 		"theme-color": "#fafafa",
 		"apple-mobile-web-app-capable": "yes",
+		"apple-mobile-web-app-title": "Iter",
 	},
 	icons: {
 		apple: "/icon-192x192.png",
