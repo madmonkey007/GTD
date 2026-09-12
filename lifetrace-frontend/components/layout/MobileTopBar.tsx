@@ -12,6 +12,7 @@ import {
 	Sparkles,
 	X,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
 	DropdownMenu,
 	DropdownMenuTrigger,
@@ -27,18 +28,20 @@ import { cn } from "@/lib/utils";
 
 /** 不在 SIDEBAR_NAV_ITEMS 中的视图 → 顶栏标题文案 */
 const EXTRA_LABELS: Record<string, string> = {
-	profile: "我的",
+	profile: "profile",
 };
 
 /** 待办/日历/四象限：移动顶栏以 tab 组形式切换 */
-const TAB_VIEWS: { id: SidebarView; label: string }[] = [
-	{ id: "list", label: "行动" },
-	{ id: "calendar", label: "日历" },
-	{ id: "quadrants", label: "四象限" },
+const TAB_VIEWS: { id: SidebarView; labelKey: string }[] = [
+	{ id: "list", labelKey: "list" },
+	{ id: "calendar", labelKey: "calendar" },
+	{ id: "quadrants", labelKey: "quadrants" },
 ];
 
 export function MobileTopBar() {
 	const { activeView, setActiveView } = useUiStore();
+	const tViews = useTranslations("mobile.views");
+	const tJournal = useTranslations("journalPanel");
 	const { locale } = useLocaleStore();
 	const {
 		diarySearchOpen,
@@ -90,8 +93,8 @@ export function MobileTopBar() {
 	const navItem = SIDEBAR_NAV_ITEMS.find((item) => item.id === activeView);
 	const activeLabel =
 		navItem
-			? (navItem.label === "agent" ? "AGENT" : navItem.label)
-			: (EXTRA_LABELS[activeView] ?? activeView);
+			? (navItem.label === "agent" ? "AGENT" : tViews(navItem.label))
+			: (EXTRA_LABELS[activeView] ? tViews(EXTRA_LABELS[activeView]) : activeView);
 
 	const searchInput = (
 		<div className="relative flex-1 min-w-0">
@@ -186,7 +189,7 @@ export function MobileTopBar() {
 										: "text-muted-foreground hover:text-foreground",
 								)}
 							>
-								{tab.label}
+								{tViews(tab.labelKey)}
 								{isActive && (
 									<span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" />
 								)}
@@ -207,7 +210,7 @@ export function MobileTopBar() {
 						<ArrowLeft className="h-4 w-4" />
 					</button>
 					<span className="flex-1 truncate text-base font-medium text-foreground">
-						AI 洞察
+						{tJournal("aiInsight")}
 					</span>
 				</>
 			) : (

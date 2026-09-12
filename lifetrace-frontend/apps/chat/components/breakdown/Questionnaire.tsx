@@ -315,7 +315,7 @@ export function Questionnaire({
 										>
 											{hasCustomAnswer(question.id)
 												? getCustomAnswerText(question.id)
-												: SKIP_OPTION}
+												: t("notSureOption")}
 										</span>
 									</button>
 									{/* 编辑按钮 */}

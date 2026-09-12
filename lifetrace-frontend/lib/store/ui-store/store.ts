@@ -20,6 +20,7 @@ export const useUiStore = create<UiStoreState>()(
 			isPanelCOpen: DEFAULT_PANEL_STATE.isPanelCOpen,
 			// 窄屏推入式详情：仅运行时态
 			mobileDetailOpen: false,
+			mobileDetailContent: "todoDetail",
 			panelAWidth: DEFAULT_PANEL_STATE.panelAWidth,
 			panelCWidth: DEFAULT_PANEL_STATE.panelCWidth,
 			// 动态功能分配初始状态：默认分配
@@ -91,6 +92,11 @@ export const useUiStore = create<UiStoreState>()(
 			setMobileDetailOpen: (open) =>
 				set(() => ({
 					mobileDetailOpen: open,
+				})),
+
+			setMobileDetailContent: (content) =>
+				set(() => ({
+					mobileDetailContent: content,
 				})),
 
 			// 位置槽位宽度设置方法

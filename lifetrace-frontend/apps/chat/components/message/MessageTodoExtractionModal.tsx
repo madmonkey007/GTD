@@ -163,7 +163,7 @@ export function MessageTodoExtractionModal({
 						handleCancel();
 					}
 				}}
-				aria-label="关闭对话框"
+				aria-label={tChat("closeDialog")}
 			/>
 
 			{/* 对话框 */}

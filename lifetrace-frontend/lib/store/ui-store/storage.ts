@@ -123,6 +123,7 @@ export const createUiStoreStorage = () =>
 
 					// mobileDetailOpen 仅运行时，不持久化，加载时强制重置
 					state.mobileDetailOpen = false;
+					state.mobileDetailContent = "todoDetail";
 
 					// 校验自动关闭的panel栈
 					if (Array.isArray(state.autoClosedPanels)) {						state.autoClosedPanels = state.autoClosedPanels.filter(

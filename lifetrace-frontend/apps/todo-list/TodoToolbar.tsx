@@ -52,7 +52,14 @@ export function TodoToolbar({
 	const setPanelFeature = useUiStore((s) => s.setPanelFeature);
 
 	// 打开 chat 面板（复刻 useTodoCardHandlers 的 ensureChatPanelOpen 逻辑）
+	// 移动端没有 panelA/B/C 槽位，改为推入 chat 详情覆层
 	const handleOpenAgent = () => {
+		if (isMobile) {
+			const uiState = useUiStore.getState();
+			uiState.setMobileDetailContent("chat");
+			uiState.setMobileDetailOpen(true);
+			return;
+		}
 		const positions: Array<"panelA" | "panelB" | "panelC"> = [
 			"panelA",
 			"panelB",

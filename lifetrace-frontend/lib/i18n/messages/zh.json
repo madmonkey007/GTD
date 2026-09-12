@@ -727,7 +727,14 @@
       "processLabel": "思考过程",
       "thinkingLabel": "思考中",
       "processedLabel": "已处理"
-    }
+    },
+    "copy": "复制",
+    "analyzing": "分析中",
+    "processing": "处理中",
+    "untitledNote": "未命名笔记",
+    "notSureOption": "不知道/不重要",
+    "createTodoFailed": "创建待办失败",
+    "closeDialog": "关闭对话框"
   },
   "calendar": {
     "title": "日历",
@@ -1396,5 +1403,49 @@
     "todoSaved": "待办已创建",
     "inboxSaved": "已存入收集箱",
     "saveFailed": "保存失败，请重试"
+  },
+  "mobile": {
+    "tabs": {
+      "inbox": "收集箱",
+      "actions": "行动",
+      "thinking": "思考",
+      "habits": "习惯",
+      "me": "我的"
+    },
+    "views": {
+      "quickCommand": "收集箱",
+      "list": "行动",
+      "diary": "思考",
+      "habits": "习惯",
+      "profile": "我的",
+      "calendar": "日历",
+      "quadrants": "四象限",
+      "aiInsight": "AI 洞察",
+      "back": "返回"
+    }
+  },
+  "login": {
+    "tagline1": "记录生活，",
+    "tagline2": "不止待办。",
+    "taglineSub": "你的每一天、每一笔思考，都值得被好好安放。",
+    "point1": "待办、笔记、习惯，收进同一个账户",
+    "point2": "离线继续记录，联网自动同步",
+    "point3": "按账户隔离，数据不混用",
+    "welcomeBack": "欢迎回来",
+    "createAccount": "创建账户",
+    "welcomeSub": "登录后继续使用你的待办、笔记和习惯。",
+    "registerSub": "注册即可登录，离线记录的数据会同步到你的账户。",
+    "email": "邮箱",
+    "password": "密码",
+    "nickname": "昵称（可选）",
+    "nicknamePlaceholder": "怎么称呼你？",
+    "passwordPlaceholder": "至少 8 位",
+    "processing": "处理中...",
+    "signIn": "登录",
+    "signUp": "注册并登录",
+    "toRegister": "还没有账户？去注册",
+    "toLogin": "已经有账户？去登录",
+    "errorAuthFailed": "邮箱或密码不正确。",
+    "errorEmailExists": "这个邮箱已经注册过了，请直接登录。"
   }
 }

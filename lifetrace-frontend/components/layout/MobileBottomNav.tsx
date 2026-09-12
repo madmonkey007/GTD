@@ -7,21 +7,23 @@ import {
 	ListTodo,
 	User,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useUiStore } from "@/lib/store/ui-store";
 import type { SidebarView } from "@/lib/store/ui-store/types";
 import { cn } from "@/lib/utils";
 
 /** 主 tab：固定 5 个，我的收纳其余视图 */
 const PRIMARY_TABS = [
-	{ id: "quickCommand" as const, label: "收集箱", icon: Inbox },
-	{ id: "list" as const, label: "行动", icon: ListTodo },
-	{ id: "diary" as const, label: "思考", icon: BookOpen },
-	{ id: "habits" as const, label: "习惯", icon: Heart },
-	{ id: "profile" as const, label: "我的", icon: User },
+	{ id: "quickCommand" as const, labelKey: "inbox", icon: Inbox },
+	{ id: "list" as const, labelKey: "actions", icon: ListTodo },
+	{ id: "diary" as const, labelKey: "thinking", icon: BookOpen },
+	{ id: "habits" as const, labelKey: "habits", icon: Heart },
+	{ id: "profile" as const, labelKey: "me", icon: User },
 ];
 
 export function MobileBottomNav() {
 	const { activeView, setActiveView } = useUiStore();
+	const t = useTranslations("mobile.tabs");
 
 	const handleTab = (id: string) => {
 		setActiveView(id as SidebarView);
@@ -43,7 +45,7 @@ export function MobileBottomNav() {
 								? "text-primary"
 								: "text-muted-foreground hover:text-foreground",
 						)}
-						aria-label={tab.label}
+						aria-label={t(tab.labelKey)}
 					>
 						<Icon
 							className={cn(
@@ -58,7 +60,7 @@ export function MobileBottomNav() {
 								isActive ? "font-medium" : "font-normal",
 							)}
 						>
-							{tab.label}
+							{t(tab.labelKey)}
 						</span>
 					</button>
 				);

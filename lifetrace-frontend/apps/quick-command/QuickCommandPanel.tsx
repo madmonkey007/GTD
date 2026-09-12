@@ -321,6 +321,8 @@ export function QuickCommandPanel() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const hasText = input.trim().length > 0;
+  // 是否折行成多行（多行时按钮组贴底对齐，单行时垂直居中）
+  const [multiline, setMultiline] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [streamingId, setStreamingId] = useState<string | null>(null);
@@ -495,17 +497,9 @@ export function QuickCommandPanel() {
     if (!text || isStreaming) return;
     addDraft(text);
     setInput("");
+    setMultiline(false);
     if (taRef.current) taRef.current.style.height = "auto";
   }, [input, isStreaming, addDraft]);
-
-  const onAgentSubmit = useCallback(() => {
-    // 输入框内的 ✨ 按钮 = agent 模式：按现有 quick_command 流程执行
-    const text = input.trim();
-    if (!text || isStreaming) return;
-    setInput("");
-    if (taRef.current) taRef.current.style.height = "auto";
-    void doStream(text);
-  }, [input, isStreaming, doStream]);
 
   const copyDraft = useCallback(
     (draft: InboxDraft) => {
@@ -685,18 +679,20 @@ export function QuickCommandPanel() {
 
       {/* 输入区：输入文字后隐藏语音/Agent，发送按钮贴右下角 */}
       <div className="border-t border-border/30 px-4 py-3">
-        <div className={`mx-auto flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3 py-2 focus-within:border-primary/40 transition-colors ${hasText ? "items-end" : ""}`} style={{ width: isMobile ? "100%" : "70%" }}>
+        <div className={`mx-auto flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3 py-2 focus-within:border-primary/40 transition-colors ${multiline ? "items-end" : ""}`} style={{ width: isMobile ? "100%" : "70%" }}>
           <textarea
             ref={taRef}
             value={input}
             onChange={(e) => {
               setInput(e.target.value);
               e.target.style.height = "auto";
-              e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
+              const next = Math.min(e.target.scrollHeight, 160);
+              e.target.style.height = `${next}px`;
+              setMultiline(next > 36);
             }}
             onKeyDown={onKeyDown}
             rows={1}
-            placeholder={locale === "zh" ? "输入内容，Enter 存为收集箱草稿；点 ✨ 交给 Agent" : "Type… Enter saves a draft; ✨ asks the agent"}
+            placeholder={locale === "zh" ? "输入内容，Enter 存为收集箱草稿" : "Type… Enter saves a draft"}
             className="flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/40 max-h-40"
           />
           {(!hasText || isVoiceRecording) && (
@@ -716,19 +712,7 @@ export function QuickCommandPanel() {
             className="flex-shrink-0 rounded-lg p-2.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           />
           )}
-          {/* Agent 按钮：输入框内，点击走现有 agent 模式（不点则 Enter 仅存本地草稿） */}
-          {/* 有文字或录音时隐藏 Agent，只保留发送/停止 */}
-          {!hasText && !isVoiceRecording && (
-          <button
-            type="button"
-            onClick={onAgentSubmit}
-            disabled={!input.trim() || isStreaming}
-            title={locale === "zh" ? "交给 Agent 执行" : "Ask agent"}
-            className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <Sparkles className="w-4 h-4" />
-          </button>
-          )}
+          {/* 发送按钮：始终显示在右侧（无文字时置灰），流式中显示停止 */}
           {isStreaming ? (
             <button
               type="button"
@@ -739,7 +723,7 @@ export function QuickCommandPanel() {
               <Square className="w-4 h-4" />
             </button>
           ) : (
-            !isVoiceRecording && hasText && (
+            !isVoiceRecording && (
             <button
               type="button"
               onClick={onSubmit}

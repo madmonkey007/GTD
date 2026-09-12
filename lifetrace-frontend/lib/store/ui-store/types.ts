@@ -26,6 +26,8 @@ export interface UiStoreState {
 	isPanelCOpen: boolean;
 	// 窄屏推入式详情是否打开（仅运行时，不持久化）
 	mobileDetailOpen: boolean;
+	// 窄屏推入式详情的内容类型（todoDetail=待办详情 / chat=Agent 聊天）
+	mobileDetailContent: "todoDetail" | "chat";
 	// 位置槽位宽度
 	panelAWidth: number;
 	panelCWidth: number;
@@ -51,6 +53,8 @@ export interface UiStoreState {
 	togglePanelB: () => void;
 	togglePanelC: () => void;
 	setMobileDetailOpen: (open: boolean) => void;
+	// 设置窄屏推入式详情内容，打开时指定 todoDetail 或 chat
+	setMobileDetailContent: (content: "todoDetail" | "chat") => void;
 	// 位置槽位宽度设置方法
 	setPanelAWidth: (width: number) => void;
 	setPanelCWidth: (width: number) => void;

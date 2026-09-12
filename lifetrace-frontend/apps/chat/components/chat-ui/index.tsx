@@ -6,6 +6,7 @@ import { Check, Copy, MessageSquareText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import type { ChatMessage, ToolCallStep } from "@/apps/chat/types";
 
 // ─── MergedStep type ───
@@ -28,6 +29,7 @@ export function MarkdownContent({ text }: { text: string }) {
 // ─── Auto-collapse thinking block ───
 
 export function AutoCollapseThinkingBlock({ content, isRunning = false }: { content: string; isRunning?: boolean }) {
+  const tChat = useTranslations("chat");
   const [open, setOpen] = useState(false);
 
   return (
@@ -45,10 +47,10 @@ export function AutoCollapseThinkingBlock({ content, isRunning = false }: { cont
               animation: "shimmerText 3s linear infinite",
             }}
           >
-            思考中
+            {tChat("thinking.thinkingLabel")}
           </span>
         ) : (
-          <span>思考过程</span>
+          <span>{tChat("thinking.processLabel")}</span>
         )}
         <svg
           className="w-3 h-3 transition-transform group-open:rotate-90 opacity-0 group-hover:opacity-100"
@@ -129,6 +131,7 @@ export function ExecutionProcess({
   firstThinkingEnded: boolean;
   initialDurationSec?: number;
 }) {
+  const tChat = useTranslations("chat");
   const [open, setOpen] = useState(false);
   const [elapsed, setElapsed] = useState(initialDurationSec);
   const startTimeRef = useRef<number | null>(null);
@@ -194,10 +197,10 @@ export function ExecutionProcess({
                   animation: "shimmerText 3s linear infinite",
                 }}
               >
-                思考中
+                {tChat("thinking.thinkingLabel")}
               </span>
             ) : (
-              <span>已处理</span>
+              <span>{tChat("thinking.processedLabel")}</span>
             )}
             <span className="tabular-nums">{formatTime(elapsed)}</span>
           </span>
@@ -249,6 +252,7 @@ export function FinalResponse({ text, isStreaming }: { text: string; isStreaming
 // ─── Message actions ───
 
 export function MessageActions({ content }: { content: string }) {
+  const tChat = useTranslations("chat");
   const [copied, setCopied] = useState(false);
   const copyContent = content
     .replace(/\[THINK\][\s\S]*?\[\/THINK\]/g, "")
@@ -269,7 +273,7 @@ export function MessageActions({ content }: { content: string }) {
       transition={{ delay: 0.3, duration: 0.2 }}
       className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
     >
-      <button type="button" onClick={handleCopy} title="复制"
+      <button type="button" onClick={handleCopy} title={tChat("copy")}
         className="rounded-md p-1 text-muted-foreground/40 hover:text-foreground hover:bg-muted/50 transition-colors">
         {copied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
       </button>
@@ -280,13 +284,14 @@ export function MessageActions({ content }: { content: string }) {
 // ─── Streaming indicator ───
 
 export function StreamingIndicator({ text }: { text?: string }) {
+  const tChat = useTranslations("chat");
   return (
     <span className="inline-flex items-center gap-2 text-muted-foreground/60">
       <span className="relative flex h-2 w-2">
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/40" />
         <span className="relative inline-flex rounded-full h-2 w-2 bg-primary/60" />
       </span>
-      <span className="text-xs">{text ?? "分析中"}</span>
+      <span className="text-xs">{text ?? tChat("analyzing")}</span>
     </span>
   );
 }
@@ -404,6 +409,7 @@ export function MessageBubble({
   isStreaming: boolean;
   footer?: ReactNode;
 }) {
+  const tChat = useTranslations("chat");
   const isUser = msg.role === "user";
 
   return (
@@ -443,7 +449,7 @@ export function MessageBubble({
           ) : (
             <>
               {msg.content === "" && isStreaming && !(msg.toolCallSteps && msg.toolCallSteps.length > 0) ? (
-                <StreamingIndicator text="处理中" />
+                <StreamingIndicator text={tChat("processing")} />
               ) : (msg.content || (msg.toolCallSteps && msg.toolCallSteps.length > 0)) ? (
                 <div className="text-[13px] [&_details+div]:mt-3 [&_details]:mb-3">
                   <AssistantBody content={msg.content} steps={msg.toolCallSteps} finalReply={msg.finalReply} isStreaming={isStreaming} durationMs={msg.durationMs} />

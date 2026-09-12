@@ -727,7 +727,14 @@
       "processLabel": "Thinking Process",
       "thinkingLabel": "Thinking",
       "processedLabel": "Processed"
-    }
+    },
+    "copy": "Copy",
+    "analyzing": "Analyzing",
+    "processing": "Processing",
+    "untitledNote": "Untitled note",
+    "notSureOption": "Not sure / Not important",
+    "createTodoFailed": "Failed to create todos",
+    "closeDialog": "Close dialog"
   },
   "calendar": {
     "title": "Calendar",
@@ -1396,5 +1403,49 @@
     "todoSaved": "Todo created",
     "inboxSaved": "Saved to inbox",
     "saveFailed": "Save failed, try again"
+  },
+  "mobile": {
+    "tabs": {
+      "inbox": "Inbox",
+      "actions": "Actions",
+      "thinking": "Notes",
+      "habits": "Habits",
+      "me": "Me"
+    },
+    "views": {
+      "quickCommand": "Inbox",
+      "list": "Actions",
+      "diary": "Notes",
+      "habits": "Habits",
+      "profile": "Me",
+      "calendar": "Calendar",
+      "quadrants": "Quadrants",
+      "aiInsight": "AI Insights",
+      "back": "Back"
+    }
+  },
+  "login": {
+    "tagline1": "Capture life,",
+    "tagline2": "beyond to-dos.",
+    "taglineSub": "Every day and every thought deserves a good home.",
+    "point1": "Todos, notes and habits in one account",
+    "point2": "Keep recording offline, sync when online",
+    "point3": "Isolated per account, no data mixing",
+    "welcomeBack": "Welcome back",
+    "createAccount": "Create account",
+    "welcomeSub": "Sign in to continue using your todos, notes and habits.",
+    "registerSub": "Register to sign in; offline records sync to your account.",
+    "email": "Email",
+    "password": "Password",
+    "nickname": "Nickname (optional)",
+    "nicknamePlaceholder": "What should we call you?",
+    "passwordPlaceholder": "At least 8 characters",
+    "processing": "Processing...",
+    "signIn": "Sign in",
+    "signUp": "Sign up & sign in",
+    "toRegister": "No account yet? Sign up",
+    "toLogin": "Already have an account? Sign in",
+    "errorAuthFailed": "Incorrect email or password.",
+    "errorEmailExists": "This email is already registered. Please sign in."
   }
 }

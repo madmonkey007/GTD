@@ -12,6 +12,7 @@ import Image from "next/image";
 import { useOpenSettings } from "@/lib/hooks/useOpenSettings";
 import { useUiStore } from "@/lib/store/ui-store";
 import type { SidebarView } from "@/lib/store/ui-store/types";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 export const SIDEBAR_NAV_ITEMS: {
@@ -19,14 +20,15 @@ export const SIDEBAR_NAV_ITEMS: {
 	label: string;
 	icon: typeof ListTodo;
 }[] = [
-	{ id: "quickCommand", label: "收集箱", icon: Inbox },
-	{ id: "list", label: "行动", icon: ListTodo },
-	{ id: "diary", label: "思考", icon: BookOpen },
-	{ id: "habits", label: "习惯", icon: Heart },
+	{ id: "quickCommand", label: "quickCommand", icon: Inbox },
+	{ id: "list", label: "list", icon: ListTodo },
+	{ id: "diary", label: "diary", icon: BookOpen },
+	{ id: "habits", label: "habits", icon: Heart },
 ];
 
 export function SidebarNav() {
 	const { activeView, setActiveView } = useUiStore();
+	const tViews = useTranslations("mobile.views");
 	const { openSettings } = useOpenSettings();
 
 	return (
@@ -62,7 +64,7 @@ export function SidebarNav() {
 							key={item.id}
 							type="button"
 							onClick={() => setActiveView(item.id)}
-							title={item.label}
+							title={tViews(item.label)}
 							className={cn(
 								"group relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
 								"hover:bg-muted/50",
