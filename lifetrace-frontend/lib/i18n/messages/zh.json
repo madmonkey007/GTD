@@ -21,7 +21,7 @@
     "openSettings": "打开设置"
   },
   "page": {
-    "title": "GTD Canvas",
+    "title": "Iter Canvas",
     "subtitle": "日历视图与待办视图并列排布，可通过底部 Dock 快速切换与组合，并支持拖拽调整宽度。",
     "calendarLabel": "日历视图",
     "calendarPlaceholder": "占位：在这里接入日历组件",
@@ -32,7 +32,7 @@
     "todoListTitle": "收集箱",
     "chatLabel": "AI 聊天",
     "chatPlaceholder": "占位：在这里接入 AI 聊天组件",
-    "chatTitle": "GTD - AI 智能助手",
+    "chatTitle": "Iter - AI 智能助手",
     "chatSubtitle": "一个个性化的 AI 聊天应用，帮助您管理待办事项、提高效率。",
     "chatQuestion": "今天我能为您做些什么？",
     "chatSuggestion1": "拆解并排序今天的待办",
@@ -499,7 +499,7 @@
   },
   "chat": {
     "greetings": {
-      "title": "GTD，放手去做",
+      "title": "Iter，放手去做",
       "subtitle": "智能待办助手，帮你拆解任务、规划优先级、提升效率"
     },
     "planModeInputPlaceholder": "例如：帮我规划周末搬家需要做的事",
@@ -1248,7 +1248,7 @@
     "extracting": "正在提取待办事项..."
   },
   "onboarding": {
-    "welcomeTitle": "欢迎使用 GTD",
+    "welcomeTitle": "欢迎使用 Iter",
     "welcomeDescription": "快速配置你的 AI 助手。",
     "apiKeyStepTitle": "API Key",
     "apiKeyStepDescription": "填写大模型 API Key。",

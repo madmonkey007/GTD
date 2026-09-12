@@ -138,7 +138,7 @@ export const PopupContent: React.FC<PopupContentProps> = ({ todos, onOpenSidebar
           {/* Light mode logo */}
           <Image
             src="/iter-logos/logo-light.png?v=2"
-            alt="GTD Logo"
+            alt="Iter Logo"
             width={36}
             height={36}
             className="object-contain block dark:hidden"
@@ -146,7 +146,7 @@ export const PopupContent: React.FC<PopupContentProps> = ({ todos, onOpenSidebar
           {/* Dark mode logo */}
           <Image
             src="/iter-logos/logo-dark.png?v=2"
-            alt="GTD Logo"
+            alt="Iter Logo"
             width={36}
             height={36}
             className="object-contain hidden dark:block"

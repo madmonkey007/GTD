@@ -21,7 +21,7 @@
     "openSettings": "Open Settings"
   },
   "page": {
-    "title": "GTD Canvas",
+    "title": "Iter Canvas",
     "subtitle": "Calendar and Todos view side by side. Toggle via bottom dock and resize panels by dragging the handle.",
     "calendarLabel": "Calendar View",
     "calendarPlaceholder": "Placeholder: plug a calendar component here",
@@ -32,7 +32,7 @@
     "todoListTitle": "Inbox",
     "chatLabel": "AI Chat",
     "chatPlaceholder": "Placeholder: plug an AI chat component here",
-    "chatTitle": "GTD - AI Assistant",
+    "chatTitle": "Iter - AI Assistant",
     "chatSubtitle": "A personalized AI chat app that helps you manage todos and boost productivity.",
     "chatQuestion": "How can I help you today?",
     "chatSuggestion1": "Break down today's todos and prioritize",
@@ -499,7 +499,7 @@
   },
   "chat": {
     "greetings": {
-      "title": "GTD, Just Do It",
+      "title": "Iter, Just Do It",
       "subtitle": "Your intelligent todo assistant for breaking down tasks, prioritizing, and getting things done"
     },
     "planModeInputPlaceholder": "e.g. Help me plan the todos for moving this weekend",
@@ -1248,7 +1248,7 @@
     "extracting": "Extracting todos..."
   },
   "onboarding": {
-    "welcomeTitle": "Welcome to GTD",
+    "welcomeTitle": "Welcome to Iter",
     "welcomeDescription": "Let's quickly set up your AI assistant.",
     "apiKeyStepTitle": "API Key",
     "apiKeyStepDescription": "Enter your LLM API Key.",

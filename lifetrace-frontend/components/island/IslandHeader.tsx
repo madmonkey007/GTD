@@ -82,7 +82,7 @@ export function IslandHeader({ mode, onModeChange, isExpanded = false, onDragSta
           {/* 浅色模式图标 */}
           <Image
             src="/iter-logos/logo-light.png?v=2"
-            alt="GTD Logo"
+            alt="Iter Logo"
             width={32}
             height={32}
             className="object-contain block dark:hidden"
@@ -90,14 +90,14 @@ export function IslandHeader({ mode, onModeChange, isExpanded = false, onDragSta
           {/* 深色模式图标 */}
           <Image
             src="/iter-logos/logo-dark.png?v=2"
-            alt="GTD Logo"
+            alt="Iter Logo"
             width={32}
             height={32}
             className="object-contain hidden dark:block"
           />
         </div>
         <h1 className="text-lg font-semibold tracking-tight text-foreground">
-          GTD
+          Iter
         </h1>
       </div>
 

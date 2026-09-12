@@ -9,7 +9,7 @@ import "./island.css";
 
 export const metadata: Metadata = {
   title: "Dynamic Island",
-  description: "GTD Dynamic Island Widget",
+  description: "Iter Dynamic Island Widget",
 };
 
 /**
