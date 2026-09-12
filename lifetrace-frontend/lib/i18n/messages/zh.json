@@ -1005,7 +1005,7 @@
     "deadline": "日期",
     "description": "描述",
     "descriptionPlaceholder": "描述任务细节...",
-    "tags": "标签（逗号分隔）",
+    "tags": "标签",
     "tagsPlaceholder": "如：工作, 报告",
     "priority": "优先级",
     "notes": "备注",
@@ -1032,7 +1032,8 @@
     "inbox": "收集箱",
     "calendar": "日历",
     "quadrants": "四象限",
-    "clearFilter": "清除筛选"
+    "clearFilter": "清除筛选",
+    "noTags": "暂无标签，创建待办时添加"
   },
   "collection": {
     "entryTitle": "集合",
@@ -1499,5 +1500,21 @@
     "timeline": "时间线",
     "loading": "加载中...",
     "empty": "暂无活动记录"
+  },
+  "pomodoro": {
+    "trend": "专注趋势",
+    "ranges": {
+      "today": "今天",
+      "7d": "7天",
+      "30d": "30天",
+      "1y": "1年"
+    }
+  },
+  "quadrants": {
+    "q1": "重要且紧急",
+    "q2": "重要不紧急",
+    "q3": "紧急不重要",
+    "q4": "不紧急不重要",
+    "empty": "暂无任务"
   }
 }

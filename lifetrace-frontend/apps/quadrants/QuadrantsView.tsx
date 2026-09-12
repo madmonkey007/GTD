@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useTodos } from "@/lib/query";
 import type { Todo } from "@/lib/types";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
@@ -11,17 +12,17 @@ type QuadrantKey = "q1" | "q2" | "q3" | "q4";
 
 interface Quadrant {
 	key: QuadrantKey;
-	title: string;
+	titleKey: string;
 	priority: "high" | "medium" | "low" | "none";
 	color: string;
 	bgColor: string;
 }
 
 const QUADRANTS: Quadrant[] = [
-	{ key: "q1", title: "重要且紧急", priority: "high", color: "text-red-600 dark:text-red-400", bgColor: "bg-red-50 dark:bg-red-950/20" },
-	{ key: "q2", title: "重要不紧急", priority: "medium", color: "text-amber-600 dark:text-amber-400", bgColor: "bg-amber-50 dark:bg-amber-950/20" },
-	{ key: "q3", title: "紧急不重要", priority: "low", color: "text-blue-600 dark:text-blue-400", bgColor: "bg-blue-50 dark:bg-blue-950/20" },
-	{ key: "q4", title: "不紧急不重要", priority: "none", color: "text-gray-500 dark:text-gray-400", bgColor: "bg-gray-50 dark:bg-gray-900/20" },
+	{ key: "q1", titleKey: "q1", priority: "high", color: "text-red-600 dark:text-red-400", bgColor: "bg-red-50 dark:bg-red-950/20" },
+	{ key: "q2", titleKey: "q2", priority: "medium", color: "text-amber-600 dark:text-amber-400", bgColor: "bg-amber-50 dark:bg-amber-950/20" },
+	{ key: "q3", titleKey: "q3", priority: "low", color: "text-blue-600 dark:text-blue-400", bgColor: "bg-blue-50 dark:bg-blue-950/20" },
+	{ key: "q4", titleKey: "q4", priority: "none", color: "text-gray-500 dark:text-gray-400", bgColor: "bg-gray-50 dark:bg-gray-900/20" },
 ];
 
 function formatDeadline(todo: Todo): string | null {
@@ -42,6 +43,7 @@ function formatDeadline(todo: Todo): string | null {
 }
 
 export function QuadrantsView() {
+	const tQuad = useTranslations("quadrants");
 	const { data: todos = [] } = useTodos();
 	const isMobile = useIsMobile();
 
@@ -86,14 +88,14 @@ export function QuadrantsView() {
 							)}
 						>
 							<h3 className={cn("mb-2 text-sm font-semibold", quadrant.color)}>
-								{quadrant.title}
+								{tQuad(quadrant.titleKey)}
 								<span className="ml-2 text-xs font-normal text-muted-foreground">
 									{todos.length}
 								</span>
 							</h3>
 							<div className="flex-1 space-y-2 overflow-y-auto">
 								{todos.length === 0 ? (
-									<p className="text-xs text-muted-foreground/50">暂无任务</p>
+									<p className="text-xs text-muted-foreground/50">{tQuad("empty")}</p>
 								) : (
 									todos.map((todo) => {
 										const deadline = formatDeadline(todo);

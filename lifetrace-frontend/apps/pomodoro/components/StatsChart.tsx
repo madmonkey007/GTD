@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
 	CartesianGrid,
 	Line,
@@ -13,11 +14,11 @@ import {
 
 type RangeKey = "today" | "7d" | "30d" | "1y";
 
-const RANGES: { key: RangeKey; label: string }[] = [
-	{ key: "today", label: "今天" },
-	{ key: "7d", label: "7天" },
-	{ key: "30d", label: "30天" },
-	{ key: "1y", label: "1年" },
+const RANGES: { key: RangeKey; labelKey: string }[] = [
+	{ key: "today", labelKey: "today" },
+	{ key: "7d", labelKey: "7d" },
+	{ key: "30d", labelKey: "30d" },
+	{ key: "1y", labelKey: "1y" },
 ];
 
 interface PomodoroSession {
@@ -37,6 +38,7 @@ function getSessions(): PomodoroSession[] {
 }
 
 export function StatsChart() {
+	const tRanges = useTranslations("pomodoro.ranges");
 	const [range, setRange] = useState<RangeKey>("7d");
 
 	const chartData = useMemo(() => {
@@ -117,7 +119,7 @@ export function StatsChart() {
 								: "text-muted-foreground hover:bg-muted/30"
 						}`}
 					>
-						{r.label}
+						{tRanges(r.labelKey)}
 					</button>
 				))}
 			</div>

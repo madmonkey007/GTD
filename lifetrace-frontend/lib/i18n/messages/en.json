@@ -1005,7 +1005,7 @@
     "deadline": "Date",
     "description": "Description",
     "descriptionPlaceholder": "Describe task details...",
-    "tags": "Tags (comma-separated)",
+    "tags": "Tags",
     "tagsPlaceholder": "e.g., work, report",
     "priority": "Priority",
     "notes": "Notes",
@@ -1032,7 +1032,8 @@
     "inbox": "Inbox",
     "calendar": "Calendar",
     "quadrants": "Quadrants",
-    "clearFilter": "Clear filter"
+    "clearFilter": "Clear filter",
+    "noTags": "No tags yet; add one when creating a todo"
   },
   "collection": {
     "entryTitle": "Collections",
@@ -1499,5 +1500,21 @@
     "timeline": "Timeline",
     "loading": "Loading...",
     "empty": "No activities found."
+  },
+  "pomodoro": {
+    "trend": "Focus trend",
+    "ranges": {
+      "today": "Today",
+      "7d": "7D",
+      "30d": "30D",
+      "1y": "1Y"
+    }
+  },
+  "quadrants": {
+    "q1": "Urgent & Important",
+    "q2": "Important, Not Urgent",
+    "q3": "Urgent, Not Important",
+    "q4": "Neither",
+    "empty": "No tasks"
   }
 }

@@ -52,7 +52,9 @@ function dotDiameter(count: number): number {
 	return Math.min(16, 7 + Math.sqrt(Math.min(count, 9)) * 3);
 }
 
-const WEEKDAY_LABELS = ["一", "三", "五"];
+const WEEKDAY_ROWS = ["一", "二", "三", "四", "五", "六", "日"];
+const WEEKDAY_LABELS_EN = ["M", "T", "W", "T", "F", "S", "S"];
+const MONTH_NAMES_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /**
  * 自适应热力图（L17 Calendar Heat 风格）：圆点格 + 顶部月份刻度 + 左侧星期标签 +
@@ -145,7 +147,7 @@ export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryH
 							{label && (
 								<>
 									<span className="text-[8px] font-semibold leading-none tracking-wider text-muted-foreground/70">
-										{label.label}
+										{isZh ? label.label : MONTH_NAMES_EN[Number(label.label.replace("月", "")) - 1] ?? label.label}
 									</span>
 									<span className="h-[3px] w-px bg-border" />
 								</>
@@ -168,8 +170,8 @@ export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryH
 							key={`wd-${row}`}
 							className="flex h-[17px] items-center justify-start text-[8px] leading-none text-muted-foreground/50"
 						>
-							{WEEKDAY_LABELS.includes(["一", "二", "三", "四", "五", "六", "日"][row])
-								? ["一", "二", "三", "四", "五", "六", "日"][row]
+							{WEEKDAY_LABELS_EN.includes(WEEKDAY_ROWS[row])
+								? (isZh ? WEEKDAY_ROWS[row] : WEEKDAY_LABELS_EN[row])
 								: ""}
 						</div>
 					))}

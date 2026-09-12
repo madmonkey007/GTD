@@ -130,7 +130,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 					isMobile ? "h-11" : "h-10",
 				)}
 			>
-				<span className="text-xs font-medium text-muted-foreground">筛选</span>
+				<span className="text-xs font-medium text-muted-foreground">{t("filter")}</span>
 				{isFilterActive && (
 					<button
 						type="button"
@@ -208,7 +208,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 						isMobile ? "min-h-11" : "pb-1",
 					)}
 				>
-					标签
+					{t("tags")}
 					{tagsExpanded ? (
 						<ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
 					) : (
@@ -218,7 +218,7 @@ export function FilterColumn({ widthOverride }: { widthOverride?: string }) {
 				{tagsExpanded &&
 					(allTags.length === 0 ? (
 						<p className="px-2.5 py-1 text-xs text-muted-foreground/50">
-							暂无标签，创建待办时添加
+							{t("noTags")}
 						</p>
 					) : (
 						allTags.map((tag) => (

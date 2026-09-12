@@ -311,7 +311,7 @@ export function PomodoroView() {
 
 				<div className="mt-2">
 					<h4 className="mb-2 text-xs font-medium text-muted-foreground">
-						专注趋势
+						{isZh ? "专注趋势" : "Focus trend"}
 					</h4>
 					<StatsChart />
 				</div>
