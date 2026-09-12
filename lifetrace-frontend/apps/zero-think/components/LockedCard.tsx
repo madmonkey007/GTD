@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Lock } from "lucide-react";
+import { useLocaleStore } from "@/lib/store/locale";
 import type { ZeroThinkCard } from "../types";
 
 interface LockedCardProps {
@@ -9,18 +10,20 @@ interface LockedCardProps {
 }
 
 export function LockedCard({ card }: LockedCardProps) {
+	const isZh = useLocaleStore((s) => s.locale) === "zh";
 	const formatDuration = (ms: number) => {
 		const seconds = Math.floor(ms / 1000);
 		const minutes = Math.floor(seconds / 60);
 		const remainingSeconds = seconds % 60;
-		return minutes > 0
-			? `${minutes}分${remainingSeconds}秒`
-			: `${seconds}秒`;
+		if (isZh) {
+			return minutes > 0 ? `${minutes}分${remainingSeconds}秒` : `${seconds}秒`;
+		}
+		return minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${seconds}s`;
 	};
 
 	const formatTime = (isoString: string) => {
 		const date = new Date(isoString);
-		return date.toLocaleTimeString("zh-CN", {
+		return date.toLocaleTimeString(isZh ? "zh-CN" : "en-US", {
 			hour: "2-digit",
 			minute: "2-digit",
 		});
@@ -37,7 +40,7 @@ export function LockedCard({ card }: LockedCardProps) {
 			<div className="flex items-center justify-between mb-4">
 				<div className="flex items-center gap-2 text-muted-foreground">
 					<Lock size={14} strokeWidth={1.5} />
-					<span className="text-xs font-medium">已锁定</span>
+					<span className="text-xs font-medium">{isZh ? "已锁定" : "Locked"}</span>
 				</div>
 				<div className="text-xs text-muted-foreground tabular-nums">
 					{formatTime(card.createdAt)}
@@ -64,9 +67,11 @@ export function LockedCard({ card }: LockedCardProps) {
 
 			{/* Footer */}
 			<div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t border-border">
-				<span className="tabular-nums">耗时 {formatDuration(card.durationMs)}</span>
+				<span className="tabular-nums">{isZh ? "耗时" : "Took"} {formatDuration(card.durationMs)}</span>
 				<span>
-					{card.mode === "scattered" ? "碎片化思考" : "批量专注"}
+					{card.mode === "scattered"
+						? (isZh ? "碎片化思考" : "Scattered thinking")
+						: (isZh ? "批量专注" : "Batch focus")}
 				</span>
 			</div>
 		</motion.div>

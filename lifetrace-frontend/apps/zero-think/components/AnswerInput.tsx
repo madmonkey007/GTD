@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useLocaleStore } from "@/lib/store/locale";
 import { MAX_ANSWERS, MIN_ANSWERS } from "../constants";
 
 interface AnswerInputProps {
@@ -16,6 +17,7 @@ export function AnswerInput({
 	onChange,
 	disabled = false,
 }: AnswerInputProps) {
+	const isZh = useLocaleStore((s) => s.locale) === "zh";
 	const [answers, setAnswers] = useState<string[]>(() => {
 		// Initialize with at least MIN_ANSWERS lines
 		const initial = [...initialAnswers];
@@ -73,10 +75,10 @@ export function AnswerInput({
 		<div className="space-y-3">
 			<div className="flex items-center justify-between mb-4">
 				<h3 className="text-sm font-medium text-foreground">
-					写下你的答案
+					{isZh ? "写下你的答案" : "Write your answers"}
 				</h3>
 				<span className="text-xs text-muted-foreground tabular-nums">
-					{filledCount}/{MIN_ANSWERS} 最少
+					{filledCount}/{MIN_ANSWERS} {isZh ? "最少" : "min"}
 				</span>
 			</div>
 
@@ -103,7 +105,7 @@ export function AnswerInput({
 									handleChange(index, e.target.value)
 								}
 								onKeyDown={(e) => handleKeyDown(index, e)}
-								placeholder={`答案 ${index + 1}`}
+								placeholder={`${isZh ? "答案" : "Answer"} ${index + 1}`}
 								disabled={disabled}
 								className="flex-1 bg-background border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors duration-200"
 							/>
@@ -131,7 +133,7 @@ export function AnswerInput({
 					whileTap={{ scale: 0.97 }}
 				>
 					<Plus size={14} strokeWidth={1.5} />
-					添加一行
+					{isZh ? "添加一行" : "Add a line"}
 				</motion.button>
 			)}
 		</div>

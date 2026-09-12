@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useLocaleStore } from "@/lib/store/locale";
 import { TIMER_DURATION_SECONDS, TIMER_WARNING_THRESHOLD } from "./constants";
 
 interface ZeroThinkTimerProps {
@@ -14,6 +15,7 @@ export function ZeroThinkTimer({
 	totalTime = TIMER_DURATION_SECONDS,
 	isWarning = timeRemaining <= TIMER_WARNING_THRESHOLD,
 }: ZeroThinkTimerProps) {
+	const isZh = useLocaleStore((s) => s.locale) === "zh";
 	const radius = 40;
 	const circumference = 2 * Math.PI * radius;
 	const progress = (totalTime - timeRemaining) / totalTime;
@@ -30,9 +32,9 @@ export function ZeroThinkTimer({
 				viewBox="0 0 100 100"
 				className="transform -rotate-90 text-border"
 				role="img"
-				aria-label="倒计时器"
+				aria-label={isZh ? "倒计时器" : "Countdown timer"}
 			>
-				<title>倒计时器</title>
+				<title>{isZh ? "倒计时器" : "Countdown timer"}</title>
 				{/* Background circle */}
 				<circle
 					cx="50"

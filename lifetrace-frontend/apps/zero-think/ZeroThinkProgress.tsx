@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useLocaleStore } from "@/lib/store/locale";
 
 interface ZeroThinkProgressProps {
 	completed: number;
@@ -11,13 +12,14 @@ export function ZeroThinkProgress({
 	completed,
 	total = 10,
 }: ZeroThinkProgressProps) {
+	const isZh = useLocaleStore((s) => s.locale) === "zh";
 	const percentage = (completed / total) * 100;
 
 	return (
 		<div className="w-full">
 			<div className="flex items-center justify-between mb-2">
 			<span className="text-xs text-muted-foreground">
-				今日进度
+				{isZh ? "今日进度" : "Today's progress"}
 			</span>
 			<span className="text-xs text-muted-foreground tabular-nums">
 					{completed}/{total}

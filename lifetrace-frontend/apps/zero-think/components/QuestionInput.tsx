@@ -3,6 +3,7 @@
 import { useRef, useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Play } from "lucide-react";
+import { useLocaleStore } from "@/lib/store/locale";
 
 interface QuestionInputProps {
 	onSubmit: (question: string) => void;
@@ -10,6 +11,7 @@ interface QuestionInputProps {
 }
 
 export function QuestionInput({ onSubmit, onOpenBank }: QuestionInputProps) {
+	const isZh = useLocaleStore((s) => s.locale) === "zh";
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const [isValid, setIsValid] = useState(false);
 
@@ -47,7 +49,7 @@ export function QuestionInput({ onSubmit, onOpenBank }: QuestionInputProps) {
 								if (isValid) handleSubmit();
 							}
 						}}
-						placeholder="写下你的问题..."
+						placeholder={isZh ? "写下你的问题..." : "Write your question..."}
 						rows={3}
 						className="w-full bg-background border border-border rounded-lg px-4 py-3 text-2xl font-medium text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary resize-none transition-colors duration-200"
 					/>
@@ -61,7 +63,7 @@ export function QuestionInput({ onSubmit, onOpenBank }: QuestionInputProps) {
 						className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-colors"
 					>
 						<BookOpen size={16} strokeWidth={1.5} />
-						灵感题库
+						{isZh ? "灵感题库" : "Inspiration bank"}
 					</button>
 
 					<button
@@ -74,7 +76,7 @@ export function QuestionInput({ onSubmit, onOpenBank }: QuestionInputProps) {
 						}`}
 					>
 						<Play size={18} strokeWidth={1.5} />
-						开始计时
+						{isZh ? "开始计时" : "Start timer"}
 					</button>
 				</div>
 			</motion.div>

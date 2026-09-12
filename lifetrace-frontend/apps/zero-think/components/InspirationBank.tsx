@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { BookOpen, X } from "lucide-react";
 import { useState } from "react";
+import { useLocaleStore } from "@/lib/store/locale";
 import { CATEGORIES, QUESTION_BANK } from "../question-bank";
 
 interface InspirationBankProps {
@@ -16,14 +17,15 @@ export function InspirationBank({
 	onClose,
 	onSelect,
 }: InspirationBankProps) {
+	const isZh = useLocaleStore((s) => s.locale) === "zh";
 	const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
 
 	const filteredQuestions = QUESTION_BANK.filter(
 		(q) => q.category === activeCategory,
 	);
 
-	const handleSelect = (question: string) => {
-		onSelect(question);
+	const handleSelect = (question: { zh: string; en: string }) => {
+		onSelect(isZh ? question.zh : question.en);
 		onClose();
 	};
 
@@ -55,7 +57,7 @@ export function InspirationBank({
 									<BookOpen size={18} strokeWidth={1.5} className="text-primary" />
 								</div>
 								<h2 className="text-sm font-semibold tracking-tight text-foreground">
-									灵感题库
+									{isZh ? "灵感题库" : "Inspiration bank"}
 								</h2>
 							</div>
 							<button
@@ -80,7 +82,7 @@ export function InspirationBank({
 										: "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
 								}`}
 								>
-									{cat.label}
+									{isZh ? cat.label.zh : cat.label.en}
 								</button>
 							))}
 						</div>
@@ -97,10 +99,10 @@ export function InspirationBank({
 									className="w-full text-left p-3 bg-card hover:bg-muted border border-border hover:border-border rounded-lg transition-all duration-200 group"
 								>
 									<p className="text-sm text-foreground group-hover:text-foreground transition-colors duration-300">
-										{q.question}
+										{isZh ? q.question.zh : q.question.en}
 									</p>
 									<p className="text-xs text-muted-foreground mt-2">
-										{q.categoryLabel}
+										{isZh ? q.categoryLabel.zh : q.categoryLabel.en}
 									</p>
 								</motion.button>
 							))}

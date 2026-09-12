@@ -245,11 +245,10 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 												</div>
 
 												<h2 className="text-xl font-semibold tracking-tight text-foreground mb-2">
-													今日训练完成
+													{isZh ? "今日训练完成" : "Today's session complete"}
 												</h2>
 												<p className="text-sm text-muted-foreground leading-relaxed mb-8">
-													你已经完成了今天的10个问题。
-													明天继续加油。
+													{isZh ? "你已经完成了今天的10个问题。明天继续加油。" : "You've finished all 10 questions for today. See you tomorrow."}
 												</p>
 
 												<button
@@ -257,7 +256,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 													onClick={handleBack}
 													className="px-6 min-h-11 flex items-center justify-center text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
 												>
-													返回列表
+													{isZh ? "返回列表" : "Back to list"}
 												</button>
 											</motion.div>
 										) : (
@@ -272,10 +271,10 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 												</div>
 
 												<h2 className="text-xl font-semibold tracking-tight text-foreground mb-2">
-													继续今日训练
+													{isZh ? "继续今日训练" : "Continue today's session"}
 												</h2>
 												<p className="text-sm text-muted-foreground leading-relaxed mb-8">
-													今天还剩 {10 - todayCount} 个问题。
+													{isZh ? `今天还剩 ${10 - todayCount} 个问题。` : `${10 - todayCount} questions left today.`}
 												</p>
 
 												<div className="flex gap-3">
@@ -285,7 +284,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 														whileHover={{ scale: 1.01 }}
 														whileTap={{ scale: 0.97 }}
 													>
-														开始下一个
+														{isZh ? "开始下一个" : "Start next"}
 													</motion.button>
 
 													<button
@@ -293,7 +292,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 														onClick={handleBack}
 												className="px-6 min-h-11 flex items-center justify-center text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
 													>
-														稍后再说
+														{isZh ? "稍后再说" : "Later"}
 													</button>
 												</div>
 											</motion.div>
@@ -340,11 +339,10 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 											</div>
 
 											<h2 className="text-xl font-semibold tracking-tight text-foreground mb-2">
-												今日训练完成
+												{isZh ? "今日训练完成" : "Today's session complete"}
 											</h2>
 											<p className="text-sm text-muted-foreground leading-relaxed mb-8">
-												你已经完成了今天的10个问题。
-												坚持就是胜利。
+												{isZh ? "你已经完成了今天的10个问题。坚持就是胜利。" : "You've finished all 10 questions for today. Keep it up."}
 											</p>
 
 											<button
@@ -352,7 +350,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 												onClick={handleBack}
 												className="px-6 min-h-11 flex items-center justify-center text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
 											>
-												返回列表
+												{isZh ? "返回列表" : "Back to list"}
 											</button>
 										</motion.div>
 									</div>
@@ -369,7 +367,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 											</div>
 
 											<h2 className="text-xl font-semibold tracking-tight text-foreground mb-2">
-												回答已提交
+												{isZh ? "回答已提交" : "Answer submitted"}
 											</h2>
 										</motion.div>
 
@@ -393,7 +391,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 												whileHover={{ scale: 1.01 }}
 												whileTap={{ scale: 0.97 }}
 											>
-												下一个问题
+												{isZh ? "下一个问题" : "Next question"}
 											</motion.button>
 
 											<button
@@ -401,7 +399,7 @@ export function ZeroThinkPanel({ setActiveView }: ZeroThinkPanelProps) {
 												onClick={handleBack}
 												className="px-6 min-h-11 flex items-center justify-center text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-all duration-200"
 											>
-												稍后再说
+												{isZh ? "稍后再说" : "Later"}
 											</button>
 										</div>
 									</div>

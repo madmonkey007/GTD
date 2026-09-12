@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLocaleStore } from "@/lib/store/locale";
 import { AnswerInput } from "./components/AnswerInput";
 import { MIN_ANSWERS } from "./constants";
 import { useZeroThinkTimer } from "./hooks/useZeroThinkTimer";
@@ -19,6 +20,7 @@ export function ZeroThinkQuestionCard({
 	onSubmit,
 	onOpenBank,
 }: ZeroThinkQuestionCardProps) {
+	const isZh = useLocaleStore((s) => s.locale) === "zh";
 	const [answers, setAnswers] = useState<string[]>([]);
 	const {
 		timeRemaining,
@@ -79,7 +81,7 @@ export function ZeroThinkQuestionCard({
 					className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground border border-input bg-background hover:bg-muted rounded-md transition-colors"
 				>
 					<BookOpen size={16} strokeWidth={1.5} />
-					灵感题库
+					{isZh ? "灵感题库" : "Inspiration bank"}
 				</button>
 
 				<motion.button
@@ -93,7 +95,7 @@ export function ZeroThinkQuestionCard({
 					whileHover={canSubmit ? { scale: 1.01 } : {}}
 					whileTap={canSubmit ? { scale: 0.97 } : {}}
 				>
-					提交
+					{isZh ? "提交" : "Submit"}
 				</motion.button>
 			</div>
 
@@ -104,7 +106,7 @@ export function ZeroThinkQuestionCard({
 					animate={{ opacity: 1, y: 0 }}
 					className="mt-4 text-center text-primary/80 text-sm"
 				>
-					时间已到，请提交你的答案。
+					{isZh ? "时间已到，请提交你的答案。" : "Time's up. Please submit your answers."}
 				</motion.div>
 			)}
 		</motion.div>
