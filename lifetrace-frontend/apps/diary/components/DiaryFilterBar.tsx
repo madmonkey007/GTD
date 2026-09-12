@@ -79,7 +79,7 @@ export function DiaryFilterBar({ filterMode, onFilterModeChange, hideActive, tim
 						{key === "random" && (
 							<button
 								type="button"
-								title="AI 洞察"
+								title={t("aiInsight")}
 								onClick={() => useMobileToolbarStore.getState().setDiaryRightOpen(true)}
 								className="rounded-lg px-2 py-1.5 text-sm transition-colors w-full text-left flex items-center gap-1.5 text-muted-foreground/70 hover:bg-muted/20 hover:text-foreground"
 							>

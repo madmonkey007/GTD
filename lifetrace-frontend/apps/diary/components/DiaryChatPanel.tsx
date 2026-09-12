@@ -25,16 +25,22 @@ import { useTextareaVoiceEcho } from "@/lib/hooks/useTextareaVoiceEcho";
 
 type TabDef = { key: string; label: string };
 
-const TAB_LABELS: Record<string, string> = {
-  insight: "默认洞察",
-  value: "价值澄清",
-  inversion: "逆向思考",
-  secondOrder: "二阶思考",
-  cbt: "CBT疗法",
-  mbti: "MBTI分析",
+const TAB_LABELS: Record<string, { zh: string; en: string }> = {
+  insight: { zh: "默认洞察", en: "Default insight" },
+  value: { zh: "价值澄清", en: "Values" },
+  inversion: { zh: "逆向思考", en: "Inversion" },
+  secondOrder: { zh: "二阶思考", en: "Second-order" },
+  cbt: { zh: "CBT疗法", en: "CBT" },
+  mbti: { zh: "MBTI分析", en: "MBTI" },
 };
 
-const ANALYSIS_TABS: TabDef[] = Object.entries(TAB_LABELS).map(([key, label]) => ({ key, label }));
+function tabLabel(key: string, isZh: boolean) {
+  const entry = TAB_LABELS[key];
+  return isZh ? entry.zh : entry.en;
+}
+
+/** 分析维度的 user 消息前缀文案（默认洞察被卡片直接触发时使用） */
+const INSIGHT_TAB_LABEL = { zh: "默认洞察", en: "Default insight" };
 
 const TAB_PROMPTS: Record<string, string> = {
   insight: `你是一位深度思维分析师，专门帮助用户从笔记中发现隐藏的认知模式。
@@ -200,6 +206,14 @@ MBTI 是一种认知框架工具，而非科学测量。你的分析基于文字
 
 // ─── Helpers ───
 
+/** 按用户语言约束模型回复语言：中文保留原指令，英文移除中文指令并要求英文回答 */
+function localizePrompt(prompt: string, isZh: boolean) {
+  if (isZh) return prompt;
+  return prompt
+    .replace(/\*\*重要：请使用简体中文回答。\*\*\n?/g, "")
+    .concat("\n\n**IMPORTANT: Respond in English.**");
+}
+
 function createId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -210,6 +224,8 @@ function createId() {
 // ─── Empty state ───
 
 function EmptyState({ onTabSelect }: { onTabSelect: (tab: TabDef) => void }) {
+  const isZh = useLocaleStore((s) => s.locale) === "zh";
+  const tabs: TabDef[] = Object.keys(TAB_LABELS).map((key) => ({ key, label: tabLabel(key, isZh) }));
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -229,15 +245,17 @@ function EmptyState({ onTabSelect }: { onTabSelect: (tab: TabDef) => void }) {
 
         <div className="space-y-1.5">
           <h2 className="text-base font-semibold tracking-tight text-foreground">
-            AI 洞察
+            {isZh ? "AI 洞察" : "AI Insights"}
           </h2>
           <p className="text-sm text-muted-foreground/70 leading-relaxed max-w-[240px]">
-            选择一个分析维度开始探索，或直接输入你的问题
+            {isZh
+              ? "选择一个分析维度开始探索，或直接输入你的问题"
+              : "Pick a lens to start exploring, or type your own question"}
           </p>
         </div>
 
         <div className="flex flex-wrap justify-center gap-1.5 max-w-[260px]">
-          {ANALYSIS_TABS.map((tab) => (
+          {tabs.map((tab) => (
             <motion.button
               key={tab.key}
               type="button"
@@ -391,6 +409,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
   const pendingInsight = useNoteChatStore((s) => s.pendingInsight);
   const clearPendingInsight = useNoteChatStore((s) => s.clearPendingInsight);
   const { locale } = useLocaleStore();
+  const isZh = locale === "zh";
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
 
@@ -566,9 +585,9 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
       if (ac.signal.aborted) return;
       setMessages((prev) =>
         prev.map((m) => m.id === assistantId && m.content === ""
-          ? { ...m, content: "抱歉，分析过程出现错误，请重试。" } : m),
+          ? { ...m, content: isZh ? "抱歉，分析过程出现错误，请重试。" : "Sorry, something went wrong during the analysis. Please try again." } : m),
       );
-      setError("请求失败，请检查后端服务是否正常运行");
+      setError(isZh ? "请求失败，请检查后端服务是否正常运行" : "Request failed. Please check that the backend service is running.");
     } finally {
       setIsStreaming(false);
       abortRef.current = null;
@@ -585,11 +604,11 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
       { id: uid, role: "user", content: `🧠 ${tab.label}` },
       { id: aid, role: "assistant", content: "" },
     ]);
-    const basePrompt = TAB_PROMPTS[tab.key]?.replace("{{notes}}", noteContent || "（暂无笔记内容）")
-      ?? "请分析以上笔记内容。";
+    const basePrompt = localizePrompt(TAB_PROMPTS[tab.key] ?? "请分析以上笔记内容。", isZh)
+      .replace("{{notes}}", noteContent || (isZh ? "（暂无笔记内容）" : "(no note content)"));
     const noteCtx = buildNoteContext();
     doStream(noteCtx ? `${noteCtx}\n\n${basePrompt}` : basePrompt, aid);
-  }, [noteContent, isStreaming, doStream]);
+  }, [noteContent, isStreaming, doStream, isZh]);
 
   // 卡片「添加到对话」直接触发默认洞察：消费 pendingInsight，
   // 以该笔记正文为分析对象，其余关联笔记作为上下文
@@ -604,16 +623,16 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
     const aid = createId();
     setMessages((prev) => [
       ...prev,
-      { id: uid, role: "user", content: `🧠 默认洞察 · ${note.name || note.date}` },
+      { id: uid, role: "user", content: `🧠 ${isZh ? INSIGHT_TAB_LABEL.zh : INSIGHT_TAB_LABEL.en} · ${note.name || note.date}` },
       { id: aid, role: "assistant", content: "" },
     ]);
-    const basePrompt = TAB_PROMPTS.insight.replace(
+    const basePrompt = localizePrompt(TAB_PROMPTS.insight, isZh).replace(
       "{{notes}}",
       `笔记标题: ${note.name || "未命名"}\n笔记内容: ${note.userNotes || "无内容"}\n日期: ${note.date}`,
     );
     const noteCtx = buildNoteContext();
     doStream(noteCtx ? `${noteCtx}\n\n${basePrompt}` : basePrompt, aid);
-  }, [pendingInsight, isStreaming, clearPendingInsight, doStream]);
+  }, [pendingInsight, isStreaming, clearPendingInsight, doStream, isZh]);
 
   const handleSendInput = useCallback(async () => {
     if (isStreaming) return;
@@ -642,9 +661,9 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
       { id: aid, role: "assistant", content: "" },
     ]);
     const prompt = noteCtx ? `${noteCtx}\n\n${text}` : text;
-    doStream(prompt, aid, CREATE_NOTE_SYSTEM_PROMPT);
+    doStream(prompt, aid, localizePrompt(CREATE_NOTE_SYSTEM_PROMPT, isZh));
     clearLinkedNotes();
-  }, [inputValue, isStreaming, doStream, clearLinkedNotes]);
+  }, [inputValue, isStreaming, doStream, clearLinkedNotes, isZh]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -682,7 +701,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
             <Sparkles className="w-3.5 h-3.5 text-primary/60" />
           </div>
           <span className="text-sm font-semibold tracking-tight text-foreground/80">
-            AI 洞察
+            {isZh ? "AI 洞察" : "AI Insights"}
           </span>
           {/* 右侧：生成中指示 + 历史记录 */}
           <div className="ml-auto flex items-center gap-1.5">
@@ -692,14 +711,14 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/40" />
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary/60" />
                 </span>
-                生成中
+                {isZh ? "生成中" : "Thinking"}
               </span>
             )}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setHistoryOpen((v) => !v)}
-                title="历史记录"
+                title={isZh ? "历史记录" : "History"}
                 className="p-1 text-muted-foreground/70 hover:text-foreground transition-colors rounded-md hover:bg-muted/50"
               >
                 <History className="w-4 h-4" />
@@ -708,7 +727,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
                 <>
                   <button
                     type="button"
-                    aria-label="关闭"
+                    aria-label={isZh ? "关闭" : "Close"}
                     className="fixed inset-0 z-40 cursor-default"
                     onClick={() => setHistoryOpen(false)}
                   />
@@ -718,13 +737,13 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
                       onClick={startNewConversation}
                       className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-foreground hover:bg-muted/50 border-b border-border/30"
                     >
-                      <Plus className="w-3.5 h-3.5" /> 新对话
+                      <Plus className="w-3.5 h-3.5" /> {isZh ? "新对话" : "New conversation"}
                     </button>
                     <div className="max-h-72 overflow-y-auto scrollbar-thin">
                       {sessionsQuery.isLoading ? (
-                        <div className="px-3 py-3 text-xs text-muted-foreground/60">加载中…</div>
+                        <div className="px-3 py-3 text-xs text-muted-foreground/60">{isZh ? "加载中…" : "Loading…"}</div>
                       ) : (sessionsQuery.data?.length ?? 0) === 0 ? (
-                        <div className="px-3 py-3 text-xs text-muted-foreground/60">暂无历史会话</div>
+                        <div className="px-3 py-3 text-xs text-muted-foreground/60">{isZh ? "暂无历史会话" : "No conversations yet"}</div>
                       ) : (
                         (sessionsQuery.data ?? []).map((s) => (
                           <button
@@ -733,10 +752,10 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
                             onClick={() => setViewingSessionId(s.sessionId)}
                             className={`flex flex-col w-full px-3 py-2 text-left hover:bg-muted/50 border-b border-border/20 last:border-0 ${s.sessionId === conversationId ? "bg-muted/40" : ""}`}
                           >
-                            <span className="text-xs text-foreground truncate">{s.title || "未命名会话"}</span>
+                            <span className="text-xs text-foreground truncate">{s.title || (isZh ? "未命名会话" : "Untitled conversation")}</span>
                             <span className="text-[10px] text-muted-foreground/60">
                               {s.lastActive ? new Date(s.lastActive).toLocaleString() : ""}
-                              {s.messageCount ? ` · ${s.messageCount} 条` : ""}
+                              {s.messageCount ? (isZh ? ` · ${s.messageCount} 条` : ` · ${s.messageCount} messages`) : ""}
                             </span>
                           </button>
                         ))
@@ -749,7 +768,7 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
               <button
                 type="button"
                 onClick={onClose}
-                title="关闭"
+                title={isZh ? "关闭" : "Close"}
                 className="ml-1 p-1 text-muted-foreground/70 hover:text-foreground transition-colors rounded-md hover:bg-muted/50"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -801,14 +820,14 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
       {/* Bottom: input */}
       <div className="flex-shrink-0 border-t border-border/30 bg-muted/10">
         <div className="px-3 pb-3 pt-3">
-          <LinkedNotes locale="zh" />
+          <LinkedNotes locale={locale} />
           <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-background px-3.5 py-2.5 transition-all duration-200 focus-within:border-primary/30 focus-within:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)]">
             <textarea
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="输入自定义问题..."
+              placeholder={isZh ? "输入自定义问题..." : "Ask your own question..."}
               disabled={isStreaming}
               rows={1}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus-visible:outline-none disabled:opacity-40 resize-none overflow-y-auto"
@@ -822,12 +841,12 @@ export function DiaryChatPanel({ noteContent, currentJournalId, showBackButton =
             />
             {/* 录音时隐藏发送按钮，波纹条延伸到原发送按钮位置 */}
             {isVoiceRecording ? null : isStreaming ? (
-              <button type="button" onClick={handleStop} title="停止"
+              <button type="button" onClick={handleStop} title={isZh ? "停止" : "Stop"}
                 className="flex items-center justify-center rounded-lg bg-muted/50 p-1.5 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors">
                 <Square className="w-3.5 h-3.5 fill-current" />
               </button>
             ) : (
-              <button type="button" onClick={handleSendInput} disabled={isStreaming || (!inputValue.trim() && !currentJournalId && useNoteChatStore.getState().linkedNotes.length === 0)} title="发送"
+              <button type="button" onClick={handleSendInput} disabled={isStreaming || (!inputValue.trim() && !currentJournalId && useNoteChatStore.getState().linkedNotes.length === 0)} title={isZh ? "发送" : "Send"}
                 className="flex items-center justify-center w-7 h-7 rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-25 disabled:cursor-not-allowed">
                 <ArrowUp className="w-3.5 h-3.5" />
               </button>
