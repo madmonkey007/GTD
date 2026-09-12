@@ -230,10 +230,6 @@ export default function LoginPage() {
 
 	return (
 		<main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-gradient-to-br from-muted/40 via-background to-muted/60 px-4 py-10">
-			{/* 语言切换：右上角 */}
-			<div className="absolute right-4 top-4 z-20">
-				<LanguageToggle />
-			</div>
 			{/* 卡片背后的页面背景手绘涂鸦 */}
 			<div className="pointer-events-none absolute inset-0">
 				<svg
@@ -382,6 +378,10 @@ export default function LoginPage() {
 
 				{/* 表单面：跟随应用主题 */}
 				<form onSubmit={onSubmit} className="relative flex flex-col justify-center p-8 sm:p-12">
+					{/* 语言切换：表单区右上角，始终可见 */}
+					<div className="absolute right-4 top-4 z-20">
+						<LanguageToggle variant="pill" />
+					</div>
 					<FormBackgroundDoodles />
 					<div className="flex items-center gap-2.5 lg:hidden">
 						<Image
