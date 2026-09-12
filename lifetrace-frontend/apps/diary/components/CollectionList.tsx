@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronRight, Library, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useCollectionMutations, useCollections } from "@/lib/query";
 import { cn } from "@/lib/utils";
 import { CreateCollectionDialog } from "./CreateCollectionDialog";
@@ -22,6 +23,7 @@ export function CollectionList({
 	const { createCollectionAsync, isPending } = useCollectionMutations();
 	const [collapsed, setCollapsed] = useState(true);
 	const [showCreate, setShowCreate] = useState(false);
+	const isMobile = useIsMobile();
 	const Chevron = collapsed ? ChevronRight : ChevronDown;
 
 	return (
@@ -30,19 +32,25 @@ export function CollectionList({
 				<button
 					type="button"
 					onClick={() => setCollapsed((v) => !v)}
-					className="flex items-center gap-1.5 px-2.5 text-sm font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
+					className={cn(
+						"flex items-center gap-1.5 px-2.5 text-sm font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground",
+						isMobile && "min-h-11",
+					)}
 					title={collapsed ? t("expand") : t("collapse")}
 				>
 					{t("entryTitle")}
-					<Chevron className="h-3 w-3" />
+					<Chevron className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
 				</button>
 				<button
 					type="button"
 					onClick={() => setShowCreate(true)}
-					className="text-xs text-muted-foreground/50 transition-colors hover:text-foreground"
+					className={cn(
+						"text-xs text-muted-foreground/50 transition-colors hover:text-foreground",
+						isMobile ? "flex h-9 w-9 items-center justify-center" : "",
+					)}
 					title={t("createTitle")}
 				>
-					<Plus className="h-3 w-3" />
+					<Plus className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
 				</button>
 			</div>
 
