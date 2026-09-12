@@ -294,7 +294,7 @@ export function ProjectList({
 						>
 							<div className="space-y-0.5">
 								{isLoading ? null : checklists.length === 0 ? (
-									<p className="px-1.5 py-1 text-xs text-muted-foreground/50">
+									<p className="px-2.5 py-1 text-xs text-muted-foreground/50">
 										{t("checklistEmpty")}
 									</p>
 								) : (
@@ -355,7 +355,7 @@ export function ProjectList({
 					<div className="space-y-0.5">
 						{isLoading ? null : regularProjects.length === 0 ? (
 							// 空状态：只给一行文案，不用「创建你的第一个项目」按钮（创建走 + 号弹窗）
-							<p className="px-1.5 py-1 text-xs text-muted-foreground/50">
+							<p className="px-2.5 py-1 text-xs text-muted-foreground/50">
 								{t("empty")}
 							</p>
 						) : (

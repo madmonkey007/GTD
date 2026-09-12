@@ -57,7 +57,7 @@ export function CollectionList({
 			{!collapsed &&
 				(isLoading ? null : collections.length === 0 ? (
 					// 空状态：只给一行文案，不用可点击按钮（创建走 + 号弹窗）
-					<p className="px-0 py-1 text-xs text-muted-foreground/50">
+					<p className="px-2.5 py-1 text-xs text-muted-foreground/50">
 						{t("empty")}
 					</p>
 				) : (
