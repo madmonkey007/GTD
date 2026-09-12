@@ -10,6 +10,7 @@ from lifetrace.util.login_rate_limit import check_locked, record_failure, reset_
 from lifetrace.schemas.auth import (
     AuthTokenResponse,
     PasswordChangeRequest,
+    PasswordResetRequest,
     UserLoginRequest,
     UserProfileUpdate,
     UserRegisterRequest,
@@ -99,6 +100,26 @@ async def change_password(
         )
     except InvalidCredentialsError as exc:
         raise HTTPException(status_code=400, detail="原密码不正确") from exc
+
+
+@router.post("/password/reset", status_code=204, response_model=None)
+async def reset_password(
+    payload: PasswordResetRequest,
+    request: Request,
+    service: AuthService = Depends(get_auth_service),
+) -> None:
+    """忘记密码：无邮箱验证服务的直接重置（邮箱存在即可设置新密码）。
+
+    复用登录失败锁定机制，避免被用来无限枚举/爆破。
+    """
+    check_locked(request, payload.email)
+    try:
+        service.reset_password_by_email(
+            email=payload.email, new_password=payload.new_password
+        )
+    except InvalidCredentialsError as exc:
+        raise HTTPException(status_code=404, detail="该邮箱未注册") from exc
+    reset_failures(request, payload.email)
 
 
 @router.put("/avatar", response_model=UserResponse)

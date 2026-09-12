@@ -55,6 +55,13 @@ export function changePassword(oldPassword: string, newPassword: string): Promis
 	});
 }
 
+export function resetPassword(email: string, newPassword: string): Promise<void> {
+	return customFetcher<void>("/api/auth/password/reset", {
+		method: "POST",
+		data: { email, newPassword },
+	});
+}
+
 export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 
 export function uploadAvatar(file: File): Promise<AuthUser> {

@@ -1451,7 +1451,18 @@
     "toRegister": "还没有账户？去注册",
     "toLogin": "已经有账户？去登录",
     "errorAuthFailed": "邮箱或密码不正确。",
-    "errorEmailExists": "这个邮箱已经注册过了，请直接登录。"
+    "errorEmailExists": "这个邮箱已经注册过了，请直接登录。",
+    "forgotPassword": "忘记密码？",
+    "forgotSub": "输入注册邮箱，直接设置新密码。",
+    "newPassword": "新密码",
+    "confirmNewPassword": "确认新密码",
+    "resetPassword": "重置密码",
+    "resetSuccess": "密码已重置，请用新密码登录。",
+    "errorEmailNotFound": "该邮箱未注册",
+    "passwordsMismatch": "两次输入的密码不一致",
+    "passwordTooShort": "密码至少 8 位",
+    "errorServiceUnavailable": "登录服务暂时不可用，请稍后再试。",
+    "language": "语言"
   },
   "profile": {
     "statsNotes": "笔记",

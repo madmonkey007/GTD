@@ -57,6 +57,16 @@ class PasswordChangeRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=200)
 
 
+class PasswordResetRequest(BaseModel):
+    email: str
+    new_password: str = Field(min_length=8, max_length=200)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return _validate_email(value)
+
+
 class AuthTokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

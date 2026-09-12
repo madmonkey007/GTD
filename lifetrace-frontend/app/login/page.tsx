@@ -7,12 +7,13 @@ import { useTranslations } from "next-intl";
 import { CheckCircle2 } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { LanguageToggle } from "@/components/common/ui/LanguageToggle";
 import { PasswordInput } from "@/components/common/ui/PasswordInput";
 import { ApiError } from "@/lib/api/fetcher";
-import { login, register } from "@/lib/auth/api";
+import { login, register, resetPassword } from "@/lib/auth/api";
 import { useAuthStore } from "@/lib/auth/session";
 
-type AuthMode = "login" | "register";
+type AuthMode = "login" | "register" | "forgot";
 
 function safeNext(value: string | null): string {
 	if (!value || !value.startsWith("/") || value.startsWith("/login")) return "/";
@@ -166,13 +167,44 @@ export default function LoginPage() {
 	const [email, setEmail] = useState("");
 	const [displayName, setDisplayName] = useState("");
 	const [password, setPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
 	const [error, setError] = useState<string | null>(null);
+	const [notice, setNotice] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 	const next = useMemo(() => safeNext(searchParams.get("next")), [searchParams]);
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setError(null);
+		setNotice(null);
+
+		if (mode === "forgot") {
+			if (password.length < 8) {
+				setError(tLogin("passwordTooShort"));
+				return;
+			}
+			if (password !== confirmPassword) {
+				setError(tLogin("passwordsMismatch"));
+				return;
+			}
+			setSubmitting(true);
+			try {
+				await resetPassword(email, password);
+				setNotice(tLogin("resetSuccess"));
+				setPassword("");
+				setConfirmPassword("");
+			} catch (err) {
+				if (err instanceof ApiError && err.status === 404) {
+					setError(tLogin("errorEmailNotFound"));
+				} else {
+					setError(tLogin("errorServiceUnavailable"));
+				}
+			} finally {
+				setSubmitting(false);
+			}
+			return;
+		}
+
 		setSubmitting(true);
 		try {
 			const response = mode === "login"
@@ -186,7 +218,7 @@ export default function LoginPage() {
 			} else if (err instanceof ApiError && err.status === 409) {
 				setError(tLogin("errorEmailExists"));
 			} else {
-				setError("登录服务暂时不可用，请稍后再试。");
+				setError(tLogin("errorServiceUnavailable"));
 			}
 		} finally {
 			setSubmitting(false);
@@ -198,6 +230,10 @@ export default function LoginPage() {
 
 	return (
 		<main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-gradient-to-br from-muted/40 via-background to-muted/60 px-4 py-10">
+			{/* 语言切换：右上角 */}
+			<div className="absolute right-4 top-4 z-20">
+				<LanguageToggle />
+			</div>
 			{/* 卡片背后的页面背景手绘涂鸦 */}
 			<div className="pointer-events-none absolute inset-0">
 				<svg
@@ -326,9 +362,9 @@ export default function LoginPage() {
 							<span className="text-sm font-semibold tracking-wide">Iter</span>
 						</div>
 						<h1 className="mt-10 text-[2rem] font-semibold leading-snug tracking-tight">
-							记录生活，
+							{tLogin("tagline1")}
 							<br />
-							不止待办。
+							{tLogin("tagline2")}
 						</h1>
 						<p className="mt-4 max-w-[36ch] text-sm leading-6 text-zinc-400">
 							{tLogin("taglineSub")}
@@ -366,12 +402,18 @@ export default function LoginPage() {
 					</div>
 
 					<h2 className="mt-6 text-2xl font-semibold tracking-tight lg:mt-0">
-						{mode === "login" ? tLogin("welcomeBack") : tLogin("createAccount")}
+						{mode === "login"
+							? tLogin("welcomeBack")
+							: mode === "register"
+								? tLogin("createAccount")
+								: tLogin("forgotPassword")}
 					</h2>
 					<p className="mt-2 text-sm leading-6 text-muted-foreground">
 						{mode === "login"
 							? tLogin("welcomeSub")
-							: tLogin("registerSub")}
+							: mode === "register"
+								? tLogin("registerSub")
+								: tLogin("forgotSub")}
 					</p>
 
 					<div className="mt-8 space-y-4">
@@ -390,7 +432,7 @@ export default function LoginPage() {
 
 						{mode === "register" && (
 							<label className="block text-sm font-medium">
-								昵称（可选）
+								{tLogin("nickname")}
 								<input
 									type="text"
 									value={displayName}
@@ -402,18 +444,49 @@ export default function LoginPage() {
 							</label>
 						)}
 
-						<label className="block text-sm font-medium">
-							{tLogin("password")}
-							<PasswordInput
-								value={password}
-								onChange={(event) => setPassword(event.target.value)}
-								required
-								minLength={8}
-								autoComplete={mode === "login" ? "current-password" : "new-password"}
-								className={inputClass}
-								placeholder={tLogin("passwordPlaceholder")}
-							/>
-						</label>
+						{mode !== "forgot" && (
+							<label className="block text-sm font-medium">
+								{tLogin("password")}
+								<PasswordInput
+									value={password}
+									onChange={(event) => setPassword(event.target.value)}
+									required
+									minLength={8}
+									autoComplete={mode === "login" ? "current-password" : "new-password"}
+									className={inputClass}
+									placeholder={tLogin("passwordPlaceholder")}
+								/>
+							</label>
+						)}
+
+						{mode === "forgot" && (
+							<>
+								<label className="block text-sm font-medium">
+									{tLogin("newPassword")}
+									<PasswordInput
+										value={password}
+										onChange={(event) => setPassword(event.target.value)}
+										required
+										minLength={8}
+										autoComplete="new-password"
+										className={inputClass}
+										placeholder={tLogin("passwordPlaceholder")}
+									/>
+								</label>
+								<label className="block text-sm font-medium">
+									{tLogin("confirmNewPassword")}
+									<PasswordInput
+										value={confirmPassword}
+										onChange={(event) => setConfirmPassword(event.target.value)}
+										required
+										minLength={8}
+										autoComplete="new-password"
+										className={inputClass}
+										placeholder={tLogin("passwordPlaceholder")}
+									/>
+								</label>
+							</>
+						)}
 					</div>
 
 					{error && (
@@ -422,24 +495,70 @@ export default function LoginPage() {
 						</p>
 					)}
 
-					<Button
-						type="submit"
-						disabled={submitting}
-						className="mt-7 h-11 w-full rounded-xl text-sm active:translate-y-[1px]"
-					>
-						{submitting ? tLogin("processing") : mode === "login" ? tLogin("signIn") : tLogin("signUp")}
-					</Button>
+					{notice && (
+						<p className="mt-5 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
+							<CheckCircle2 className="h-4 w-4 shrink-0" />
+							{notice}
+						</p>
+					)}
 
-					<button
-						type="button"
-						onClick={() => {
-							setError(null);
-							setMode(mode === "login" ? "register" : "login");
-						}}
-						className="mt-5 w-full text-center text-sm text-muted-foreground transition-colors hover:text-foreground"
-					>
-						{mode === "login" ? tLogin("toRegister") : tLogin("toLogin")}
-					</button>
+					{mode === "forgot" && notice ? (
+						<Button
+							type="button"
+							onClick={() => {
+								setNotice(null);
+								setMode("login");
+							}}
+							className="mt-7 h-11 w-full rounded-xl text-sm active:translate-y-[1px]"
+						>
+							{tLogin("toLogin")}
+						</Button>
+					) : (
+						<Button
+							type="submit"
+							disabled={submitting}
+							className="mt-7 h-11 w-full rounded-xl text-sm active:translate-y-[1px]"
+						>
+							{submitting
+								? tLogin("processing")
+								: mode === "login"
+									? tLogin("signIn")
+									: mode === "register"
+										? tLogin("signUp")
+										: tLogin("resetPassword")}
+						</Button>
+					)}
+
+					<div className="mt-5 flex items-center justify-center gap-4 text-sm text-muted-foreground">
+						{mode === "login" && (
+							<button
+								type="button"
+								onClick={() => {
+									setError(null);
+									setNotice(null);
+									setConfirmPassword("");
+									setMode("forgot");
+								}}
+								className="transition-colors hover:text-foreground"
+							>
+								{tLogin("forgotPassword")}
+							</button>
+						)}
+						{!(mode === "forgot" && notice) && (
+							<button
+								type="button"
+								onClick={() => {
+									setError(null);
+									setNotice(null);
+									setConfirmPassword("");
+									setMode(mode === "login" ? "register" : "login");
+								}}
+								className="transition-colors hover:text-foreground"
+							>
+								{mode === "login" ? tLogin("toRegister") : tLogin("toLogin")}
+							</button>
+						)}
+					</div>
 				</form>
 			</section>
 		</main>

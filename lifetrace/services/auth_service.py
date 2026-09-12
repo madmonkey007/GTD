@@ -115,6 +115,13 @@ class AuthService:
         self.session.refresh(user)
         return user
 
+    def reset_password_by_email(self, *, email: str, new_password: str) -> User:
+        """无邮箱服务场景的直接重置：按邮箱定位用户并设置新密码"""
+        user = self.get_user_by_email(email)
+        if not user:
+            raise InvalidCredentialsError("email not registered")
+        return self.admin_reset_password(user, new_password=new_password)
+
     def admin_set_disabled(self, user: User, *, disabled: bool) -> User:
         """软删除即禁用：disabled 用户无法登录，但保留数据"""
         from lifetrace.util.time_utils import get_utc_now

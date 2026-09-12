@@ -1451,7 +1451,18 @@
     "toRegister": "No account yet? Sign up",
     "toLogin": "Already have an account? Sign in",
     "errorAuthFailed": "Incorrect email or password.",
-    "errorEmailExists": "This email is already registered. Please sign in."
+    "errorEmailExists": "This email is already registered. Please sign in.",
+    "forgotPassword": "Forgot password?",
+    "forgotSub": "Enter your email and set a new password directly.",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "resetPassword": "Reset password",
+    "resetSuccess": "Password reset. Sign in with your new password.",
+    "errorEmailNotFound": "This email is not registered",
+    "passwordsMismatch": "The two passwords do not match",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "errorServiceUnavailable": "Login service is unavailable. Please try again later.",
+    "language": "Language"
   },
   "profile": {
     "statsNotes": "Notes",
