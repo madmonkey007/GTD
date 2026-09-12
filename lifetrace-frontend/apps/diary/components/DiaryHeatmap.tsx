@@ -35,8 +35,9 @@ const DOT_COLORS = [
 
 const DOT = 17;
 const GAP = 8;
-// 左侧星期标签列宽（一/三/五 或 Mon/Wed/Fri），计入网格可用宽度
-const DAY_COL = 24;
+// 左侧星期标签列宽（一/三/五 或 Mon/Wed/Fri），计入网格可用宽度；
+// 含 10px 左缩进，文字与 PROJECTS 等区块标题同一左缘线；列宽收窄让圆点贴近文字
+const DAY_COL = 28;
 // 日历窗口长度：26 周（182 天），与统计侧 HEATMAP_DAYS 一致
 const HEATMAP_DAYS = 182;
 // 每分钟自检一次跨天：窗口以真实当天为准重建，最右列永远是今天所在列
@@ -171,6 +172,7 @@ export function DiaryHeatmap({ dailyCounts, onSelectDate, selectedDate }: DiaryH
 							// biome-ignore lint/suspicious/noArrayIndexKey: 固定 7 行标签
 							key={`wd-${row}`}
 							className="flex h-[17px] items-center justify-start text-[8px] leading-none text-muted-foreground/50"
+							style={{ paddingLeft: 10 }}
 						>
 							{WEEKDAY_VISIBLE_ROWS.has(row)
 								? (isZh ? WEEKDAY_ROWS[row] : WEEKDAY_LABELS_EN[row])

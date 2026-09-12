@@ -30,10 +30,10 @@ export function DiaryTagList({ tagsWithCount, selectedTag, pinnedTags, onSelectT
 			<button
 				type="button"
 				onClick={() => setExpanded((v) => !v)}
-				className="flex items-center gap-1 px-2.5 py-1 text-sm font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
+				className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-muted-foreground/60 transition-colors hover:text-foreground"
 			>
 				{t("sidebarTags")}
-				<Chevron className="h-3 w-3" />
+				<Chevron className="h-3.5 w-3.5" />
 			</button>
 
 			{expanded &&

@@ -266,14 +266,11 @@ export function ProjectList({
 						<button
 							type="button"
 							onClick={() => setChecklistCollapsed((v) => !v)}
-							className={cn(
-								"flex items-center gap-1.5 px-2.5 text-sm font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground",
-								isMobile && "min-h-11",
-							)}
+							className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-muted-foreground/60 transition-colors hover:text-foreground"
 							title={checklistCollapsed ? t("expand") : t("collapse")}
 						>
 							{t("checklistEntryTitle")}
-							<ChecklistChevron className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+							<ChecklistChevron className="h-3.5 w-3.5" />
 						</button>
 						<button
 							type="button"
@@ -325,14 +322,11 @@ export function ProjectList({
 				<button
 					type="button"
 					onClick={() => setCollapsed((v) => !v)}
-					className={cn(
-						"flex items-center gap-1.5 px-2.5 text-sm font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground",
-						isMobile && "min-h-11",
-					)}
+					className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-muted-foreground/60 transition-colors hover:text-foreground"
 					title={collapsed ? t("expand") : t("collapse")}
 				>
 					{t("entryTitle")}
-					<Chevron className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+					<Chevron className="h-3.5 w-3.5" />
 				</button>
 				<button
 					type="button"

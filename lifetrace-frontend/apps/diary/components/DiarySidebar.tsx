@@ -79,8 +79,8 @@ export function DiarySidebar({
 
 			{/* Heatmap section */}
 			<div className="min-w-0">
-				<div className="mb-2 flex items-center justify-between gap-2">
-					<div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+				<div className="mb-2 flex items-center justify-between gap-2 px-2.5">
+					<div className="text-sm font-medium text-muted-foreground/60">
 						{t("sidebarActivity")}
 					</div>
 					{selectedDate && (

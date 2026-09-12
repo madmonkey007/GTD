@@ -21,7 +21,7 @@ export function ProjectArchiveEntry({
 			type="button"
 			onClick={onShowArchive}
 			className={cn(
-				"flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium uppercase tracking-wider transition-colors",
+				"flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors",
 				active
 					? "bg-primary/10 text-primary"
 					: "text-muted-foreground/50 hover:bg-muted/20 hover:text-foreground/60",
