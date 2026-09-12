@@ -831,7 +831,7 @@ export function DiaryTiptapEditor({
 							type="text"
 							value={linkSearch}
 							onChange={(e) => setLinkSearch(e.target.value)}
-							placeholder="搜索笔记..."
+							placeholder={locale === "zh" ? "搜索笔记..." : "Search notes..."}
 							className="w-full h-8 rounded-md border border-border/30 bg-background/50 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/30"
 						/>
 					</div>

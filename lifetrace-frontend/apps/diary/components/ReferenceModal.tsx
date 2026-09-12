@@ -224,7 +224,7 @@ function LinkCard({
 								setEditing(false);
 							}
 						}}
-						placeholder="说明这条链接..."
+						placeholder={locale === "zh" ? "说明这条链接..." : "Describe this link..."}
 						className="h-7 flex-1 rounded-md border border-border/50 bg-background/60 px-2 text-xs text-foreground focus:border-primary/40 focus:outline-none"
 					/>
 					<button

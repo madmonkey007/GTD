@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useLinkCandidates, useNoteLinkMutations } from "@/lib/query/note-links";
 import { useJournalLites, useJournals } from "@/lib/query/journals";
+import { useLocaleStore } from "@/lib/store/locale";
 import {
 	aggregateTags,
 	DEFAULT_NOTE_PICKER_FILTERS,
@@ -31,6 +32,7 @@ export function AddNoteLinkModal({
 	noteId,
 	noteName,
 }: AddNoteLinkModalProps) {
+	const locale = useLocaleStore((s) => s.locale);
 	const { data: candidates, isLoading: candidatesLoading } = useLinkCandidates(
 		isOpen ? noteId : null,
 		15,
@@ -202,7 +204,7 @@ export function AddNoteLinkModal({
 						type="text"
 						value={search}
 						onChange={(e) => handleSearchChange(e.target.value)}
-						placeholder="搜索全部笔记..."
+						placeholder={locale === "zh" ? "搜索全部笔记..." : "Search all notes..."}
 						className="w-full h-8 rounded-md border border-border/30 bg-background/50 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/30"
 					/>
 				</div>

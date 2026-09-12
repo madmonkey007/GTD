@@ -447,7 +447,7 @@ export function AnnotationModal({
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               onKeyDown={handleKeyDown}
-              data-placeholder="输入批注内容..."
+              data-placeholder={locale === "zh" ? "输入批注内容..." : "Write an annotation..."}
               className="w-full text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-none px-3 pt-3 min-h-[100px] whitespace-pre-wrap empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/70"
             />
             {/* 标签补全下拉列表 —— 用 Portal 渲染到 body，避免被 Dialog 的层叠上下文/overflow 裁切 */}

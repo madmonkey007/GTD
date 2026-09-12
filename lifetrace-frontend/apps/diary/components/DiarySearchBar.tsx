@@ -139,7 +139,7 @@ export function DiarySearchBar({
 				type="text"
 				value={searchQuery}
 				onChange={(e) => setSearchQuery(e.target.value)}
-				placeholder="搜索笔记..."
+				placeholder={locale === "zh" ? "搜索笔记..." : "Search notes..."}
 				className="w-full h-8 rounded-lg border border-border/30 bg-background/50 pr-8 pl-8 text-xs text-foreground transition-all duration-200 placeholder:text-muted-foreground/45 focus:border-primary/30 focus:shadow-[0_0_0_1px_rgba(var(--primary)/0.08)] focus:outline-none"
 			/>
 			{searchQuery && (
