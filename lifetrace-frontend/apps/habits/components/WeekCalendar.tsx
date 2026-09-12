@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import React, { useMemo } from "react";
 import type { Habit, HabitRecord } from "@/apps/habits/hooks/useHabits";
+import { useLocaleStore } from "@/lib/store/locale";
 import { cn } from "@/lib/utils";
 
 interface WeekCalendarProps {
@@ -26,8 +27,10 @@ interface DayInfo {
 	isToday: boolean;
 }
 
-function buildLast7Days(): DayInfo[] {
-	const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
+function buildLast7Days(locale: string): DayInfo[] {
+	const WEEKDAY_LABELS_ZH = ["日", "一", "二", "三", "四", "五", "六"];
+	const WEEKDAY_LABELS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+	const WEEKDAY_LABELS = locale === "zh" ? WEEKDAY_LABELS_ZH : WEEKDAY_LABELS_EN;
 	const todayKey = toDateKey(new Date());
 	const result: DayInfo[] = [];
 	for (let i = 6; i >= 0; i--) {
@@ -49,7 +52,8 @@ export function WeekCalendar({
 	records,
 	onToggleDate,
 }: WeekCalendarProps) {
-	const days = useMemo(() => buildLast7Days(), []);
+	const locale = useLocaleStore((s) => s.locale);
+	const days = useMemo(() => buildLast7Days(locale), [locale]);
 
 	const checkedMap = useMemo(() => {
 		const map = new Map<string, Set<string>>();
@@ -74,16 +78,16 @@ export function WeekCalendar({
 						<span className="text-[10px] font-medium text-muted-foreground/50">
 							{day.weekday}
 						</span>
-						<span
-							className={cn(
-								"text-xs font-semibold",
-								day.isToday
-									? "text-foreground"
-									: "text-muted-foreground/60",
-							)}
-						>
-							{day.dayNumber}
-						</span>
+						{day.isToday ? (
+						/* 默认选中今天：实心圆高亮 */
+							<span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground shadow-sm shadow-primary/20">
+								{day.dayNumber}
+							</span>
+						) : (
+							<span className="text-xs font-semibold text-muted-foreground/60">
+								{day.dayNumber}
+							</span>
+						)}
 					</div>
 				))}
 

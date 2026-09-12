@@ -35,17 +35,32 @@ export function HabitStatsPanel({
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
-			{/* Header（移动端由 MobileTopBar 承接，隐藏标题避免双标题） */}
+			{/* Header（移动端由 MobileTopBar 承接，隐藏标题避免双标题；+ 走右下角 FAB） */}
 			<div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
 				{!isMobile && <h2 className="text-sm font-semibold">{t("statsTitle")}</h2>}
+				{!isMobile && (
+					<button
+						type="button"
+						onClick={onAddClick}
+						className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+					>
+						<Plus className="h-4 w-4" />
+					</button>
+				)}
+			</div>
+
+			{/* 移动端：与其他面板一致的右下角悬浮添加按钮 */}
+			{isMobile && (
 				<button
 					type="button"
 					onClick={onAddClick}
-					className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+					aria-label={t("addHabit")}
+					className="fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_20px_-6px_rgba(0,0,0,0.4)] transition-transform active:scale-95"
+					style={{ bottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }}
 				>
-					<Plus className="h-4 w-4" />
+					<Plus className="h-6 w-6" />
 				</button>
-			</div>
+			)}
 
 			<div className="flex flex-1 flex-col overflow-y-auto px-4 py-4 space-y-5">
 				{/* 7-day calendar for all habits（无习惯时也默认展示本周日期） */}
