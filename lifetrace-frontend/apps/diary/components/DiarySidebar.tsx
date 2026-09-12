@@ -105,29 +105,32 @@ export function DiarySidebar({
 				onTimeMachine={onTimeMachine}
 			/>
 
-			{/* Projects（项目入口：待办+笔记共享容器） */}
-			<ProjectList
-				feature="note"
-				type="project"
-				selectedProjectId={selectedProjectId}
-				onSelectProject={onSelectProject}
-				onCloseProject={onCloseProject}
-			/>
+			{/* 区块组：与上方筛选条相同的 2px 行距，标题行高一致时整列节奏统一 */}
+			<div className="flex flex-col gap-0.5">
+				{/* Projects（项目入口：待办+笔记共享容器） */}
+				<ProjectList
+					feature="note"
+					type="project"
+					selectedProjectId={selectedProjectId}
+					onSelectProject={onSelectProject}
+					onCloseProject={onCloseProject}
+				/>
 
-			{/* Collections（集合入口，位于项目下方） */}
-			<CollectionList
-				selectedCollectionId={selectedCollectionId}
-				onSelectCollection={onSelectCollection}
-			/>
+				{/* Collections（集合入口，位于项目下方） */}
+				<CollectionList
+					selectedCollectionId={selectedCollectionId}
+					onSelectCollection={onSelectCollection}
+				/>
 
-			{/* Tags */}
-			<DiaryTagList tagsWithCount={stats.tagsWithCount} pinnedTags={stats.pinnedTags} selectedTag={selectedTag} onSelectTag={onSelectTag} />
+				{/* Tags */}
+				<DiaryTagList tagsWithCount={stats.tagsWithCount} pinnedTags={stats.pinnedTags} selectedTag={selectedTag} onSelectTag={onSelectTag} />
 
-			{/* 项目归档入口（Trash 之上） */}
-			<ProjectArchiveEntry active={archiveViewActive} onShowArchive={onShowArchive} />
+				{/* 项目归档入口（Trash 之上） */}
+				<ProjectArchiveEntry active={archiveViewActive} onShowArchive={onShowArchive} />
 
-			{/* Trash */}
-			<DiaryTrashList onRestore={onRestore} onShowTrash={onShowTrash} />
+				{/* Trash */}
+				<DiaryTrashList onRestore={onRestore} onShowTrash={onShowTrash} />
+			</div>
 		</aside>
 	);
 }

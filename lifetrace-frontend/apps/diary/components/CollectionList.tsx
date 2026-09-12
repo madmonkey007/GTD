@@ -27,7 +27,7 @@ export function CollectionList({
 	const Chevron = collapsed ? ChevronRight : ChevronDown;
 
 	return (
-		<div className="flex flex-col gap-1">
+		<div className="flex flex-col gap-0.5">
 			<div className="flex items-center justify-between px-0">
 				<button
 					type="button"
@@ -43,7 +43,7 @@ export function CollectionList({
 					onClick={() => setShowCreate(true)}
 					className={cn(
 						"text-xs text-muted-foreground/50 transition-colors hover:text-foreground",
-						isMobile ? "flex h-9 w-9 items-center justify-center" : "",
+						isMobile ? "flex h-8 w-8 items-center justify-center" : "",
 					)}
 					title={t("createTitle")}
 				>

@@ -258,10 +258,10 @@ export function ProjectList({
 	const ChecklistChevron = checklistCollapsed ? ChevronRight : ChevronDown;
 
 	return (
-		<div className="flex flex-col gap-1">
+		<div className="flex flex-col gap-0.5">
 			{/* 清单组：待办侧始终展示（空时保留入口和 + 创建），笔记侧仅在已有清单时展示 */}
 			{(checklists.length > 0 || feature === "todo") && (
-				<div className="flex flex-col gap-1">
+				<div className="flex flex-col gap-0.5">
 					<div className="flex items-center justify-between px-0">
 						<button
 							type="button"
@@ -277,7 +277,7 @@ export function ProjectList({
 							onClick={() => setShowCreateChecklist(true)}
 							className={cn(
 								"text-xs text-muted-foreground/50 transition-colors hover:text-foreground",
-								isMobile ? "flex h-9 w-9 items-center justify-center" : "",
+								isMobile ? "flex h-8 w-8 items-center justify-center" : "",
 							)}
 							title={t("createTitle")}
 						>
@@ -333,7 +333,7 @@ export function ProjectList({
 					onClick={() => setShowCreate(true)}
 					className={cn(
 						"text-xs text-muted-foreground/50 transition-colors hover:text-foreground",
-						isMobile ? "flex h-9 w-9 items-center justify-center" : "",
+						isMobile ? "flex h-8 w-8 items-center justify-center" : "",
 					)}
 					title={t("createTitle")}
 				>
