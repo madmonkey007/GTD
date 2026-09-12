@@ -37,7 +37,9 @@ import {
 	Plus,
 	Copy,
 	Layers,
+	Feather,
 } from "lucide-react";
+import { EmptyState } from "@/components/common/EmptyState";
 import { useTranslations, useLocale } from "next-intl";
 import type { JournalDraft } from "@/apps/diary/types";
 import { getLocalDayApiRange, getLocalRangeApi } from "@/apps/diary/journal-utils";
@@ -913,21 +915,15 @@ export function DiaryEditor({
 						))}
 					</div>
 				) : notesList.length === 0 && !timeMachinePending ? (
-					// 项目视图与标题（返回箭头+图标列右侧，40px）对齐；其余视图保持居中
-					<div
-						className={
-							filterJournalIds
-								? "text-left pl-[40px] pt-10"
-								: "text-center pt-10"
+					<EmptyState
+						icon={Feather}
+						title={locale === "zh" ? "还是一张白纸" : "A blank page"}
+						description={
+							locale === "zh"
+								? "写下第一句，它会出现在这里。"
+								: "Write the first line and it will appear here."
 						}
-					>
-						<div className="font-display text-base text-muted-foreground/70">
-							{locale === "zh" ? "还是一张白纸" : "A blank page"}
-						</div>
-						<div className="mt-1.5 text-xs text-muted-foreground/45">
-							{locale === "zh" ? "写下第一句，它会出现在这里。" : "Write the first line and it will appear here."}
-						</div>
-					</div>
+					/>
 				) : isTimeMachineMode && !editingCardId ? (
 					<TimeMachineCarousel
 						notes={sortedNotes}

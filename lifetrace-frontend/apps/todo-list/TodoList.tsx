@@ -8,11 +8,19 @@
 import { type DragEndEvent, useDndMonitor } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronRight, FolderKanban, Plus } from "lucide-react";
+import {
+	Archive,
+	ChevronRight,
+	FolderKanban,
+	ListChecks,
+	Plus,
+	Trash2,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { MultiTodoContextMenu } from "@/components/common/context-menu/MultiTodoContextMenu";
+import { EmptyState } from "@/components/common/EmptyState";
 import type { DragData } from "@/lib/dnd";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useProject, useProjectMutations, useTodoMutations, useTodos } from "@/lib/query";
@@ -494,9 +502,10 @@ export function TodoList() {
 
 					{filteredTodos.length === 0 ? (
 						specialMode ? (
-							<div className="flex h-[200px] items-center justify-center px-4 text-sm text-muted-foreground">
-								{tTodoList(sidebarMode === "archived" ? "noArchived" : "noTrashed")}
-							</div>
+							<EmptyState
+								icon={sidebarMode === "archived" ? Archive : Trash2}
+								title={tTodoList(sidebarMode === "archived" ? "noArchived" : "noTrashed")}
+							/>
 						) : todoProjectFilter ? (
 							<div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 text-center">
 								<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/5 ring-1 ring-primary/10">
@@ -510,9 +519,7 @@ export function TodoList() {
 								</p>
 							</div>
 						) : (
-							<div className="flex h-[200px] items-center justify-center px-4 text-sm text-muted-foreground">
-								{tTodoList("noTodos")}
-							</div>
+							<EmptyState icon={ListChecks} title={tTodoList("noTodos")} />
 						)
 					) : (
 						<>

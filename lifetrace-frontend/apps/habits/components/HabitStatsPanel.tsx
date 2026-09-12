@@ -1,5 +1,5 @@
 "use client";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Repeat, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Habit, HabitRecord } from "@/apps/habits/hooks/useHabits";
 import {
@@ -7,6 +7,7 @@ import {
 	countRecentRecords,
 } from "@/apps/habits/hooks/useHabits";
 import { WeekCalendar } from "@/apps/habits/components/WeekCalendar";
+import { EmptyState } from "@/components/common/EmptyState";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 
@@ -64,11 +65,7 @@ export function HabitStatsPanel({
 				{/* Habit cards */}
 				<section className="space-y-2">
 					{habits.length === 0 && (
-						<div className="flex h-32 items-center justify-center">
-							<p className="text-sm text-muted-foreground/40">
-								{t("empty")}
-							</p>
-						</div>
+						<EmptyState icon={Repeat} title={t("empty")} />
 					)}
 					<div className="space-y-1.5">
 						{habits.map((habit) => {
