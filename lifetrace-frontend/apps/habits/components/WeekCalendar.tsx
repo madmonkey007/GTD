@@ -132,15 +132,6 @@ export function WeekCalendar({
 						</React.Fragment>
 					);
 				})}
-
-				{/* Empty state */}
-				{habits.length === 0 && (
-					<div className="col-span-7 flex items-center justify-center py-4">
-						<span className="text-xs text-muted-foreground/40">
-							暂无习惯
-						</span>
-					</div>
-				)}
 			</div>
 		</div>
 	);

@@ -47,26 +47,23 @@ export function HabitStatsPanel({
 				</button>
 			</div>
 
-			{habits.length === 0 ? (
-				/* 空态直接占满 header 下方整块区域（与待办一致，垂直居中） */
-				<EmptyState icon={Repeat} title={t("empty")} className="flex-1" />
-			) : (
-			<div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-				{/* 7-day calendar for all habits */}
-				{habits.length > 0 && (
-					<section className="space-y-2">
-						<h3 className="text-xs font-medium text-muted-foreground">
-							{t("recentDays")}
-						</h3>
-						<WeekCalendar
-							habits={habits}
-							records={records}
-							onToggleDate={onToggleDate}
-						/>
-					</section>
-				)}
+			<div className="flex flex-1 flex-col overflow-y-auto px-4 py-4 space-y-5">
+				{/* 7-day calendar for all habits（无习惯时也默认展示本周日期） */}
+				<section className="space-y-2">
+					<h3 className="text-xs font-medium text-muted-foreground">
+						{t("recentDays")}
+					</h3>
+					<WeekCalendar
+						habits={habits}
+						records={records}
+						onToggleDate={onToggleDate}
+					/>
+				</section>
 
-				{/* Habit cards */}
+				{habits.length === 0 ? (
+					/* 空态占满日历下方剩余空间（与待办一致，垂直居中） */
+					<EmptyState icon={Repeat} title={t("empty")} className="flex-1" />
+				) : (
 				<section className="space-y-2">
 					<div className="space-y-1.5">
 						{habits.map((habit) => {
@@ -121,8 +118,8 @@ export function HabitStatsPanel({
 						})}
 					</div>
 				</section>
+				)}
 			</div>
-			)}
 		</div>
 	);
 }

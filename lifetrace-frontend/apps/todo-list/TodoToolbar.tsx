@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Archive, Bot, FolderKanban, ListTodo, Search, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Archive, FolderKanban, ListTodo, Search, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -242,7 +242,7 @@ export function TodoToolbar({
 					</div>
 					<PanelActionButton
 						variant="default"
-						icon={Bot}
+						icon={Sparkles}
 						onClick={handleOpenAgent}
 						iconOverrides={{ color: "text-muted-foreground" }}
 						buttonOverrides={{
