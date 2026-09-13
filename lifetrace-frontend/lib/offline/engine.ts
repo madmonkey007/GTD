@@ -189,6 +189,7 @@ async function runSync(): Promise<void> {
 	status.setOnline(navigator.onLine);
 	if (!navigator.onLine) return;
 	status.setFlushing(true);
+	status.setRequestError(null);
 	try {
 		await push();
 		await pull();
@@ -200,8 +201,14 @@ async function runSync(): Promise<void> {
 			qc.invalidateQueries({ queryKey: queryKeys.journals.all }),
 			qc.invalidateQueries({ queryKey: queryKeys.habits.all }),
 		]);
+	} catch (error) {
+		useSyncStatus.getState().setRequestError(
+			error instanceof Error ? error.message : "同步请求失败，请稍后重试",
+		);
+		throw error;
 	} finally {
 		useSyncStatus.getState().setFlushing(false);
+		await refreshPendingCount();
 	}
 }
 

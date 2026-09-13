@@ -6,6 +6,7 @@
 // - create 后跟 delete → 整组丢弃（从未同步过，等于从未存在）
 // - habit.record_set 按 (uid, date) 合并，只留最后状态
 import { getAllOutboxOps, type OutboxOp, putOutboxOp } from "./db";
+import { summarizeSyncErrors } from "./diagnostics";
 import { newOpId } from "./ids";
 import { useSyncStatus } from "./status";
 
@@ -51,6 +52,7 @@ export async function pendingOpsForEntity(
 export async function refreshPendingCount(): Promise<number> {
 	const ops = await getAllOutboxOps();
 	useSyncStatus.getState().setPendingCount(ops.length);
+	useSyncStatus.getState().setErrors(summarizeSyncErrors(ops));
 	return ops.length;
 }
 

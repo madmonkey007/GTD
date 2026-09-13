@@ -4,6 +4,7 @@
 // 离线 → 灰色"离线"；有待同步 → 橙色数字；冲突 → 红色叹号。点击展开同步面板。
 import { useState, useSyncExternalStore } from "react";
 import { syncNow } from "@/lib/offline/engine";
+import { refreshPendingCount } from "@/lib/offline/outbox";
 import { useSyncStatus } from "@/lib/offline/status";
 
 export function OfflineBadge() {
@@ -12,7 +13,7 @@ export function OfflineBadge() {
 		() => true,
 		() => false,
 	);
-	const { online, pendingCount, flushing, lastSyncAt, conflicts } =
+	const { online, pendingCount, flushing, lastSyncAt, conflicts, errors, requestError } =
 		useSyncStatus();
 	const [open, setOpen] = useState(false);
 
@@ -31,7 +32,7 @@ export function OfflineBadge() {
 	return (
 		<div className="fixed bottom-16 left-3 z-[9999] flex flex-col items-start gap-2">
 			{open && (
-				<div className="rounded-lg border bg-background p-3 text-xs shadow-lg min-w-44">
+				<div className="w-80 max-w-[calc(100vw-1.5rem)] rounded-lg border bg-background p-3 text-xs shadow-lg">
 					<div className="mb-2 font-medium">
 						{online ? "在线" : "离线"}
 						{lastSyncAt && (
@@ -43,6 +44,18 @@ export function OfflineBadge() {
 					<div className="mb-2 text-neutral-500">
 						待同步操作：{pendingCount} 项
 					</div>
+					{(requestError || errors.length > 0) && (
+						<div role="status" className="mb-3 max-h-60 space-y-2 overflow-y-auto break-words rounded border border-amber-500/30 bg-amber-500/5 p-2">
+							<p className="font-medium">同步失败原因（本地修改仍保留）</p>
+							{requestError && <p>{requestError}</p>}
+							{errors.map((error) => (
+								<div key={error.opId} className="border-t border-amber-500/20 pt-2">
+									<p className="font-medium">{error.label} · 已重试 {error.attempts} 次</p>
+									<p className="mt-1 select-text whitespace-pre-wrap">{error.message}</p>
+								</div>
+							))}
+						</div>
+					)}
 					{conflicts.length > 0 && (
 						<div className="mb-2 max-h-32 overflow-auto text-red-500">
 							{conflicts.map((c) => (
@@ -52,6 +65,7 @@ export function OfflineBadge() {
 					)}
 					<button
 						type="button"
+						disabled={flushing}
 						className="w-full rounded border px-2 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800"
 						onClick={() => {
 							syncNow().catch(() => {});
@@ -65,7 +79,10 @@ export function OfflineBadge() {
 				type="button"
 				aria-label="同步状态"
 				className={`flex h-8 items-center gap-1 rounded-full px-2.5 text-xs text-white shadow-md ${color}`}
-				onClick={() => setOpen((v) => !v)}
+				onClick={() => {
+					if (!open) void refreshPendingCount().catch(console.warn);
+					setOpen((v) => !v);
+				}}
 			>
 				{!online
 					? "离线"

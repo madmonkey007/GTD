@@ -3,6 +3,7 @@
 // 同步状态 store：离线徽章 / 同步面板 / requireOnline 守卫共用
 import { create } from "zustand";
 import { toastWarning } from "@/lib/toast";
+import type { SyncErrorInfo } from "./diagnostics";
 
 export interface SyncConflictInfo {
 	uid: string;
@@ -17,6 +18,10 @@ interface SyncStatusState {
 	pendingCount: number;
 	lastSyncAt: string | null;
 	conflicts: SyncConflictInfo[];
+	errors: SyncErrorInfo[];
+	requestError: string | null;
+	setErrors: (errors: SyncErrorInfo[]) => void;
+	setRequestError: (error: string | null) => void;
 	setOnline: (online: boolean) => void;
 	setFlushing: (flushing: boolean) => void;
 	setPendingCount: (count: number) => void;
@@ -31,6 +36,10 @@ export const useSyncStatus = create<SyncStatusState>((set) => ({
 	pendingCount: 0,
 	lastSyncAt: null,
 	conflicts: [],
+	errors: [],
+	requestError: null,
+	setErrors: (errors) => set({ errors }),
+	setRequestError: (requestError) => set({ requestError }),
 	setOnline: (online) => set({ online }),
 	setFlushing: (flushing) => set({ flushing }),
 	setPendingCount: (pendingCount) => set({ pendingCount }),
