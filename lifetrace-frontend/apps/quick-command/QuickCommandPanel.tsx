@@ -253,8 +253,9 @@ function DraftBubble({
 }) {
   const zh = locale === "zh";
   const isMobile = useIsMobile();
-  // 移动端长按弹出操作面板
-  const [sheetOpen, setSheetOpen] = useState(false);
+  // 移动端长按弹出操作面板（锚定在气泡下方；下方空间不足时改到上方）
+  const [popOpen, setPopOpen] = useState(false);
+  const [popUpward, setPopUpward] = useState(false);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pressStart = useRef<{ x: number; y: number } | null>(null);
 
@@ -266,11 +267,17 @@ function DraftBubble({
   };
   useEffect(() => clearPressTimer, []);
 
+  // 面板约 5 行操作的高度，预留输入区空间
+  const POP_H = 250;
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!isMobile) return;
+    const el = e.currentTarget as HTMLElement;
     pressStart.current = { x: e.clientX, y: e.clientY };
     pressTimer.current = setTimeout(() => {
-      setSheetOpen(true);
+      const rect = el.getBoundingClientRect();
+      setPopUpward(innerHeight - rect.bottom - 80 < POP_H && rect.top > POP_H);
+      setPopOpen(true);
       pressTimer.current = null;
     }, 450);
   };
@@ -300,7 +307,7 @@ function DraftBubble({
 
   return (
     <div className="group flex justify-end" style={{ marginBottom: 18 }}>
-      <div className="flex max-w-[85%] flex-col items-end">
+      <div className="relative flex max-w-[85%] flex-col items-end">
         <div
           className={cn("rounded-2xl bg-primary/10 px-3.5 py-2.5", isMobile && "select-none")}
           onContextMenu={(e) => {
@@ -337,54 +344,51 @@ function DraftBubble({
             ))}
           </div>
         )}
+        {/* 移动端：长按气泡后在消息下方弹出的操作面板（空间不足时改到上方） */}
+        {isMobile && (
+          <AnimatePresence>
+            {popOpen && (
+              <>
+                {/* 点击面板以外区域关闭（透明遮罩，不遮暗页面） */}
+                <div
+                  className="fixed inset-0 z-40"
+                  onPointerDown={() => setPopOpen(false)}
+                />
+                <motion.div
+                  className={cn(
+                    "absolute right-0 z-50 w-48 overflow-hidden rounded-xl border border-border/60 bg-background shadow-lg",
+                    popUpward ? "bottom-full mb-1.5" : "top-full mt-1.5",
+                  )}
+                  initial={{ opacity: 0, scale: 0.94, y: popUpward ? 4 : -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.94, y: popUpward ? 4 : -4 }}
+                  transition={{ duration: 0.14, ease: "easeOut" }}
+                  style={{ transformOrigin: popUpward ? "bottom right" : "top right" }}
+                >
+                  {actions.map((a) => (
+                    <button
+                      key={a.key}
+                      type="button"
+                      disabled={a.disabled}
+                      onClick={() => {
+                        setPopOpen(false);
+                        a.run();
+                      }}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 border-b border-border/30 px-3.5 py-2.5 text-left text-[13px] transition-colors active:bg-muted/50 disabled:opacity-40 last:border-b-0",
+                        a.danger ? "text-destructive" : "text-foreground",
+                      )}
+                    >
+                      <a.icon className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                      {a.label}
+                    </button>
+                  ))}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        )}
       </div>
-      {/* 移动端：长按气泡弹出的操作面板（底部动作表） */}
-      {isMobile && (
-        <AnimatePresence>
-          {sheetOpen && (
-            <div className="fixed inset-0 z-50">
-              <motion.div
-                className="absolute inset-0 bg-black/40"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={() => setSheetOpen(false)}
-              />
-              <motion.div
-                className="absolute inset-x-3 bottom-3 overflow-hidden rounded-2xl border border-border/60 bg-background shadow-xl"
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
-              >
-                <div className="border-b border-border/40 px-4 py-3 text-xs leading-relaxed text-muted-foreground/60 line-clamp-2">
-                  {draft.text}
-                </div>
-                {actions.map((a) => (
-                  <button
-                    key={a.key}
-                    type="button"
-                    disabled={a.disabled}
-                    onClick={() => {
-                      setSheetOpen(false);
-                      a.run();
-                    }}
-                    className={cn(
-                      "flex w-full items-center gap-3 border-b border-border/30 px-4 py-3 text-left text-sm transition-colors active:bg-muted/50 disabled:opacity-40 last:border-b-0",
-                      a.danger ? "text-destructive" : "text-foreground",
-                    )}
-                  >
-                    <a.icon className="h-4 w-4 shrink-0 opacity-70" />
-                    {a.label}
-                  </button>
-                ))}
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-      )}
     </div>
   );
 }
