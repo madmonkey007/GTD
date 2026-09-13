@@ -35,10 +35,10 @@ export function HabitStatsPanel({
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
-			{/* Header（移动端由 MobileTopBar 承接，隐藏标题避免双标题；+ 走右下角 FAB） */}
-			<div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
-				{!isMobile && <h2 className="text-sm font-semibold">{t("statsTitle")}</h2>}
-				{!isMobile && (
+			{/* Header（仅桌面端渲染：标题 + 添加按钮；移动端标题由 MobileTopBar 承接，+ 走右下角 FAB） */}
+			{!isMobile && (
+				<div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+					<h2 className="text-sm font-semibold">{t("statsTitle")}</h2>
 					<button
 						type="button"
 						onClick={onAddClick}
@@ -46,8 +46,8 @@ export function HabitStatsPanel({
 					>
 						<Plus className="h-4 w-4" />
 					</button>
-				)}
-			</div>
+				</div>
+			)}
 
 			{/* 移动端：与其他面板一致的右下角悬浮添加按钮 */}
 			{isMobile && (
