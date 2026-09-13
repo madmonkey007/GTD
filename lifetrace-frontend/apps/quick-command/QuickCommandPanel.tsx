@@ -6,9 +6,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { ArrowUp, BookOpen, Copy, Heart, History, ListTodo, Loader2, MoreVertical, Plus, Sparkles, Square, Trash2, X } from "lucide-react";
+import { ArrowUp, BookOpen, Copy, Heart, History, ListTodo, Loader2, Plus, Sparkles, Square, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { motion, type Variants } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { sendChatMessageStream, type ToolCallEvent } from "@/lib/api";
 import type { ChatMessage, ToolCallStep } from "@/apps/chat/types";
 import { useLocaleStore } from "@/lib/store/locale";
@@ -25,13 +25,8 @@ import { useJournalMutations } from "@/lib/query";
 import { toast } from "@/lib/toast";
 import { queryKeys } from "@/lib/query/keys";
 import { useChatSessions, useChatHistory } from "@/lib/query/chat";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { MessageBubble } from "@/apps/chat/components/chat-ui/index";
+import { cn } from "@/lib/utils";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
 
 // 三域工具全集：待办 + 笔记 + 习惯。后端 _build_instructions 检测到三类齐全
@@ -236,7 +231,7 @@ function CreatedEntityCard({ artifact, locale }: { artifact: Artifact; locale: s
   );
 }
 
-/** 收集箱草稿消息气泡：右侧 ... 菜单可转待办/转笔记/Agent 处理/删除 */
+/** 收集箱草稿消息气泡：桌面端 hover 在消息下方展示操作行，移动端长按弹出操作面板 */
 function DraftBubble({
   draft,
   locale,
@@ -257,6 +252,36 @@ function DraftBubble({
   onDelete: (d: InboxDraft) => void;
 }) {
   const zh = locale === "zh";
+  const isMobile = useIsMobile();
+  // 移动端长按弹出操作面板
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
+
+  const clearPressTimer = () => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  };
+  useEffect(() => clearPressTimer, []);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!isMobile) return;
+    pressStart.current = { x: e.clientX, y: e.clientY };
+    pressTimer.current = setTimeout(() => {
+      setSheetOpen(true);
+      pressTimer.current = null;
+    }, 450);
+  };
+  // 手指移动超过阈值视为滚动列表，取消长按
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!pressTimer.current || !pressStart.current) return;
+    if (Math.hypot(e.clientX - pressStart.current.x, e.clientY - pressStart.current.y) > 10) {
+      clearPressTimer();
+    }
+  };
+
   const createdLabel = (() => {
     const ts = Date.parse(draft.createdAt);
     if (!Number.isFinite(ts)) return "";
@@ -264,52 +289,102 @@ function DraftBubble({
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   })();
+
+  const actions = [
+    { key: "copy", icon: Copy, label: zh ? "复制" : "Copy", disabled: false, danger: false, run: () => onCopy(draft) },
+    { key: "todo", icon: ListTodo, label: zh ? "转为待办" : "Convert to todo", disabled: false, danger: false, run: () => onPromoteTodo(draft) },
+    { key: "note", icon: BookOpen, label: zh ? "转为笔记" : "Convert to note", disabled: false, danger: false, run: () => onPromoteNote(draft) },
+    { key: "agent", icon: Sparkles, label: zh ? "Agent 处理" : "Ask agent", disabled: isStreaming, danger: false, run: () => onSendAgent(draft) },
+    { key: "delete", icon: Trash2, label: zh ? "删除" : "Delete", disabled: false, danger: true, run: () => onDelete(draft) },
+  ];
+
   return (
-    <div className="flex justify-end" style={{ marginBottom: 18 }}>
-      <div className="group relative max-w-[85%] rounded-2xl bg-primary/10 px-3.5 py-2.5">
-        <p className="break-words whitespace-pre-wrap pr-4 text-sm leading-relaxed text-foreground">{draft.text}</p>
-        {/* hover 时底部显示创建时间（气泡外、消息间距内，不遮挡下一条） */}
-        {createdLabel && (
-          <span className="pointer-events-none absolute -bottom-5 right-1 text-[10px] text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60">
-            {createdLabel}
-          </span>
-        )}
-        <div className="absolute right-1.5 top-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label={zh ? "更多操作" : "More actions"}
-                className="flex h-4 w-4 items-center justify-center text-muted-foreground/50 hover:text-foreground"
-              >
-                <MoreVertical className="h-3.5 w-3.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" sideOffset={4}>
-              <DropdownMenuItem onSelect={() => onCopy(draft)}>
-                <Copy className="mr-2 h-4 w-4 text-muted-foreground" />
-                {zh ? "复制" : "Copy"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onPromoteTodo(draft)}>
-                <ListTodo className="mr-2 h-4 w-4 text-muted-foreground" />
-                {zh ? "转为待办" : "Convert to todo"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onPromoteNote(draft)}>
-                <BookOpen className="mr-2 h-4 w-4 text-muted-foreground" />
-                {zh ? "转为笔记" : "Convert to note"}
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={isStreaming} onSelect={() => onSendAgent(draft)}>
-                <Sparkles className="mr-2 h-4 w-4 text-muted-foreground" />
-                {zh ? "Agent 处理" : "Ask agent"}
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(draft)}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                {zh ? "删除" : "Delete"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <div className="group flex justify-end" style={{ marginBottom: 18 }}>
+      <div className="flex max-w-[85%] flex-col items-end">
+        <div
+          className={cn("rounded-2xl bg-primary/10 px-3.5 py-2.5", isMobile && "select-none")}
+          onContextMenu={(e) => {
+            if (isMobile) e.preventDefault();
+          }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={clearPressTimer}
+          onPointerCancel={clearPressTimer}
+          onPointerLeave={clearPressTimer}
+        >
+          <p className="break-words whitespace-pre-wrap text-sm leading-relaxed text-foreground">{draft.text}</p>
         </div>
+        {/* 桌面端：hover 时在消息下方展示操作行（占据固定空间，避免布局跳动） */}
+        {!isMobile && (
+          <div className="mt-1.5 flex h-7 w-full items-center justify-end gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+            {createdLabel && (
+              <span className="mr-auto text-[10px] text-muted-foreground/50">{createdLabel}</span>
+            )}
+            {actions.map((a) => (
+              <button
+                key={a.key}
+                type="button"
+                title={a.label}
+                disabled={a.disabled}
+                onClick={a.run}
+                className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-foreground/5 hover:text-foreground",
+                  a.danger && "hover:text-destructive",
+                )}
+              >
+                <a.icon className="h-3.5 w-3.5" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+      {/* 移动端：长按气泡弹出的操作面板（底部动作表） */}
+      {isMobile && (
+        <AnimatePresence>
+          {sheetOpen && (
+            <div className="fixed inset-0 z-50">
+              <motion.div
+                className="absolute inset-0 bg-black/40"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => setSheetOpen(false)}
+              />
+              <motion.div
+                className="absolute inset-x-3 bottom-3 overflow-hidden rounded-2xl border border-border/60 bg-background shadow-xl"
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
+              >
+                <div className="border-b border-border/40 px-4 py-3 text-xs leading-relaxed text-muted-foreground/60 line-clamp-2">
+                  {draft.text}
+                </div>
+                {actions.map((a) => (
+                  <button
+                    key={a.key}
+                    type="button"
+                    disabled={a.disabled}
+                    onClick={() => {
+                      setSheetOpen(false);
+                      a.run();
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-3 border-b border-border/30 px-4 py-3 text-left text-sm transition-colors active:bg-muted/50 disabled:opacity-40 last:border-b-0",
+                      a.danger ? "text-destructive" : "text-foreground",
+                    )}
+                  >
+                    <a.icon className="h-4 w-4 shrink-0 opacity-70" />
+                    {a.label}
+                  </button>
+                ))}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      )}
     </div>
   );
 }
@@ -335,7 +410,7 @@ export function QuickCommandPanel() {
     (value) => setInput(value),
   );
   const isVoiceRecording = useAudioRecordingStore((s) => s.isRecording);
-  // 收集箱草稿（仅本地）：Enter 存草稿；右上角收集箱入口可转待办/笔记或交给 agent
+  // 收集箱草稿（仅本地）：Enter 存草稿；桌面端 hover 气泡 / 移动端长按气泡可转待办/笔记或交给 agent
   const drafts = useInboxDraftStore((s) => s.drafts);
   const addDraft = useInboxDraftStore((s) => s.addDraft);
   const removeDraft = useInboxDraftStore((s) => s.removeDraft);
