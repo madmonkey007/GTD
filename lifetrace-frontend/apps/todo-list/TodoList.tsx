@@ -19,6 +19,7 @@ import {
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { MultiTodoContextMenu } from "@/components/common/context-menu/MultiTodoContextMenu";
 import { EmptyState } from "@/components/common/EmptyState";
 import type { DragData } from "@/lib/dnd";
@@ -608,19 +609,23 @@ export function TodoList() {
 					</AnimatePresence>
 
 					{!mobileComposerOpen && !specialMode && (
-						<motion.button
-							type="button"
-							onClick={() => setMobileComposerOpen(true)}
-							aria-label="新建待办"
-							initial={{ scale: 0, opacity: 0 }}
-							animate={{ scale: 1, opacity: 1 }}
-							exit={{ scale: 0, opacity: 0 }}
-							transition={{ type: "spring", stiffness: 300, damping: 22 }}
-							className="absolute right-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_20px_-6px_rgba(0,0,0,0.4)] transition-transform active:scale-95"
-							style={{ bottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }}
-						>
-							<Plus className="h-6 w-6" />
-						</motion.button>
+						/* portal 到 body：面板容器的 will-change: transform 会接管 fixed 定位基准，导致 FAB 偏高 */
+						createPortal(
+							<motion.button
+								type="button"
+								onClick={() => setMobileComposerOpen(true)}
+								aria-label="新建待办"
+								initial={{ scale: 0, opacity: 0 }}
+								animate={{ scale: 1, opacity: 1 }}
+								exit={{ scale: 0, opacity: 0 }}
+								transition={{ type: "spring", stiffness: 300, damping: 22 }}
+								className="fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_20px_-6px_rgba(0,0,0,0.4)] transition-transform active:scale-95"
+								style={{ bottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }}
+							>
+								<Plus className="h-6 w-6" />
+							</motion.button>,
+							document.body,
+						)
 					)}
 				</>
 			)}
