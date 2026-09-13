@@ -128,6 +128,10 @@ class SyncService:
             self._resolve_todo_parent(payload, op.depends_on)
             entity = self.todo_service.create_todo(TodoCreate.model_validate(payload))
         elif entity_type == "journal":
+            # Older offline clients persisted absent tags as null. Normalize at
+            # replay time so already queued creates can recover without data loss.
+            if payload.get("tags") is None:
+                payload["tags"] = []
             entity = _no_ai_title(self.journal_service.create_journal, JournalCreate.model_validate(payload))
         elif entity_type == "habit":
             entity = self.habit_service.create_habit(HabitCreate.model_validate(payload))

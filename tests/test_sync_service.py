@@ -145,6 +145,19 @@ def _op(
     }
 
 
+def test_legacy_journal_create_with_null_tags_syncs_and_replays(sync_service: SyncService) -> None:
+    request = _request("phone", _op("legacy", "journal.create", "legacy-note", {
+        "name": "旧笔记", "user_notes": "保留完整正文", "date": "2026-09-13T00:00:00Z",
+        "tags": None,
+    }))
+    first = sync_service.push(request).results[0]
+    assert first.status == "applied", first.error
+    assert first.entity["user_notes"] == "保留完整正文"
+    assert sync_service.push(request).results[0].status == "duplicate"
+    with sync_service.db_base.get_session() as session:
+        assert session.query(Journal).filter_by(uid="legacy-note").count() == 1
+
+
 def test_push_replays_an_operation_as_duplicate(sync_service: SyncService) -> None:
     request = _request(
         "phone",
