@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { ArrowUp, BookOpen, Copy, Heart, History, ListTodo, Loader2, Plus, Sparkles, Square, Trash2, X } from "lucide-react";
+import { ArrowUp, BookOpen, Check, Copy, Heart, History, ListTodo, Loader2, Pencil, Plus, Sparkles, Square, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { sendChatMessageStream, type ToolCallEvent } from "@/lib/api";
@@ -240,6 +240,7 @@ function DraftBubble({
   onPromoteTodo,
   onPromoteNote,
   onSendAgent,
+  onEdit,
   onDelete,
 }: {
   draft: InboxDraft;
@@ -249,10 +250,15 @@ function DraftBubble({
   onPromoteTodo: (d: InboxDraft) => void;
   onPromoteNote: (d: InboxDraft) => void;
   onSendAgent: (d: InboxDraft) => void;
+  onEdit: (d: InboxDraft, text: string) => void;
   onDelete: (d: InboxDraft) => void;
 }) {
   const zh = locale === "zh";
   const isMobile = useIsMobile();
+  // 编辑态：直接在原消息位置就地编辑
+  const [editing, setEditing] = useState(false);
+  const [draftText, setDraftText] = useState(draft.text);
+  const editRef = useRef<HTMLTextAreaElement>(null);
   // 移动端长按弹出操作面板（锚定在气泡下方；下方空间不足时改到上方）
   const [popOpen, setPopOpen] = useState(false);
   const [popUpward, setPopUpward] = useState(false);
@@ -266,6 +272,38 @@ function DraftBubble({
     }
   };
   useEffect(() => clearPressTimer, []);
+
+  // 进入编辑态时聚焦并定位光标到末尾
+  useEffect(() => {
+    if (editing && editRef.current) {
+      const ta = editRef.current;
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }
+  }, [editing]);
+
+  const startEditing = () => {
+    setDraftText(draft.text);
+    setEditing(true);
+  };
+  const cancelEditing = () => setEditing(false);
+  const saveDraft = () => {
+    const text = draftText.trim();
+    if (text && text !== draft.text) {
+      onEdit(draft, draftText);
+    }
+    setEditing(false);
+  };
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      saveDraft();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      cancelEditing();
+    }
+  };
 
   // 面板约 5 行操作的高度，预留输入区空间
   const POP_H = 250;
@@ -298,6 +336,7 @@ function DraftBubble({
   })();
 
   const actions = [
+    { key: "edit", icon: Pencil, label: zh ? "编辑" : "Edit", disabled: false, danger: false, run: startEditing },
     { key: "copy", icon: Copy, label: zh ? "复制" : "Copy", disabled: false, danger: false, run: () => onCopy(draft) },
     { key: "todo", icon: ListTodo, label: zh ? "转为待办" : "Convert to todo", disabled: false, danger: false, run: () => onPromoteTodo(draft) },
     { key: "note", icon: BookOpen, label: zh ? "转为笔记" : "Convert to note", disabled: false, danger: false, run: () => onPromoteNote(draft) },
@@ -307,9 +346,14 @@ function DraftBubble({
 
   return (
     <div className="group flex justify-end" style={{ marginBottom: 18 }}>
-      <div className="relative flex max-w-[85%] flex-col items-end">
+      <div
+        className={cn(
+          "relative flex flex-col items-end",
+          editing ? "w-full max-w-[92%]" : "max-w-[85%]",
+        )}
+      >
         <div
-          className={cn("rounded-2xl bg-primary/10 px-3.5 py-2.5", isMobile && "select-none")}
+          className={cn("rounded-2xl bg-primary/10 px-3.5 py-2.5", editing && "w-full", isMobile && "select-none")}
           onContextMenu={(e) => {
             if (isMobile) e.preventDefault();
           }}
@@ -319,7 +363,23 @@ function DraftBubble({
           onPointerCancel={clearPressTimer}
           onPointerLeave={clearPressTimer}
         >
-          <p className="break-words whitespace-pre-wrap text-sm leading-relaxed text-foreground">{draft.text}</p>
+          {editing ? (
+            <textarea
+              ref={editRef}
+              value={draftText}
+              onChange={(e) => {
+                setDraftText(e.target.value);
+                const ta = e.target;
+                ta.style.height = "auto";
+                ta.style.height = `${Math.min(ta.scrollHeight, 240)}px`;
+              }}
+              onKeyDown={handleEditKeyDown}
+              className="w-full resize-none overflow-y-auto bg-transparent text-sm leading-relaxed text-foreground outline-none"
+              style={{ height: `${Math.min(draftText.split("\n").length * 1.5 + 1, 8)}rem`, minHeight: "2.5rem" }}
+            />
+          ) : (
+            <p className="break-words whitespace-pre-wrap text-sm leading-relaxed text-foreground">{draft.text}</p>
+          )}
         </div>
         {/* 桌面端：hover 时在消息下方展示操作行（占据固定空间，避免布局跳动） */}
         {!isMobile && (
@@ -327,21 +387,43 @@ function DraftBubble({
             {createdLabel && (
               <span className="mr-auto text-[10px] text-muted-foreground/50">{createdLabel}</span>
             )}
-            {actions.map((a) => (
-              <button
-                key={a.key}
-                type="button"
-                title={a.label}
-                disabled={a.disabled}
-                onClick={a.run}
-                className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-foreground/5 hover:text-foreground",
-                  a.danger && "hover:text-destructive",
-                )}
-              >
-                <a.icon className="h-3.5 w-3.5" />
-              </button>
-            ))}
+            {editing ? (
+              <>
+                <button
+                  type="button"
+                  title={zh ? "保存" : "Save"}
+                  onClick={saveDraft}
+                  className="flex h-6 items-center gap-1 rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  {zh ? "保存" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  title={zh ? "取消" : "Cancel"}
+                  onClick={cancelEditing}
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-foreground/5 hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </>
+            ) : (
+              actions.map((a) => (
+                <button
+                  key={a.key}
+                  type="button"
+                  title={a.label}
+                  disabled={a.disabled}
+                  onClick={a.run}
+                  className={cn(
+                    "flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-foreground/5 hover:text-foreground",
+                    a.danger && "hover:text-destructive",
+                  )}
+                >
+                  <a.icon className="h-3.5 w-3.5" />
+                </button>
+              ))
+            )}
           </div>
         )}
         {/* 移动端：长按气泡后在消息下方弹出的操作面板（空间不足时改到上方） */}
@@ -417,6 +499,7 @@ export function QuickCommandPanel() {
   // 收集箱草稿（仅本地）：Enter 存草稿；桌面端 hover 气泡 / 移动端长按气泡可转待办/笔记或交给 agent
   const drafts = useInboxDraftStore((s) => s.drafts);
   const addDraft = useInboxDraftStore((s) => s.addDraft);
+  const updateDraft = useInboxDraftStore((s) => s.updateDraft);
   const removeDraft = useInboxDraftStore((s) => s.removeDraft);
   const pruneExpired = useInboxDraftStore((s) => s.pruneExpired);
   const { createTodo } = useTodoMutations();
@@ -749,6 +832,7 @@ export function QuickCommandPanel() {
                 onPromoteTodo={(draft) => void promoteDraft(draft)}
                 onPromoteNote={(draft) => void promoteDraftToNote(draft)}
                 onSendAgent={sendDraftToAgent}
+                onEdit={(draft, text) => updateDraft(draft.id, text)}
                 onDelete={(draft) => removeDraft(draft.id)}
               />
             ))}

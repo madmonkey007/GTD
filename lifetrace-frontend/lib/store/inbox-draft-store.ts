@@ -19,6 +19,7 @@ interface InboxDraftState {
 	/** 草稿失效时间（小时），设置页可改 */
 	expiryHours: number;
 	addDraft: (text: string) => void;
+	updateDraft: (id: string, text: string) => void;
 	removeDraft: (id: string) => void;
 	clearDrafts: () => void;
 	setExpiryHours: (hours: number) => void;
@@ -49,6 +50,12 @@ export const useInboxDraftStore = create<InboxDraftState>()(
 						...prune(s.drafts, s.expiryHours),
 						{ id: newId(), text: text.trim(), createdAt: new Date().toISOString() },
 					],
+				})),
+			updateDraft: (id, text) =>
+				set((s) => ({
+					drafts: s.drafts.map((d) =>
+						d.id === id ? { ...d, text: text.trim() } : d,
+					),
 				})),
 			removeDraft: (id) => set((s) => ({ drafts: s.drafts.filter((d) => d.id !== id) })),
 			clearDrafts: () => set({ drafts: [] }),

@@ -58,7 +58,7 @@ export function changePassword(oldPassword: string, newPassword: string): Promis
 export function resetPassword(email: string, newPassword: string): Promise<void> {
 	return customFetcher<void>("/api/auth/password/reset", {
 		method: "POST",
-		data: { email, newPassword },
+		data: { email, new_password: newPassword },
 	});
 }
 
